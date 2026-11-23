@@ -19,6 +19,8 @@ only to send traces and logs to your own OTLP backend.
 
 - Docker with **Docker Compose 2.24.4 or later** (`docker compose version`).
 - **4 GB of RAM** for the containers.
+- A **linux/amd64 or linux/arm64** host: every image is published for both,
+  Apple silicon included.
 - To run the smoke test (`deploy/community/smoke.sh`): **Node.js 22 or later** as well.
 
 The stack brings its own **PostgreSQL 18**, the only database it uses: one

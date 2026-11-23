@@ -1,7 +1,8 @@
 name: Images
 
 # Publishes one image per service to the GitHub Container Registry for each
-# release tag v<version>: ghcr.io/cybedefend/cybedefend-<name>:<version> and :latest.
+# release tag v<version>: ghcr.io/cybedefend/cybedefend-<name>:<version> and :latest,
+# for linux/amd64 and linux/arm64 (QEMU emulates arm64 on the amd64 runner).
 # Each image carries a build provenance attestation and an SBOM, and its digest
 # is signed with cosign, keyless (the workflow's OIDC identity): see « Verify an
 # image » in deploy/community/README.md.
@@ -21,7 +22,8 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    timeout-minutes: 60
+    # The arm64 half is emulated: a cold build takes several times longer.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -58,6 +60,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -84,6 +88,7 @@ jobs:
           # is created public; the index carries it too, since the attestations
           # make the pushed image an index.
           docker buildx build --push --provenance=true --sbom=true \
+            --platform linux/amd64,linux/arm64 \
             --label "org.opencontainers.image.source=https://github.com/CybeDefend/cybedefend" \
             --annotation "index:org.opencontainers.image.source=https://github.com/CybeDefend/cybedefend" \
             --label "org.opencontainers.image.licenses=AGPL-3.0-only" \

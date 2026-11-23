@@ -1,6 +1,6 @@
 {
   "name": "policy-management-service",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Policy Management microservice for CybeDefend - Security Policy as Code engine",
   "author": "CybeDefend",
   "private": true,
