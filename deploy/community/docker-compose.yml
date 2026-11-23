@@ -1,0 +1,1051 @@
+# CybeDefend AppSec Community Edition: the whole stack, one `docker compose up -d`.
+#
+#   (umask 077 && openssl rand -base64 32 > secret-key)   # the master key, a file of its own
+#   cp .env.example .env     # then set CYBEDEFEND_SETUP_TOKEN
+#   docker compose up -d
+#   open http://localhost:8080
+#
+# The MCP server for coding agents starts with the rest; README.md says how to
+# leave it out.
+# Build every image from source: docker compose -f docker-compose.yml -f docker-compose.build.yml build
+#
+# Three containers publish a host port: the web front (dashboard, 8080), the
+# object storage (storage, 9000) and the MCP server for coding agents
+# (mcp, 3010). Each listens on 127.0.0.1 unless CYBEDEFEND_BIND_ADDRESS says
+# otherwise: Docker's own firewall rules bypass the host's (ufw, firewalld), so
+# a port published on 0.0.0.0 serves plain HTTP to the whole network. Every
+# other container is reachable on the internal networks only.
+#
+# Every container runs on a read-only root filesystem: what it writes goes to
+# its volumes, to /tmp (memory, or a disk volume of its own for the services
+# that unpack archives, clone repositories or render reports) and to the few
+# memory-backed directories its image needs.
+#
+# Networks: `front` holds what publishes a port to users (dashboard, mcp) and
+# the gateway they talk to; `cybedefend`, the back network, holds every other
+# service, the gateway included. dashboard and mcp reach the gateway and
+# nothing behind it. The internal gRPC calls are signed besides (a key
+# init-secrets derives and hands to each service), so a container on the back
+# network that holds no key is refused too.
+
+name: cybedefend
+
+# Every container: no privilege gained through a setuid binary, and no Linux
+# capability unless its line below lists the few its image needs.
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  read_only: true
+
+# /tmp of the services that write little there; analysis-reporting,
+# file-management and external-integrations, which unpack archives, clone
+# repositories or render reports, mount a disk volume of their own instead.
+x-app-tmpfs: &app-tmpfs
+  - /tmp:size=256m
+
+x-app: &app
+  <<: *hardening
+  restart: unless-stopped
+  networks: [cybedefend]
+  volumes:
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+
+# The volumes of each service's containers: the shared ones above, plus the
+# service's own secrets volume (/run/cybedefend-secrets), which init-secrets
+# fills with that service's files only. No container of another service mounts it.
+x-volumes-gateway: &volumes-gateway
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+    # cybedefend-ignore[CD-IAC-0605]: the gateway's own secrets (the internal gRPC signing key), read-only; only init-secrets writes this volume
+    - secrets-gateway:/run/cybedefend-secrets:ro
+x-volumes-global-management: &volumes-global-management
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+    # cybedefend-ignore[CD-IAC-0605]: this service's own secrets (its database password, the derived keys it reads), read-only; only init-secrets writes this volume
+    - secrets-global-management:/run/cybedefend-secrets:ro
+x-volumes-analysis-reporting: &volumes-analysis-reporting
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+    # cybedefend-ignore[CD-IAC-0605]: this service's own secrets (its database password, the derived keys it reads), read-only; only init-secrets writes this volume
+    - secrets-analysis-reporting:/run/cybedefend-secrets:ro
+    # cybedefend-ignore[CD-IAC-0605]: an anonymous volume per container: large temporary files on disk, not in memory
+    - /tmp
+x-volumes-file-management: &volumes-file-management
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+    # cybedefend-ignore[CD-IAC-0605]: this service's own secrets (its database password, the derived keys it reads), read-only; only init-secrets writes this volume
+    - secrets-file-management:/run/cybedefend-secrets:ro
+    # cybedefend-ignore[CD-IAC-0605]: an anonymous volume per container: large temporary files on disk, not in memory
+    - /tmp
+x-volumes-external-integrations: &volumes-external-integrations
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+    # cybedefend-ignore[CD-IAC-0605]: this service's own secrets (its database password, the derived keys it reads), read-only; only init-secrets writes this volume
+    - secrets-external-integrations:/run/cybedefend-secrets:ro
+    # cybedefend-ignore[CD-IAC-0605]: an anonymous volume per container: repository clones on disk, not in memory
+    - /tmp
+    # The GitHub App's private key, when you put it there (github/README.md):
+    # GITHUB_PRIVATE_KEY_FILE=/run/cybedefend-github/private-key.pem.
+    - ./github:/run/cybedefend-github:ro
+x-volumes-policy-management: &volumes-policy-management
+    # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+    - runtime:/run/cybedefend:ro
+    # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+    - ./runtime:/opt/cybedefend/runtime:ro
+    # cybedefend-ignore[CD-IAC-0605]: this service's own secrets (its database password, the derived keys it reads), read-only; only init-secrets writes this volume
+    - secrets-policy-management:/run/cybedefend-secrets:ro
+
+# No service receives CYBEDEFEND_SECRET_KEY: init-secrets derives each key once
+# and hands each service only the ones it reads, as <KEY>_FILE.
+x-app-env: &app-env
+  CYBEDEFEND_EDITION: community
+  # Signs and checks every internal gRPC call; in every service's own secrets.
+  SERVICE_AUTH_KEY_FILE: /run/cybedefend-secrets/SERVICE_AUTH_KEY
+  # Verifies each caller a server serves: SERVICE_AUTH_PEER_KEY_<CALLER>, one file each.
+  SERVICE_AUTH_PEER_KEYS_DIR: /run/cybedefend-secrets
+  # Redis requires a password. The start hook (runtime/redis-auth.cjs) reads it
+  # from REDIS_PASSWORD_FILE, in the service's own secrets, and hands it to
+  # every Redis client of the process: REDIS_PASSWORD, and REDIS_URL and
+  # REALTIME_REDIS_URL rewritten to redis://:<password>@redis:6379.
+  REDIS_PASSWORD_FILE: /run/cybedefend-secrets/redis-password
+  NODE_OPTIONS: --require /opt/cybedefend/runtime/redis-auth.cjs
+  NODE_ENV: production
+  OTEL_DISABLED: "true"
+  REDIS_URL: redis://redis:6379
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REALTIME_REDIS_URL: redis://redis:6379
+  FRONTEND_URL: ${CYBEDEFEND_PUBLIC_URL:-http://localhost:8080}
+  PERMIFY_ENDPOINT: permify:3478
+  GRPC_URL_GLOBAL_MANAGEMENT_SERVICE: global-management:50051
+  GRPC_URL_SECURITY_SCANNING_SERVICE: security-scanning:50051
+  GRPC_URL_ANALYSIS_REPORTING_SERVICE: analysis-reporting:50051
+  GRPC_URL_FILE_MANAGEMENT_SERVICE: file-management:50051
+  GRPC_URL_EXTERNAL_INTEGRATIONS_SERVICE: external-integrations:50051
+  GRPC_URL_POLICY_MANAGEMENT_SERVICE: policy-management:50060
+
+# Every database service: the single PostgreSQL, one database each, which it
+# reaches as its own role (DB_USERNAME, set per service: the database's name),
+# owner of that database only. postgres-roles sets the roles up; the password
+# is derived by init-secrets into the service's own secrets volume.
+x-db-env: &db-env
+  DB_TYPE: postgres
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_PASSWORD_FILE: /run/cybedefend-secrets/db-password
+  DB_SSL_ENABLED: "false"
+
+# The services' own gRPC health service, through the grpc-js the image ships (NODE_PATH).
+# start_period covers the migrations, which run at boot.
+x-grpc-health: &grpc-health
+  test: ["CMD", "node", "/opt/cybedefend/runtime/grpc-health.cjs", "127.0.0.1:50051"]
+  interval: 10s
+  timeout: 5s
+  retries: 30
+  start_period: 120s
+
+x-job: &job
+  <<: *hardening
+  image: node:26.12.1-alpine3.24@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797
+  restart: "no"
+  networks: [cybedefend]
+  tmpfs:
+    - /tmp:size=16m
+
+services:
+  # ─── Infrastructure ────────────────────────────────────────────────────────
+  postgres:
+    <<: *hardening
+    # The image's entrypoint starts as root, takes ownership of the data
+    # directory, then drops to the postgres user.
+    # cybedefend-ignore[CD-IAC-1922]: every other capability is dropped; the image starts as root and needs these to set up its files and switch to an unprivileged user
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    image: postgres:18.7-alpine3.24@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
+    restart: unless-stopped
+    networks: [cybedefend]
+    # The server's socket and lock file, and its temporary files.
+    tmpfs:
+      - /var/run/postgresql:size=1m
+      - /tmp:size=64m
+    environment:
+      POSTGRES_USER: cybedefend
+      # The superuser's password, derived by init-secrets: read once, when the
+      # data directory is new (an earlier instance keeps its own until
+      # postgres-roles moves it to this one).
+      POSTGRES_PASSWORD_FILE: /run/cybedefend-secrets/superuser-password
+      POSTGRES_DB: postgres
+    volumes:
+      # The image keeps its data in /var/lib/postgresql/18/docker (PGDATA):
+      # the volume is mounted on its parent, as the image declares.
+      # cybedefend-ignore[CD-IAC-0605]: a named volume mounted by the database container only
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # cybedefend-ignore[CD-IAC-0605]: the server's own secrets volume (the superuser's password), read-only; only init-secrets writes it
+      - secrets-postgres-server:/run/cybedefend-secrets:ro
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+    healthcheck:
+      # Through TCP: the image's init phase listens on the Unix socket only,
+      # so this succeeds once init.sql has run and the real server is up.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "cybedefend", "-d", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis:
+    <<: *hardening
+    # Runs as the image's redis user from the start, with no capability. Started
+    # as root, the image's entrypoint walks /data to take ownership of it, and
+    # root without capabilities cannot enter the append-only directory Redis
+    # created there on the first start: the second start failed. The volume is
+    # already owned by this user (the image's /data, and every earlier start).
+    user: "999:1000"
+    image: redis:7.4.12-alpine3.21@sha256:c5d34a98396a4775e223c74e929162c35c5a2182901ba26b50ade939941ce14b
+    restart: unless-stopped
+    networks: [cybedefend]
+    tmpfs:
+      - /tmp:size=16m
+    # Every client must authenticate. The password reaches redis-server on its
+    # standard input, as a configuration read from `-`, never on its command
+    # line.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        password="$$(cat /run/cybedefend-secrets/redis-password)" && [ -n "$$password" ] || { echo "redis: /run/cybedefend-secrets/redis-password is missing or empty" >&2; exit 1; }
+        exec docker-entrypoint.sh redis-server - --appendonly yes <<EOF
+        requirepass $$password
+        EOF
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: a named volume mounted by the Redis container only
+      - redis-data:/data
+      # cybedefend-ignore[CD-IAC-0605]: Redis's own secrets volume (its password), read-only; only init-secrets writes it
+      - secrets-redis:/run/cybedefend-secrets:ro
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+    healthcheck:
+      # redis-cli reads the password from REDISCLI_AUTH, never from its arguments.
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$(cat /run/cybedefend-secrets/redis-password)\" redis-cli ping | grep -qx PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # The only container that holds the master key. Derives every secret of
+  # the stack from it (runtime/derive-secrets.mjs) into one volume per
+  # consumer, mounted here at /run/cybedefend-secrets/<consumer>: each file
+  # mode 0400, owned by the uid that reads it. It also removes the copy of the
+  # storage secret an earlier version left in the shared runtime volume.
+  #
+  # The key is a file of the host (CYBEDEFEND_SECRET_KEY_PATH, ./secret-key by
+  # default), mounted as a secret: it never appears in the container's
+  # configuration (docker inspect). CYBEDEFEND_SECRET_KEY in .env, the earlier
+  # way, is still read when it is set, with a warning (README, Upgrade). The
+  # job has no network at all.
+  # cybedefend-ignore[CD-IAC-2464]: a one-shot job that exits once the secrets are written; the services wait for its successful completion instead
+  init-secrets:
+    <<: *hardening
+    image: node:26.12.1-alpine3.24@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797
+    restart: "no"
+    network_mode: none
+    tmpfs:
+      - /tmp:size=16m
+    # CHOWN gives each file to the uid that reads it; DAC_READ_SEARCH reads the
+    # key file whichever host user owns it (mode 600).
+    # cybedefend-ignore[CD-IAC-1922]: every other capability is dropped; CHOWN to hand each consumer's files to its uid, DAC_READ_SEARCH to read the operator's mode-600 key file
+    cap_add: [CHOWN, DAC_READ_SEARCH]
+    command: ["node", "/opt/cybedefend/runtime/derive-secrets.mjs", "/run/cybedefend-secrets", "/run/cybedefend"]
+    secrets:
+      - cybedefend-secret-key
+    environment:
+      CYBEDEFEND_SECRET_KEY_FILE: /run/secrets/cybedefend-secret-key
+      # Only when an earlier instance's .env still sets it.
+      CYBEDEFEND_SECRET_KEY:
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file
+      - ./runtime:/opt/cybedefend/runtime:ro
+      # cybedefend-ignore[CD-IAC-0605]: written only to remove the storage secret an earlier version kept there
+      - runtime:/run/cybedefend
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-gateway:/run/cybedefend-secrets/gateway
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-global-management:/run/cybedefend-secrets/global-management
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-security-scanning:/run/cybedefend-secrets/security-scanning
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-analysis-reporting:/run/cybedefend-secrets/analysis-reporting
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-file-management:/run/cybedefend-secrets/file-management
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-external-integrations:/run/cybedefend-secrets/external-integrations
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-policy-management:/run/cybedefend-secrets/policy-management
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-permify:/run/cybedefend-secrets/permify
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-permify-schema:/run/cybedefend-secrets/permify-schema
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-redis:/run/cybedefend-secrets/redis
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-storage:/run/cybedefend-secrets/storage
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-postgres:/run/cybedefend-secrets/postgres
+      # cybedefend-ignore[CD-IAC-0605]: this job is the only writer of each secrets volume; its consumer mounts it read-only
+      - secrets-postgres-server:/run/cybedefend-secrets/postgres-server
+
+  # One PostgreSQL role per database (postgres/roles.sh): login only, owner of
+  # its own database and of every object in it, no other right; every other
+  # role is refused at that database. It logs in as the superuser with the
+  # password init-secrets derives (its own secrets volume); on an instance an
+  # earlier version installed, whose superuser password was POSTGRES_PASSWORD,
+  # it moves the superuser to the derived password once, logging in with the
+  # POSTGRES_PASSWORD .env still sets. Runs at every start: on an instance
+  # where the superuser owned everything, it hands each database over.
+  # cybedefend-ignore[CD-IAC-2464]: a one-shot job that exits once the roles are set up; the services wait for its successful completion instead
+  postgres-roles:
+    <<: *hardening
+    image: postgres:18.7-alpine3.24@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
+    restart: "no"
+    networks: [cybedefend]
+    tmpfs:
+      - /tmp:size=16m
+    entrypoint: ["sh", "/opt/cybedefend/postgres/roles.sh", "/run/cybedefend-secrets"]
+    environment:
+      PGHOST: postgres
+      PGUSER: cybedefend
+      # Empty on an instance this version installed. Remove POSTGRES_PASSWORD
+      # from .env once the job has logged that the superuser moved.
+      POSTGRES_PREVIOUS_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - ./postgres:/opt/cybedefend/postgres:ro
+      # cybedefend-ignore[CD-IAC-0605]: the SCRAM verifiers of the roles, read-only; only init-secrets writes this volume
+      - secrets-postgres:/run/cybedefend-secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      init-secrets:
+        condition: service_completed_successfully
+
+  # The object storage is two containers in one network namespace.
+  #
+  # storage: an nginx stream relay, the only listener on the network
+  # (0.0.0.0:9000 → 127.0.0.1:8333, bytes untouched, so SigV4 and presigned
+  # URLs are unaffected). It owns the namespace, the published port, the
+  # networks and the name `storage`, and starts first.
+  #
+  # storage-server: SeaweedFS, which joins that namespace. SeaweedFS also
+  # serves the S3 gRPC API (SeaweedS3IamCache: PutIdentity, PutPolicy… with no
+  # authentication) on -s3.ip.bind, port + 10000, and 4.52 has no flag to turn
+  # it off or bind it apart: with S3 on 127.0.0.1:8333 it stays on
+  # 127.0.0.1:18333, out of reach of every other container. A SeaweedFS crash
+  # restarted by Docker rejoins the relay's live namespace; the relay, which
+  # does not crash, is the one that must not be the joiner.
+  #
+  # Networks: storage-net (internal, no gateway) holds the containers that
+  # have the admin S3 credentials (file-management, its cron, storage-init)
+  # and those that use a URL signed on S3_ENDPOINT, with no credential (the
+  # gateway PUTs an import, analysis-reporting's worker GETs it, its reports
+  # worker PUTs a report, the external-integrations worker PUTs a repository
+  # archive): through the relay they reach only the S3 HTTP API,
+  # which checks every signature. storage-publish exists only so that the
+  # host port works, for the presigned URLs browsers use.
+  storage:
+    <<: *hardening
+    # nginx's master process starts as root and runs its workers as nginx.
+    # cybedefend-ignore[CD-IAC-1922]: every other capability is dropped; the image starts as root and needs these to set up its files and switch to an unprivileged user
+    cap_add: [CHOWN, SETGID, SETUID]
+    image: nginx:1.31.9-alpine3.24@sha256:0713660ff64e819a478be0d69ae314e52d21623c93672edd9f381a6e66fd95ff
+    restart: unless-stopped
+    networks: [storage-net, storage-publish]
+    entrypoint: ["nginx", "-g", "daemon off;"]
+    tmpfs:
+      - /tmp:size=16m
+    # cybedefend-ignore[CD-IAC-0626]: published on purpose: browsers upload and download files through presigned URLs on this port, on 127.0.0.1 unless CYBEDEFEND_BIND_ADDRESS is set; put your TLS proxy in front of it
+    ports:
+      - "${CYBEDEFEND_BIND_ADDRESS:-127.0.0.1}:${CYBEDEFEND_STORAGE_PORT:-9000}:9000"
+    volumes:
+      - ./storage/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      # Through the relay to the S3 API: healthy once SeaweedFS answers behind it.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  # SeaweedFS, one process: master, volume, filer and S3 API, every one of them
+  # on the namespace loopback. Authentication is on because AWS_ACCESS_KEY_ID
+  # and AWS_SECRET_ACCESS_KEY are set (one admin identity, in memory only); an
+  # empty secret would turn it off, so it refuses to start without one. No
+  # telemetry is sent (-master.telemetry=false). Each new collection reserves 7
+  # volumes and SeaweedFS allows 8 by default, so the bucket could get none
+  # when another collection wrote first: 100 volumes of 1 GiB at most, sparse
+  # files (no preallocation), leave room for every collection.
+  storage-server:
+    <<: *hardening
+    # The image's entrypoint starts as root, takes ownership of /data, then
+    # drops to the seaweed user.
+    # cybedefend-ignore[CD-IAC-1922]: every other capability is dropped; the image starts as root and needs these to set up its files and switch to an unprivileged user
+    cap_add: [CHOWN, SETGID, SETUID]
+    image: chrislusf/seaweedfs:4.52@sha256:57877e32bb90073b37dc109b438ba66e84fd5ed9ced5f5c04f56444ef243ce59
+    restart: unless-stopped
+    network_mode: "service:storage"
+    tmpfs:
+      - /tmp:size=64m
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        secret="$$(cat /run/cybedefend-secrets/storage-secret-key)" && [ -n "$$secret" ]
+        || { echo "storage-server: /run/cybedefend-secrets/storage-secret-key is missing or empty" >&2; exit 1; };
+        export AWS_ACCESS_KEY_ID=cybedefend AWS_SECRET_ACCESS_KEY="$$secret";
+        exec /entrypoint.sh server -ip=127.0.0.1 -ip.bind=127.0.0.1
+        -s3 -s3.ip.bind=127.0.0.1 -s3.port=8333 -s3.port.iceberg=0 -s3.port.lance=0
+        -volume.max=100 -master.volumeSizeLimitMB=1024
+        -master.telemetry=false
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+      storage:
+        condition: service_started
+        # A new relay container is a new namespace: Compose restarts SeaweedFS with it.
+        restart: true
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: a named volume mounted by the object storage server only
+      - storage-data:/data
+      # cybedefend-ignore[CD-IAC-0605]: the storage's own secrets volume, read-only, to read the derived storage secret; only init-secrets writes it
+      - secrets-storage:/run/cybedefend-secrets:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8333/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # Creates the bucket once the storage answers: a signed S3 PUT bucket, the
+  # secret handed to curl on its standard input. The filer may still be
+  # starting behind a healthy S3 API, so it retries for a minute.
+  # cybedefend-ignore[CD-IAC-2464]: a one-shot job that exits once the bucket exists; file-management waits for its successful completion instead
+  storage-init:
+    <<: *hardening
+    image: chrislusf/seaweedfs:4.52@sha256:57877e32bb90073b37dc109b438ba66e84fd5ed9ced5f5c04f56444ef243ce59
+    restart: "no"
+    networks: [storage-net]
+    tmpfs:
+      - /tmp:size=16m
+    entrypoint:
+      - sh
+      - -c
+      - |
+        secret="$$(cat /run/cybedefend-secrets/storage-secret-key)" && [ -n "$$secret" ] || { echo "storage-init: /run/cybedefend-secrets/storage-secret-key is missing or empty" >&2; exit 1; }
+        answer="$$(mktemp)"
+        i=0
+        while :; do
+          code="$$(printf 'user = "cybedefend:%s"\n' "$$secret" | curl -sS -o "$$answer" -w '%{http_code}' -K - --aws-sigv4 aws:amz:us-east-1:s3 -X PUT http://storage:9000/cybedefend)" || code=000
+          if [ "$$code" = 200 ] || { [ "$$code" = 409 ] && grep -q BucketAlreadyOwnedByYou "$$answer"; }; then
+            echo "bucket cybedefend ready"
+            exit 0
+          fi
+          i=$$((i + 1))
+          [ "$$i" -lt 30 ] || { echo "storage-init: could not create the bucket cybedefend (HTTP $$code)" >&2; exit 1; }
+          sleep 2
+        done
+    depends_on:
+      storage-server:
+        condition: service_healthy
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: the storage's own secrets volume, read-only, to read the derived storage secret; only init-secrets writes it
+      - secrets-storage:/run/cybedefend-secrets:ro
+
+  permify:
+    <<: *hardening
+    image: ghcr.io/permify/permify:v1.7.6@sha256:dcee61e6a2819726369594c6fb23aabb3de484694f6f53435d26a2ab6fbe7974
+    restart: unless-stopped
+    networks: [cybedefend]
+    tmpfs:
+      - /tmp:size=16m
+    # Answers only the calls that carry the preshared key: its configuration
+    # (authn, written by init-secrets) turns preshared-key authentication on.
+    command: ["serve", "--config", "/run/cybedefend-secrets/permify.yaml"]
+    environment:
+      PERMIFY_DATABASE_ENGINE: postgres
+      # Its own role, owner of the database permify only. The image has no
+      # shell, and its driver reads the password from PGPASSFILE.
+      PERMIFY_DATABASE_URI: postgres://permify@postgres:5432/permify?sslmode=disable
+      PGPASSFILE: /run/cybedefend-secrets/pgpass
+      PERMIFY_HTTP_ENABLED: "true"
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: Permify's own secrets volume, read-only; only init-secrets writes it
+      - secrets-permify:/run/cybedefend-secrets:ro
+    depends_on:
+      postgres-roles:
+        condition: service_completed_successfully
+    healthcheck:
+      # The image ships grpc_health_probe next to permify.
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:3478"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # Writes the authorization schema to Permify and its version to the runtime volume.
+  # cybedefend-ignore[CD-IAC-2464]: a one-shot job that exits once the schema is written; the services wait for its successful completion instead
+  permify-schema:
+    <<: *job
+    command: ["node", "/opt/cybedefend/permify/load-schema.mjs"]
+    environment:
+      PERMIFY_URL: http://permify:3476
+      PERMIFY_SCHEMA_PATH: /schema/schema.perm
+      PERMIFY_SCHEMA_VERSION_OUT: /run/cybedefend/permify-schema-version
+      PERMIFY_PRESHARED_KEY_FILE: /run/cybedefend-secrets/permify-preshared-key
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: this job's own secrets (the Permify key), read-only; only init-secrets writes this volume
+      - secrets-permify-schema:/run/cybedefend-secrets:ro
+      - ./permify:/opt/cybedefend/permify:ro
+      - ../../charts/cybedefend/files/schema.perm:/schema/schema.perm:ro
+      # cybedefend-ignore[CD-IAC-0605]: this job writes the schema version that the services read from the volume, read-only
+      - runtime:/run/cybedefend
+    depends_on:
+      permify:
+        condition: service_started
+
+  # ─── CybeDefend services ───────────────────────────────────────────────────
+  global-management:
+    <<: *app
+    tmpfs: *app-tmpfs
+    image: ghcr.io/cybedefend/cybedefend-global-management:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    volumes: *volumes-global-management
+    environment:
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_global_management
+      DB_USERNAME: cybedefend_global_management
+      # The only container that can unseal the sign-in signing keys.
+      AUTH_SIGNING_KEY_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/AUTH_SIGNING_KEY_ENCRYPTION_KEY
+      AUTH_RESET_REQUESTER_HMAC_KEY_FILE: /run/cybedefend-secrets/AUTH_RESET_REQUESTER_HMAC_KEY
+      PERMIFY_PRESHARED_KEY_FILE: /run/cybedefend-secrets/permify-preshared-key
+      NODE_PATH: /app/global-management-service/node_modules
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      AUTH_SIGNUP_MODE: ${AUTH_SIGNUP_MODE:-invite_only}
+      CYBEDEFEND_SETUP_TOKEN: ${CYBEDEFEND_SETUP_TOKEN:?set CYBEDEFEND_SETUP_TOKEN in .env (openssl rand -base64 32)}
+      # SMTP, all optional: an unset variable is not passed at all.
+      EMAIL_HOST:
+      EMAIL_PORT:
+      EMAIL_SECURE:
+      EMAIL_USER:
+      EMAIL_PASSWORD:
+      EMAIL_FROM:
+    depends_on:
+      postgres-roles:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      permify-schema:
+        condition: service_completed_successfully
+    healthcheck: *grpc-health
+
+  security-scanning:
+    <<: *app
+    tmpfs: *app-tmpfs
+    image: ghcr.io/cybedefend/cybedefend-security-scanning:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    environment: &security-scanning-env
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_scanning
+      DB_USERNAME: cybedefend_scanning
+      SCAN_METADATA_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/SCAN_METADATA_ENCRYPTION_KEY
+      NODE_PATH: /app/security-scanning-service/node_modules
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      # Required by its configuration schema only: security-scanning opens no
+      # S3 connection (file-management does), so it is not on storage-net.
+      STORAGE_PROVIDER: s3
+      S3_ENDPOINT: http://storage:9000
+      S3_BUCKET_NAME: cybedefend
+      # Scans on a connected Kubernetes cluster (unset: import-only). The pods
+      # fetch the archive from the storage's public address and send their
+      # results to FRONTEND_URL.
+      S3_PUBLIC_ENDPOINT: ${CYBEDEFEND_STORAGE_PUBLIC_URL:-http://localhost:9000}
+      CYBEDEFEND_SCANNER_KUBECONFIG_FILE: ${CYBEDEFEND_SCANNER_KUBECONFIG_FILE:-}
+      CYBEDEFEND_SCANNER_NAMESPACE: ${CYBEDEFEND_SCANNER_NAMESPACE:-}
+      CYBEDEFEND_SCANNER_IMAGE_REGISTRY: ${CYBEDEFEND_SCANNER_IMAGE_REGISTRY:-}
+      CYBEDEFEND_SCANNER_IMAGE_TAG: ${CYBEDEFEND_SCANNER_IMAGE_TAG:-}
+      CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET: ${CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET:-}
+      CYBEDEFEND_SCANNER_MAX_CONCURRENT: ${CYBEDEFEND_SCANNER_MAX_CONCURRENT:-}
+      CYBEDEFEND_SCANNER_RESOURCES: ${CYBEDEFEND_SCANNER_RESOURCES:-}
+      CYBEDEFEND_SCANNER_KEEP_PODS: ${CYBEDEFEND_SCANNER_KEEP_PODS:-}
+      CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS: ${CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS:-}
+      CYBEDEFEND_SCANNER_TRIVY_DB_REPOSITORY: ${CYBEDEFEND_SCANNER_TRIVY_DB_REPOSITORY:-}
+      CYBEDEFEND_SCANNER_TRIVY_JAVA_DB_REPOSITORY: ${CYBEDEFEND_SCANNER_TRIVY_JAVA_DB_REPOSITORY:-}
+    # The kubeconfig of a connected cluster, when there is one
+    # (cluster/README.md); an empty folder otherwise.
+    volumes: &security-scanning-volumes
+      # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
+      - runtime:/run/cybedefend:ro
+      # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
+      - ./runtime:/opt/cybedefend/runtime:ro
+      # cybedefend-ignore[CD-IAC-0605]: this service's own secrets (its database password, the derived key it reads), read-only; only init-secrets writes this volume
+      - secrets-security-scanning:/run/cybedefend-secrets:ro
+      - ./cluster:/run/cybedefend-cluster:ro
+    depends_on:
+      global-management:
+        condition: service_healthy
+    healthcheck: *grpc-health
+
+  # The import watchdog (fails an import stuck past its deadline) and, with a
+  # cluster, the scan queue and the scan pods' watchdog: it reads the same
+  # kubeconfig.
+  # cybedefend-ignore[CD-IAC-2464]: a scheduled loop that serves no endpoint to probe; Docker restarts it if it exits
+  security-scanning-cron:
+    <<: *app
+    tmpfs: *app-tmpfs
+    image: ghcr.io/cybedefend/cybedefend-security-scanning:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    environment:
+      <<: *security-scanning-env
+      APP_MODE: cron
+    volumes: *security-scanning-volumes
+    depends_on:
+      security-scanning:
+        condition: service_healthy
+
+  analysis-reporting:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-analysis-reporting:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    volumes: *volumes-analysis-reporting
+    environment: &analysis-reporting-env
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_analysis_and_reporting
+      DB_USERNAME: cybedefend_analysis_and_reporting
+      SECRET_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/SECRET_ENCRYPTION_KEY
+      NODE_PATH: /app/analysis-reporting-service/node_modules
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+    depends_on:
+      global-management:
+        condition: service_healthy
+    healthcheck: *grpc-health
+
+  # Result ingestion (BullMQ). The API above runs the migrations first.
+  analysis-reporting-worker:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-analysis-reporting:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    # GETs an imported file through a URL signed on S3_ENDPOINT.
+    networks: [cybedefend, storage-net]
+    volumes: *volumes-analysis-reporting
+    environment:
+      <<: *analysis-reporting-env
+      APP_MODE: worker
+    depends_on:
+      analysis-reporting:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9095/internal/queue-metrics').then((r) => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # Report generation.
+  # cybedefend-ignore[CD-IAC-2464]: a queue consumer that serves no endpoint to probe; Docker restarts it if it exits
+  analysis-reporting-worker-reports:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-analysis-reporting:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    # PUTs a generated report through a URL signed on S3_ENDPOINT.
+    networks: [cybedefend, storage-net]
+    volumes: *volumes-analysis-reporting
+    environment:
+      <<: *analysis-reporting-env
+      APP_MODE: worker-reports
+    depends_on:
+      analysis-reporting:
+        condition: service_healthy
+
+  file-management:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-file-management:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    networks: [cybedefend, storage-net]
+    volumes: *volumes-file-management
+    # Uploaded archives are size-checked and filtered entry by entry
+    # (FULL_SCAN_MAX_* limits); this bound keeps the host's memory safe anyway.
+    mem_limit: ${CYBEDEFEND_FILE_MANAGEMENT_MEMORY:-1g}
+    environment: &file-management-env
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_file_management
+      DB_USERNAME: cybedefend_file_management
+      NODE_PATH: /app/file-management-service/node_modules
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      STORAGE_PROVIDER: s3
+      S3_ENDPOINT: http://storage:9000
+      # Signed URLs handed to browsers use the public address of the storage.
+      S3_PUBLIC_ENDPOINT: ${CYBEDEFEND_STORAGE_PUBLIC_URL:-http://localhost:9000}
+      S3_BUCKET_NAME: cybedefend
+      AWS_REGION: us-east-1
+      S3_ACCESS_KEY_ID: cybedefend
+      S3_SECRET_ACCESS_KEY_FILE: /run/cybedefend-secrets/storage-secret-key
+    depends_on:
+      postgres-roles:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+    healthcheck: *grpc-health
+
+  # Upload timeouts, ready uploads and orphan objects.
+  # cybedefend-ignore[CD-IAC-2464]: a scheduled loop that serves no endpoint to probe; Docker restarts it if it exits
+  file-management-cron:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-file-management:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    networks: [cybedefend, storage-net]
+    volumes: *volumes-file-management
+    # Filters the uploaded archives, several at once: the memory bound of the
+    # container that inflates them.
+    mem_limit: ${CYBEDEFEND_FILE_MANAGEMENT_CRON_MEMORY:-2g}
+    environment:
+      <<: *file-management-env
+      APP_MODE: cron
+    depends_on:
+      file-management:
+        condition: service_healthy
+
+  external-integrations:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-external-integrations:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    volumes: *volumes-external-integrations
+    environment: &external-integrations-env
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_external_integrations
+      DB_USERNAME: cybedefend_external_integrations
+      CONTAINER_REGISTRY_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/CONTAINER_REGISTRY_ENCRYPTION_KEY
+      GITLAB_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/GITLAB_ENCRYPTION_KEY
+      NODE_PATH: /app/external-integrations-service/node_modules
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      GATEWAY_URL: ${CYBEDEFEND_PUBLIC_URL:-http://localhost:8080}/api
+      APP_PUBLIC_URL: ${CYBEDEFEND_PUBLIC_URL:-http://localhost:8080}
+      ALLOWED_SCAN_IPS: ${CYBEDEFEND_SUBNET:-172.30.240.0/24}
+      GITLAB_API_URL: ${GITLAB_API_URL:-https://gitlab.com/api/v4}
+      # Integrations, all optional: an unset variable is not passed at all.
+      GITHUB_APP_ID:
+      GITHUB_PRIVATE_KEY:
+      GITHUB_PRIVATE_KEY_FILE:
+      GITHUB_WEBHOOK_SECRET:
+      GITHUB_CLIENT_ID:
+      GITHUB_CLIENT_SECRET:
+      GITLAB_APPLICATION_ID:
+      GITLAB_APPLICATION_SECRET:
+      JIRA_CLIENT_ID:
+      JIRA_CLIENT_SECRET:
+      LINEAR_CLIENT_ID:
+      LINEAR_CLIENT_SECRET:
+      LINEAR_WEBHOOK_SECRET:
+      SLACK_CLIENT_ID:
+      SLACK_CLIENT_SECRET:
+    depends_on:
+      global-management:
+        condition: service_healthy
+    healthcheck: *grpc-health
+
+  # Repository scans (BullMQ): the scans a GitHub or GitLab push or a
+  # repository link starts, and the pushes deferred while a scan of their
+  # branch was running. The API above only queues them.
+  external-integrations-worker:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-external-integrations:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    # PUTs the repository archive through a URL signed on S3_ENDPOINT.
+    networks: [cybedefend, storage-net]
+    volumes: *volumes-external-integrations
+    environment:
+      <<: *external-integrations-env
+      APP_MODE: worker
+    depends_on:
+      postgres-roles:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      external-integrations:
+        condition: service_healthy
+    # Any answer below 500 passes, a 401 with QUEUE_METRICS_TOKEN set included: it only proves the process listens.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9095/internal/queue-metrics').then((r) => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  policy-management:
+    <<: *app
+    tmpfs: *app-tmpfs
+    image: ghcr.io/cybedefend/cybedefend-policy-management:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    volumes: *volumes-policy-management
+    environment: &policy-management-env
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_policy
+      DB_USERNAME: cybedefend_policy
+      NODE_PATH: /app/policy-management-service/node_modules
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      GRPC_URL: 0.0.0.0:50060
+    depends_on:
+      postgres-roles:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      <<: *grpc-health
+      test: ["CMD", "node", "/opt/cybedefend/runtime/grpc-health.cjs", "127.0.0.1:50060"]
+
+  # Policy evaluation (BullMQ). It serves nothing, so its check is that Redis, its queue, answers.
+  policy-management-worker:
+    <<: *app
+    tmpfs: *app-tmpfs
+    image: ghcr.io/cybedefend/cybedefend-policy-management:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    volumes: *volumes-policy-management
+    environment:
+      <<: *policy-management-env
+      APP_MODE: worker
+    depends_on:
+      policy-management:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(6379, 'redis').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  gateway:
+    <<: *app
+    tmpfs: *app-tmpfs
+    image: ghcr.io/cybedefend/cybedefend-gateway:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    # front: the bundled front and mcp reach it. cybedefend: it reaches the
+    # services. storage-net: it PUTs an imported file through a URL signed on
+    # S3_ENDPOINT.
+    networks: [cybedefend, front, storage-net]
+    volumes: *volumes-gateway
+    environment:
+      <<: *app-env
+      PERMIFY_PRESHARED_KEY_FILE: /run/cybedefend-secrets/permify-preshared-key
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      # nginx serves the gateway under /api, so the refresh cookie lives under /api/auth.
+      AUTH_COOKIE_PATH: /api/auth
+      APP_PUBLIC_URL: ${CYBEDEFEND_PUBLIC_URL:-http://localhost:8080}
+      AUTH_COOKIE_INSECURE_LOCALHOST: ${AUTH_COOKIE_INSECURE_LOCALHOST:-false}
+      # Only the bundled front, on the front network, may forward a client address.
+      TRUSTED_PROXY_CIDRS: ${CYBEDEFEND_SUBNET:-172.30.240.0/24}
+      # The gateway builds the GitLab authorize URL (optional integration).
+      GITLAB_API_URL: ${GITLAB_API_URL:-https://gitlab.com/api/v4}
+      GITLAB_APPLICATION_ID:
+    depends_on:
+      global-management:
+        condition: service_healthy
+      security-scanning:
+        condition: service_healthy
+      analysis-reporting:
+        condition: service_healthy
+      file-management:
+        condition: service_healthy
+      external-integrations:
+        condition: service_healthy
+      policy-management:
+        condition: service_healthy
+      permify-schema:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # The web interface, and the API under /api (nginx in front of the gateway).
+  dashboard:
+    <<: *hardening
+    image: ghcr.io/cybedefend/cybedefend-dashboard:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    restart: unless-stopped
+    # Published: it reaches the gateway, nothing behind it.
+    networks: [front]
+    # The rendered configuration (/tmp/conf.d, /tmp/cybedefend), config.js
+    # (/tmp, served by the template at /config.js) and nginx's own cache.
+    # mode=1777: nginx runs as a user of its own, and a tmpfs is root's, with
+    # the mode of the image's directory, unless it says otherwise.
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /tmp/conf.d:size=1m,mode=1777
+      - /var/cache/nginx:size=64m,mode=1777
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      # Renders CYBEDEFEND_TRUSTED_PROXIES into the front's real-ip directives
+      # before nginx starts; an invalid value stops the container.
+      - ./nginx/entrypoint.d/15-cybedefend-trusted-proxies.sh:/docker-entrypoint.d/15-cybedefend-trusted-proxies.sh:ro
+    environment:
+      NGINX_ENVSUBST_OUTPUT_DIR: /tmp/conf.d
+      # Where the image's start script writes config.js.
+      CYBEDEFEND_HTML_DIR: /tmp
+      CYBEDEFEND_TRUSTED_PROXIES: ${CYBEDEFEND_TRUSTED_PROXIES:-}
+      GATEWAY_UPSTREAM: gateway:3000
+      CYBEDEFEND_STORAGE_PUBLIC_URL: ${CYBEDEFEND_STORAGE_PUBLIC_URL:-http://localhost:9000}
+      CYBEDEFEND_API_URL: /api
+      CYBEDEFEND_PUBLIC_URL: ${CYBEDEFEND_PUBLIC_URL:-http://localhost:8080}
+      GITHUB_APP_URL: ${GITHUB_APP_URL:-}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID:-}
+      JIRA_CLIENT_ID: ${JIRA_CLIENT_ID:-}
+    # cybedefend-ignore[CD-IAC-0626]: published on purpose: this is the web interface and the API entry point, on 127.0.0.1 unless CYBEDEFEND_BIND_ADDRESS is set; put your TLS proxy in front of it
+    ports:
+      - "${CYBEDEFEND_BIND_ADDRESS:-127.0.0.1}:${CYBEDEFEND_HTTP_PORT:-8080}:8080"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # ─── One-shot jobs on a schedule (the cloud's CronJobs) ────────────────────
+  # Report e-mails and report retention.
+  # cybedefend-ignore[CD-IAC-2464]: a scheduler of one-shot jobs that serves no endpoint to probe; Docker restarts it if it exits
+  scheduler-analysis-reporting:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-analysis-reporting:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    entrypoint: ["node", "/opt/cybedefend/runtime/scheduler.mjs", "/opt/cybedefend/runtime/schedules/analysis-reporting.json"]
+    volumes: *volumes-analysis-reporting
+    environment:
+      <<: [*app-env, *db-env]
+      DB_DATABASE: cybedefend_analysis_and_reporting
+      DB_USERNAME: cybedefend_analysis_and_reporting
+      SECRET_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/SECRET_ENCRYPTION_KEY
+      PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+    depends_on:
+      analysis-reporting:
+        condition: service_healthy
+
+  # Jira webhook refresh.
+  # cybedefend-ignore[CD-IAC-2464]: a scheduler of one-shot jobs that serves no endpoint to probe; Docker restarts it if it exits
+  scheduler-external-integrations:
+    <<: *app
+    image: ghcr.io/cybedefend/cybedefend-external-integrations:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    entrypoint: ["node", "/opt/cybedefend/runtime/scheduler.mjs", "/opt/cybedefend/runtime/schedules/external-integrations.json"]
+    volumes: *volumes-external-integrations
+    environment:
+      <<: *external-integrations-env
+    depends_on:
+      external-integrations:
+        condition: service_healthy
+
+  # ─── MCP server for coding agents
+  mcp:
+    <<: *hardening
+    image: ghcr.io/cybedefend/cybedefend-mcp:${CYBEDEFEND_VERSION:?set CYBEDEFEND_VERSION in .env to the release version (.env.example names it)}
+    restart: unless-stopped
+    # Published: it reaches the gateway, and its own session store.
+    networks: [front, mcp-sessions]
+    tmpfs:
+      - /tmp:size=64m
+    environment:
+      CYBEDEFEND_EDITION: community
+      OTEL_DISABLED: "true"
+      NODE_ENV: production
+      PORT: "3010"
+      CYBEDEFEND_API_RESOURCE: http://gateway:3000
+      PUBLIC_URL: ${CYBEDEFEND_MCP_PUBLIC_URL:-http://localhost:3010}
+      # Required in production: the web interface's address, in its links.
+      FRONTEND_URL: ${CYBEDEFEND_PUBLIC_URL:-http://localhost:8080}
+      # Its sessions survive a restart of the container, in a Redis of its
+      # own: the shared one holds the services' queues.
+      REDIS_URL: redis://mcp-redis:6379
+      # Its rate limit counts per client address. Behind your TLS proxy every
+      # agent arrives from the proxy's address: it takes the client's from
+      # X-Forwarded-For only from the proxies the front trusts.
+      TRUST_PROXY_CIDR: ${CYBEDEFEND_TRUSTED_PROXIES:-}
+    # cybedefend-ignore[CD-IAC-0626]: published on purpose: coding agents reach the MCP server on this port, on 127.0.0.1 unless CYBEDEFEND_BIND_ADDRESS is set; put your TLS proxy in front of it
+    ports:
+      - "${CYBEDEFEND_BIND_ADDRESS:-127.0.0.1}:${CYBEDEFEND_MCP_PORT:-3010}:3010"
+    depends_on:
+      gateway:
+        condition: service_healthy
+      mcp-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3010/health').then((r) => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # mcp's session store, on a network only mcp joins.
+  mcp-redis:
+    <<: *hardening
+    # The image's redis user from the start, with no capability (see redis).
+    user: "999:1000"
+    image: redis:7.4.12-alpine3.21@sha256:c5d34a98396a4775e223c74e929162c35c5a2182901ba26b50ade939941ce14b
+    restart: unless-stopped
+    networks: [mcp-sessions]
+    tmpfs:
+      - /tmp:size=16m
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      # cybedefend-ignore[CD-IAC-0605]: a named volume mounted by mcp's Redis container only
+      - mcp-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+networks:
+  # The back network: every service but the published ones.
+  cybedefend: {}
+  # The published containers and the gateway (see the top of this file). Its
+  # subnet is the gateway's trusted proxy range.
+  front:
+    ipam:
+      config:
+        - subnet: ${CYBEDEFEND_SUBNET:-172.30.240.0/24}
+  # mcp and its session store only.
+  mcp-sessions:
+    internal: true
+  # The storage and the holders of its credentials only (see storage).
+  storage-net:
+    internal: true
+  # The storage alone: what its published host port goes through.
+  storage-publish: {}
+
+volumes:
+  postgres-data: {}
+  redis-data: {}
+  storage-data: {}
+  # Shared, read-only for the services, holds no secret (the Permify schema version).
+  runtime: {}
+  # One per consumer, written by init-secrets only (see init-secrets).
+  secrets-gateway: {}
+  secrets-global-management: {}
+  secrets-security-scanning: {}
+  secrets-analysis-reporting: {}
+  secrets-file-management: {}
+  secrets-external-integrations: {}
+  secrets-policy-management: {}
+  secrets-permify: {}
+  secrets-permify-schema: {}
+  secrets-redis: {}
+  secrets-storage: {}
+  secrets-postgres: {}
+  secrets-postgres-server: {}
+  mcp-redis-data: {}
+
+secrets:
+  # The master key (at least 32 random bytes, base64 or hex), mounted into
+  # init-secrets only. Create it once, readable by you alone:
+  #   (umask 077 && openssl rand -base64 32 > secret-key)
+  # A missing file stops `docker compose up` with the path it looked for.
+  cybedefend-secret-key:
+    file: ${CYBEDEFEND_SECRET_KEY_PATH:-./secret-key}

@@ -1,0 +1,16 @@
+{
+  "components": {
+    "resultsContainerTable": {
+      "imageName": "Image Name",
+      "scannedImage": "Scanned Image",
+      "description": "Select an image to see its vulnerabilities and packages.",
+      "title": "Container Vulnerabilities",
+      "cve": "CVE",
+      "cve_one": "CVE",
+      "cve_other": "CVEs",
+      "fixedVersion": "Fixed Version",
+      "packageGroup_one": "package",
+      "packageGroup_other": "packages"
+    }
+  }
+}

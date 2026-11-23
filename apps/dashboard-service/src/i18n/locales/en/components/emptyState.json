@@ -1,0 +1,8 @@
+{
+  "components": {
+    "emptyState": {
+      "noProject": "You don't have any projects yet. Create one, then import your scanners' results.",
+      "noVuln": "No vulnerabilities detected on this project."
+    }
+  }
+}

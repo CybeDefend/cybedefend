@@ -1,0 +1,11 @@
+{
+    "components": {
+        "modal": {
+            "displayPat": {
+                "title": "Personal Access Token Created",
+                "token": "Your Token",
+                "copySave": "Copy and save this token now. You won't be able to see it again."
+            }
+        }
+    }
+}

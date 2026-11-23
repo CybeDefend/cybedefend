@@ -1,0 +1,9 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "modals": {
+        "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer cette équipe ? La suppression d'une équipe supprimera tous les utilisateurs et projets qui lui sont associés."
+      }
+    }
+  }
+}

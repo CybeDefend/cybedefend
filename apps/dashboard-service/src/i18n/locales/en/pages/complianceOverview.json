@@ -1,0 +1,86 @@
+{
+  "pages": {
+    "complianceOverview": {
+      "title": "Compliance Overview",
+      "description": "Monitor compliance status across all projects in your organization",
+      "backToPolicies": "Back to Policies",
+      "managePolicies": "Manage Policies",
+      
+      "status": {
+        "compliant": "Compliant",
+        "nonCompliant": "Non-Compliant",
+        "pending": "Pending"
+      },
+      
+      "stats": {
+        "totalProjects": "Total Projects",
+        "compliant": "Compliant",
+        "nonCompliant": "Non-Compliant",
+        "pending": "Pending",
+        "complianceRate": "Compliance Rate",
+        "activePolicies": "Active Policies",
+        "pointsOverPeriod": "pts over the period",
+        "overPeriod": "over the period",
+        "points": "{{value}} pts",
+        "trendCompliant": "Compliant projects over the period",
+        "trendNonCompliant": "Non-compliant projects over the period",
+        "trendRate": "Compliance rate over the period"
+      },
+      
+      "charts": {
+        "trendTitle": "Compliance Trend",
+        "trendDescription": "Project compliance over time",
+        "breakdownTitle": "Violation Breakdown",
+        "breakdownDescription": "Violations by rule type",
+        "noData": "No trend data available",
+        "noViolations": "No violations found",
+        "total": "Total",
+        "blocked": "Blocked",
+        "warned": "Warned"
+      },
+      
+      "filters": {
+        "searchPlaceholder": "Search projects...",
+        "filters": "Filters",
+        "refresh": "Refresh",
+        "export": "Export",
+        "status": "Status",
+        "allStatuses": "All Statuses",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "sortBy": "Sort By",
+        "sortByBlocked": "Blocked Count",
+        "sortByWarned": "Warned Count",
+        "sortByTotal": "Total Violations",
+        "sortByLastEvaluated": "Last Evaluated",
+        "sortByName": "Project Name",
+        "clearAll": "Clear all filters"
+      },
+      
+      "table": {
+        "title": "Projects Compliance",
+        "description": "Compliance status for all projects",
+        "projectName": "Project",
+        "status": "Status",
+        "blocked": "Blocked",
+        "warnings": "Warnings",
+        "totalViolations": "Total",
+        "lastEvaluated": "Last Evaluated",
+        "actions": "Actions",
+        "view": "View",
+        "noProjects": "No projects found",
+        "never": "Never"
+      },
+      
+      "error": {
+        "title": "Failed to load data",
+        "retry": "Try Again"
+      },
+      
+      "allCompliant": {
+        "title": "All Projects Compliant!",
+        "description": "Great job! All your projects are meeting the security policy requirements."
+      }
+    }
+  }
+}

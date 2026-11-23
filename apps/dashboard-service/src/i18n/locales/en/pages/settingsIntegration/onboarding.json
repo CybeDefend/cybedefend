@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "settingsIntegration": {
+      "onboarding": {
+        "title": "Finally, you can setup integrations.",
+        "subtitle": "Connect your favorite tools to get the most out of your workflow."
+      }
+    }
+  }
+}

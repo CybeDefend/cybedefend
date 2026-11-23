@@ -1,0 +1,10 @@
+{
+  "components": {
+    "sidebar": {
+      "menu": {
+        "noTeamsFound": "No Teams Found",
+        "noTeamsDescription": "We couldn't find any teams in this organization."
+      }
+    }
+  }
+}

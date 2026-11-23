@@ -1,0 +1,9 @@
+{
+  "components": {
+    "projectOverview": {
+      "state": {
+        "title": "Vulnerabilities by state"
+      }
+    }
+  }
+}

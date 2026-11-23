@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "settingsOrganization": {
+      "toast": {
+        "deleteUserError": "An error occurred while deleting the user.",
+        "updateRoleError": "An error occurred while updating the user's role.",
+        "inviteSuccess": "Invitation sent successfully.",
+        "inviteError": "An error occurred while adding the new user.",
+        "cancelInviteSuccess": "Invitation canceled successfully.",
+        "cancelInviteError": "An error occurred while canceling the invitation.",
+        "deleteUserSuccess": "User removed from the organization.",
+        "updateRoleSuccess": "Role updated."
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "pages": {
+    "projectReports": {
+      "title": "Reports",
+      "description": "Generate security reports for your project in different formats.",
+      "errorFetchingProject": "Error fetching project",
+      "reportGeneratedSuccess": "Report generated successfully",
+      "reportDownloadedSuccess": "Report downloaded successfully",
+      "generateReport": "Generate Report",
+      "reportType": "Report Type",
+      "format": "Format",
+      "selectReportType": "Select report type",
+      "selectFormat": "Select format",
+      "generate": "Generate",
+      "download": "Download",
+      "clear": "Clear",
+      "preview": "Preview",
+      "previewLoading": "Loading preview…",
+      "previewError": "Unable to load the preview. Please try downloading the report instead.",
+      "pdfReady": "PDF report ready to download",
+      "reportReady": "report ready",
+      "noReportGenerated": "No Report Generated",
+      "noReportDescription": "Select a report type and format above, then click Generate to create your report.",
+      "owaspReport": "OWASP Top 10 Report",
+      "owaspDescription": "Generate a comprehensive OWASP Top 10 security report in JSON, HTML, or PDF format.",
+      "cweReport": "CWE Top 25 Report",
+      "cweDescription": "Generate a comprehensive CWE Top 25 2024 security report in JSON, HTML, or PDF format.",
+      "branchFilter": "Branch",
+      "detailedReport": "Detailed Report",
+      "detailedDescription": "Include additional details and examples in the report",
+      "reportTypes": {
+        "sbom": "SBOM (Software Bill of Materials)",
+        "owasp": "OWASP Top 10",
+        "cwe": "CWE Top 25"
+      }
+    }
+  }
+}

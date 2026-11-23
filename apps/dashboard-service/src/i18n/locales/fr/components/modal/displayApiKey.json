@@ -1,0 +1,11 @@
+{
+  "components": {
+    "modal": {
+      "displayApiKey": {
+        "title": "Votre nouvelle clé API",
+        "apiKey": "Clé API",
+        "copySave": "Veuillez copier votre clé API maintenant. Vous ne pourrez plus la voir !"
+      }
+    }
+  }
+}

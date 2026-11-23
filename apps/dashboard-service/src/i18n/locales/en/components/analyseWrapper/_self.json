@@ -1,0 +1,26 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "backToProjects": "Back to projects",
+      "backToVulnerabilities": "Back to vulnerabilities",
+      "issuesOf": "Issues of",
+      "settings": "Settings",
+      "scanInProgress": "Scan in progress...",
+      "state": "State",
+      "startScan": "Start Scan",
+      "addImage": "Add Image",
+      "startNewScan": "Start a new scan",
+      "start": "Start",
+      "uploadZipFile": "Upload a .zip file",
+      "uploadDescription": "Upload the source code of your project to begin the analysis.",
+      "branchScanDescription": "The scan will analyze the latest commit on this branch.",
+      "scanBranchLabel": "Branch to scan",
+      "selectBranchToScan": "Select branch to scan",
+      "selectBranch": "Select a branch",
+      "branchNameLabel": "Branch name",
+      "branchNamePlaceholder": "e.g., main, master, develop...",
+      "branchNameDescription": "Specify the branch name for this code to help organize your scan results.",
+      "branchNameRequired": "Branch name is required"
+    }
+  }
+}

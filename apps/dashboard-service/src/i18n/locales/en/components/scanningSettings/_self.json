@@ -1,0 +1,8 @@
+{
+  "components": {
+    "scanningSettings": {
+      "configure": "Configure",
+      "manageLicenses": "License Classifications"
+    }
+  }
+}

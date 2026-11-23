@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Scan Complete - {{projectName}}</title>
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      table {
+        border-collapse: collapse;
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+      }
+      img {
+        border: 0;
+        height: auto;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+        -ms-interpolation-mode: bicubic;
+      }
+      a {
+        text-decoration: none;
+      }
+      @media only screen and (max-width: 600px) {
+        .email-container {
+          width: 100% !important;
+        }
+        .mobile-padding {
+          padding: 15px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f3f4f6;">
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      width="100%"
+      style="background-color:#f3f4f6;"
+    >
+      <tr>
+        <td align="center" style="padding:20px 0;">
+          <table
+            role="presentation"
+            cellspacing="0"
+            cellpadding="0"
+            width="600"
+            class="email-container"
+            style="background-color:#ffffff;max-width:600px;margin:0 auto;"
+          >
+            <tr>
+              <td>
+                {{!-- Header with gradient banner --}}
+                {{> reportHeader}}
+
+                {{!-- Main Content --}}
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td style="padding:30px 24px;">
+                      {{!-- Completion Banner --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="background:linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);border-radius:12px;border-left:4px solid #16A34A;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="padding:20px 24px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                              <tr>
+                                <td style="vertical-align:middle;width:48px;">
+                                  <div style="width:48px;height:48px;background:#16A34A;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                                    <span style="font-size:24px;color:#fff;">&#10003;</span>
+                                  </div>
+                                </td>
+                                <td style="vertical-align:middle;padding-left:16px;">
+                                  <h2 style="margin:0;font-family:Arial,sans-serif;font-size:20px;color:#166534;font-weight:700;">
+                                    Scan Complete
+                                  </h2>
+                                  <p style="margin:4px 0 0 0;font-family:Arial,sans-serif;font-size:14px;color:#15803D;">
+                                    Your {{scannerType}} scan has finished successfully
+                                  </p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Title --}}
+                      <h1 style="margin:0 0 8px 0;font-family:Arial,sans-serif;font-size:24px;color:#111827;font-weight:700;">
+                        {{userName}}, your scan results are ready
+                      </h1>
+                      <p style="margin:0 0 24px 0;font-family:Arial,sans-serif;font-size:14px;color:#6b7280;">
+                        {{todayDate}} &bull; Project: <strong>{{projectName}}</strong>{{#if branch}} &bull; Branch: <strong>{{branch}}</strong>{{/if}}
+                      </p>
+
+                      {{!-- Scanner Type Indicator --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td>
+                            <span style="display:inline-block;background:#EEF2FF;color:#3730A3;padding:8px 16px;border-radius:6px;font-family:Arial,sans-serif;font-size:13px;font-weight:600;">
+                              Scanner: {{scannerType}}
+                            </span>
+                            {{#if branch}}
+                            <span style="display:inline-block;background:#F0FDF4;color:#166534;padding:8px 16px;border-radius:6px;font-family:Arial,sans-serif;font-size:13px;font-weight:600;margin-left:8px;">
+                              &#x1F33F; {{branch}}
+                            </span>
+                            {{/if}}
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Severity Breakdown --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="background:#f9fafb;border-radius:12px;padding:24px;border:1px solid #e5e7eb;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="padding:24px;">
+                            <h3 style="margin:0 0 16px 0;font-family:Arial,sans-serif;font-size:16px;color:#374151;font-weight:700;">
+                              {{totalVulnerabilities}} {{#if (eq totalVulnerabilities 1)}}vulnerability{{else}}vulnerabilities{{/if}} found
+                            </h3>
+                            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                              <tr>
+                                <td align="center">
+                                  <table cellpadding="0" cellspacing="0" role="presentation" style="display:inline-block;">
+                                    <tr>
+                                      {{#each severities}}
+                                        <td style="padding:0 8px;">
+                                          <div style="background:{{color}};color:#fff;border-radius:8px;padding:12px 20px;text-align:center;min-width:80px;">
+                                            <div style="font-size:24px;font-weight:700;margin-bottom:4px;">{{count}}</div>
+                                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.95;">{{label}}</div>
+                                          </div>
+                                        </td>
+                                      {{/each}}
+                                    </tr>
+                                  </table>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Type Breakdown --}}
+                      {{#if showTypeBreakdown}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="padding:16px 24px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+                            <table cellpadding="0" cellspacing="0" role="presentation">
+                              <tr>
+                                {{#each typeBreakdown}}
+                                  <td style="padding-right:24px;">
+                                    <span style="font-family:Arial,sans-serif;font-size:13px;color:#6b7280;">
+                                      <strong style="color:#111827;">{{label}}</strong>: {{count}}
+                                    </span>
+                                  </td>
+                                {{/each}}
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      {{/if}}
+
+                      {{!-- Top Vulnerabilities List --}}
+                      {{#if vulnerabilities.length}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="background:#F9FAFB;border-bottom:2px solid #E5E7EB;padding:16px 24px;">
+                            <h3 style="margin:0;font-family:Arial,sans-serif;font-size:16px;color:#374151;font-weight:700;">
+                              Top Vulnerabilities
+                            </h3>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:20px 24px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                              {{#each vulnerabilities}}
+                                {{> reportVulnItem}}
+                              {{/each}}
+                            </table>
+
+                            {{#if hasMore}}
+                              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px;">
+                                <tr>
+                                  <td align="center">
+                                    <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#6B7280;font-weight:600;">
+                                      + {{remainingCount}} more {{#if (eq remainingCount 1)}}vulnerability{{else}}vulnerabilities{{/if}} not shown
+                                    </p>
+                                  </td>
+                                </tr>
+                              </table>
+                            {{/if}}
+                          </td>
+                        </tr>
+                      </table>
+                      {{/if}}
+
+                      {{!-- Action Button --}}
+                      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:24px;">
+                        <tr>
+                          <td align="center">
+                            <a
+                              href="{{scanUrl}}" {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path; no user or tenant value chooses its scheme }}
+                              style="display:inline-block;background:#7845FF;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-family:Arial,sans-serif;font-size:15px;font-weight:700;box-shadow:0 4px 6px rgba(120, 69, 255, 0.3);"
+                            >
+                              View Full Scan Results
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                {{!-- Footer --}}
+                {{> reportFooter
+                  notificationSettingsUrl=notificationSettingsUrl
+                  currentYear=currentYear
+                }}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

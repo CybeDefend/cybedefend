@@ -1,0 +1,11 @@
+{
+  "components": {
+    "scanningSettings": {
+      "badges": {
+        "aiFeature": "Agent Cybe",
+        "enabled": "Enabled",
+        "cybeAutofix": "Cybe Autofix"
+      }
+    }
+  }
+}

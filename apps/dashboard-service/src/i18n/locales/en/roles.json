@@ -1,0 +1,82 @@
+{
+  "roles": {
+    "creator": "Creator",
+    "teamManager": "Team Manager",
+    "analystDeveloper": "Analyst Developer",
+    "developer": "Developer",
+    "readOnly": "Read Only",
+    "administrator": "Administrator",
+    "manager": "Manager",
+    "billingManager": "Billing Manager",
+    "member": "Member",
+    "explanations": {
+      "ariaLabel": "Role permissions",
+      "triggerLabel": "Show role permissions",
+      "empty": "Select a role to see the permissions it grants.",
+      "creator": {
+        "title": "Creator",
+        "description": "Full control over the organization, including billing, integrations, teams, users and policies.",
+        "communityDescription": "Full control over the organization: integrations, teams, users and policies."
+      },
+      "administrator": {
+        "title": "Administrator",
+        "description": "Full control over the organization identical to a Creator, including billing, integrations, teams, users and policies.",
+        "communityDescription": "Full control over the organization identical to a Creator: integrations, teams, users and policies."
+      },
+      "manager": {
+        "title": "Manager",
+        "description": "Can manage integrations, invite or remove members and create teams. No billing access and cannot delete policies.",
+        "communityDescription": "Can manage integrations, invite or remove members and create teams. Cannot delete policies."
+      },
+      "billing_manager": {
+        "title": "Billing Manager",
+        "description": "Read-only access to the organization plus full control over billing settings."
+      },
+      "member": {
+        "title": "Member",
+        "description": "Read-only access to the organization, its users and its policies."
+      },
+      "team_manager": {
+        "title": "Team Manager",
+        "description": "Manages the team: members, roles, projects, reports and policy violations."
+      },
+      "analyst_developer": {
+        "title": "Analyst Developer",
+        "description": "Runs scans, triages vulnerabilities and creates or reads reports across the team projects."
+      },
+      "developer": {
+        "title": "Developer",
+        "description": "Runs scans and updates vulnerability states on the team projects."
+      },
+      "read_only": {
+        "title": "Read Only",
+        "description": "Read-only access to the team, its effective policies and compliance history."
+      }
+    },
+    "permissions": {
+      "read": "View the organization, its teams and its projects",
+      "billing": "Access and manage billing, plans and invoices",
+      "manage_integration": "Connect and manage integrations (GitHub, GitLab, Jira, Slack, registries)",
+      "manage": "Change the organization settings and administrative data",
+      "read_user": "View members of the organization",
+      "update_user_role": "Change the roles of other members",
+      "add_user": "Invite new members to the organization",
+      "remove_user": "Remove members from the organization",
+      "create_team": "Create and organize teams",
+      "read_policy": "View the organization policies",
+      "manage_policy": "Create, edit and assign policies",
+      "delete_policy": "Delete policies from the organization",
+      "create_project": "Create new projects inside the team",
+      "read_log": "View the team audit logs",
+      "read_scan_result": "View scan results across the team projects",
+      "change_vulnerability_state": "Triage vulnerabilities (confirm, reject, mark as false positive)",
+      "read_report": "View security reports",
+      "create_report": "Generate security reports",
+      "archive_report": "Archive security reports",
+      "start_scan": "Trigger scans on the team projects",
+      "read_effective_policy": "View the effective policy resolved for a project",
+      "read_compliance_history": "View the compliance history of the team",
+      "read_policy_violation": "View policy violations on the team projects"
+    }
+  }
+}

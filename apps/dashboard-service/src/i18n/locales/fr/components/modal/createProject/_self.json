@@ -1,0 +1,62 @@
+{
+  "components": {
+    "modal": {
+      "createProject": {
+        "title": "Créer un nouveau projet",
+        "createProject": "Créer un projet",
+        "projectName": "Nom du projet",
+        "enterProjectName": "Entrez le nom du projet",
+        "selectTeam": "Sélectionner une équipe",
+        "selectATeam": "Sélectionnez une équipe",
+        "teamAutoSelected": "Équipe sélectionnée automatiquement :",
+        "githubImport": "Importation GitHub",
+        "gitlabImport": "Importation GitLab",
+        "manualCreation": "Création manuelle",
+        "continueWithGithub": "Continuer avec GitHub",
+        "createFromGithub": "Créer depuis un Dépôt GitHub",
+        "importFromGithub": "Importer un dépôt existant depuis GitHub pour créer un nouveau projet",
+        "continueWithGitlab": "Continuer avec GitLab",
+        "createFromGitlab": "Créer depuis un Dépôt GitLab",
+        "importFromGitlab": "Importer un dépôt existant depuis GitLab pour créer un nouveau projet",
+        "step1Title": "Dépôt",
+        "step2Title": "Informations du projet",
+        "step3Title": "Contexte de sécurité",
+        "stepIndicator": {
+          "current": "Étape {{current}} sur {{total}}"
+        },
+        "step1": {
+          "repoStepDescriptionGithub": "Choisissez un dépôt GitHub à lier à ce projet. Le nom du projet sera pré-rempli depuis le dépôt.",
+          "repoStepDescriptionGitlab": "Choisissez un dépôt GitLab à lier à ce projet. Le nom du projet sera pré-rempli depuis le dépôt.",
+          "notConnectedGithub": "GitHub n'est pas encore connecté à cette organisation.",
+          "notConnectedGitlab": "GitLab n'est pas encore connecté à cette organisation.",
+          "connectGithub": "Connecter GitHub",
+          "connectGitlab": "Connecter GitLab",
+          "searchRepoPlaceholder": "Rechercher un dépôt",
+          "searchRepoLabel": "Rechercher parmi les dépôts",
+          "noReposAvailable": "Aucun dépôt disponible à lier",
+          "repoListLabel": "Dépôts disponibles",
+          "selectedTag": "Sélectionné"
+        },
+        "step3": {
+          "description": "Décrivez votre projet pour que nous puissions évaluer les vulnérabilités dans le bon contexte métier. Vous pouvez passer cette étape. Les valeurs par défaut seront appliquées et le contexte restera modifiable depuis les paramètres du projet."
+        },
+        "coach": {
+          "intro": "Choisissez comment ajouter votre projet : importez depuis GitHub/GitLab, ou créez-le manuellement.",
+          "repoPicker": "Choisissez le dépôt à lier.",
+          "basics": "Nommez votre projet et choisissez son équipe.",
+          "securityContext": "Ajoutez le contexte de sécurité pour que nous évaluions les vulnérabilités correctement (ou passez cette étape).",
+          "success": "🎉 Projet créé ! Copiez cette commande pour connecter votre agent IA.",
+          "dismiss": "Fermer"
+        },
+        "buttons": {
+          "next": "Suivant",
+          "back": "Retour",
+          "skipAndCreate": "Ignorer et créer",
+          "create": "Créer le projet",
+          "done": "Terminé",
+          "later": "Plus tard"
+        }
+      }
+    }
+  }
+}

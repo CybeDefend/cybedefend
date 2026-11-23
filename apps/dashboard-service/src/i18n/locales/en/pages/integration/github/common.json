@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "common": {
+          "copyright": "© CybeDefend SAS — GNU AGPL v3",
+          "backToChoice": "Back to Choice",
+          "backToHome": "Back to Home",
+          "loadingRepositories": "Loading repositories...",
+          "loadingProjects": "Loading projects...",
+          "selectRepo": "Select a Repository",
+          "action": "Action",
+          "repository": "Repository",
+          "projectName": "Project Name",
+          "select": "Select",
+          "link": "Link",
+          "status": "Status",
+          "github": "GitHub"
+        }
+      }
+    }
+  }
+}

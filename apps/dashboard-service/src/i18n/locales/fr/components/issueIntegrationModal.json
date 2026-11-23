@@ -1,0 +1,36 @@
+{
+  "components": {
+    "issueIntegrationModal": {
+      "title": {
+        "github": "Intégration GitHub issues",
+        "gitlab": "Intégration GitLab issues"
+      },
+      "description": {
+        "github": "Créez et gérez automatiquement des Issues GitHub pour les vulnérabilités détectées dans vos projets. Cette intégration aide votre équipe de développement à suivre et corriger les problèmes de sécurité directement dans GitHub.",
+        "gitlab": "Créez et gérez automatiquement des Issues GitLab pour les vulnérabilités détectées dans vos projets. Cette intégration aide votre équipe de développement à suivre et corriger les problèmes de sécurité directement dans GitLab."
+      },
+      "stepsTitle": "Comment configurer :",
+      "step1": {
+        "title": {
+          "github": "Liez votre dépôt à GitHub",
+          "gitlab": "Liez votre dépôt à GitLab"
+        },
+        "description": {
+          "github": "Assurez-vous que votre projet est connecté à un dépôt GitHub. Vous pouvez le faire dans les paramètres d'intégration.",
+          "gitlab": "Assurez-vous que votre projet est connecté à un dépôt GitLab. Vous pouvez le faire dans les paramètres d'intégration."
+        }
+      },
+      "step2": {
+        "title": "Sélectionnez un projet",
+        "description": "Allez sur la page de vos projets et sélectionnez le projet où vous souhaitez activer le suivi des issues."
+      },
+      "step3": {
+        "title": "Activez la création d'issues",
+        "description": "Dans les paramètres du projet, allez dans l'onglet 'Issues' et activez la création automatique d'issues. Vous pouvez également choisir comment les issues doivent être regroupées."
+      },
+      "infoTitle": "Gestion automatique",
+      "infoDescription": "Une fois activé, les issues seront automatiquement créées après chaque scan. Les issues sont également automatiquement fermées lorsque les vulnérabilités sont résolues.",
+      "goToProjects": "Aller à mes projets"
+    }
+  }
+}

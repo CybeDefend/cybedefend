@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "settingsOrganization": {
+      "onboarding": {
+        "title": "Ici, vous pouvez gérer les membres de votre organisation.",
+        "subtitle": "Vous pouvez ajouter, supprimer et gérer les rôles des membres de votre organisation."
+      }
+    }
+  }
+}

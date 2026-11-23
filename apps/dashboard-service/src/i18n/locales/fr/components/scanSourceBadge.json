@@ -1,0 +1,13 @@
+{
+    "components": {
+        "scanSourceBadge": {
+            "manual": "Manuel",
+            "cli": "CLI",
+            "github": "GitHub",
+            "gitlab": "GitLab",
+            "jetbrains": "JetBrains",
+            "vscode": "VS Code",
+            "other": "Autre source"
+        }
+    }
+}

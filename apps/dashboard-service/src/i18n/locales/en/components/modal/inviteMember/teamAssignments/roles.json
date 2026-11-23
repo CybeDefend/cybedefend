@@ -1,0 +1,15 @@
+{
+  "components": {
+    "modal": {
+      "inviteMember": {
+        "teamAssignments": {
+          "roles": {
+            "team_manager": "Team Manager",
+            "developer": "Developer",
+            "viewer": "Viewer"
+          }
+        }
+      }
+    }
+  }
+}

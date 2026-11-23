@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "features": {
+        "appSec": {
+          "title": "Sécurité applicative intégrée",
+          "description": "Exploitez une plateforme SaaS unifiée combinant SAST, DAST, IaC et IA pour une gestion proactive des vulnérabilités."
+        }
+      }
+    }
+  }
+}

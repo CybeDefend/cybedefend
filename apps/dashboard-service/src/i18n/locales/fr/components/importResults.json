@@ -1,0 +1,93 @@
+{
+  "components": {
+    "importResults": {
+      "button": "Importer des résultats",
+      "title": "Importer des résultats",
+      "description": "Importez le fichier SARIF produit par un scanner. Les résultats apparaissent sur cette branche une fois le fichier traité.",
+      "submit": "Importer",
+      "cancel": "Annuler",
+      "uploading": "Envoi… {{percent}} %",
+      "file": {
+        "label": "Fichier SARIF (.sarif, .json ou .sarif.gz, 50 Mo au plus)",
+        "errors": {
+          "missing": "Choisissez un fichier SARIF à importer.",
+          "extension": "Le fichier doit être un fichier .sarif, .json ou .sarif.gz.",
+          "size": "Le fichier dépasse 50 Mo.",
+          "empty": "Le fichier est vide."
+        }
+      },
+      "type": {
+        "label": "Type de résultats"
+      },
+      "types": {
+        "sast": "SAST",
+        "iac": "IaC",
+        "secret": "Secrets",
+        "cicd": "CI/CD",
+        "sca": "SCA",
+        "container": "Conteneur"
+      },
+      "typeNote": {
+        "sca": "Un import SCA est l'image complète des dépendances de cette branche : les paquets qu'il ne liste pas sont marqués résolus. Analysez la racine du dépôt dans un seul fichier et utilisez un seul outil SCA par branche.",
+        "container": "Un import de conteneur est l'image complète de cette image sur cette branche : les paquets qu'il ne liste pas sont marqués résolus."
+      },
+      "image": {
+        "label": "Image",
+        "placeholder": "ex. : ghcr.io/acme/api:1.4.2",
+        "hint": "L'image que décrit le fichier, sous la forme nom[:tag][@sha256:empreinte].",
+        "errors": {
+          "missing": "Indiquez l'image que décrit ce fichier.",
+          "invalid": "Cette référence d'image n'est pas valide, par exemple ghcr.io/acme/api:1.4.2."
+        }
+      },
+      "branch": {
+        "label": "Branche",
+        "placeholder": "ex. : main",
+        "errors": {
+          "missing": "Indiquez la branche à laquelle appartiennent ces résultats.",
+          "tooLong": "Le nom de la branche dépasse 255 caractères."
+        }
+      },
+      "commit": {
+        "label": "Commit (facultatif)",
+        "placeholder": "ex. : 3f2a9c1",
+        "errors": {
+          "invalid": "Un commit compte de 7 à 40 caractères hexadécimaux."
+        }
+      },
+      "hint": {
+        "title": "Ou importez depuis un terminal ou une tâche de CI",
+        "cli": "Avec la CLI CybeDefend",
+        "curl": "Avec curl, un jeton d'accès personnel dans CYBEDEFEND_TOKEN",
+        "producer": "Produisez le fichier avec Trivy",
+        "copyCli": "Copier la commande de la CLI",
+        "copyCurl": "Copier la commande curl",
+        "copyProducer": "Copier la commande Trivy"
+      },
+      "errors": {
+        "IMPORT_INVALID_REQUEST": "La demande d'import n'est pas valide. Vérifiez la branche, le commit et l'image, puis réessayez.",
+        "IMPORT_UNSUPPORTED_FORMAT": "Seuls les fichiers SARIF peuvent être importés.",
+        "IMPORT_UNSUPPORTED_FILE": "Le fichier doit être un fichier .sarif, .json ou .sarif.gz.",
+        "IMPORT_INVALID_SARIF": "Le fichier n'est pas un document SARIF valide.",
+        "IMPORT_UPLOAD_TOO_LARGE": "Le fichier dépasse 50 Mo.",
+        "IMPORT_BUSY": "Trop d'imports sont en cours. Réessayez dans {{seconds}} secondes.",
+        "IMPORT_STORAGE_UNAVAILABLE": "Le fichier n'a pas pu être enregistré. Réessayez dans un instant.",
+        "IMPORT_UNAVAILABLE": "Les résultats n'ont pas pu être mis en file de traitement. Réessayez dans un instant.",
+        "IMPORT_IMAGE_REQUIRED": "Un import de conteneur a besoin de l'image qu'il décrit.",
+        "IMPORT_IMAGE_INVALID": "La référence d'image n'est pas valide.",
+        "IMPORT_TYPE_NOT_AVAILABLE": "Cette édition n'importe pas ce type de résultats.",
+        "IMPORT_TOO_LARGE": "Le fichier est trop volumineux : 50 Mo envoyés ou 200 Mo décompressés au plus.",
+        "IMPORT_TOO_MANY_RESULTS": "Le fichier contient plus de 100 000 résultats.",
+        "IMPORT_TOO_MANY_RUNS": "Le fichier contient plus de 20 exécutions.",
+        "IMPORT_TIMEOUT": "L'import ne s'est pas terminé à temps. Importez le fichier de nouveau.",
+        "IMPORT_INTERNAL_ERROR": "Une erreur inattendue s'est produite pendant l'import des résultats. Importez le fichier de nouveau.",
+        "IMPORT_UNSUPPORTED_RESULT": "Un résultat de cet import n'indique pas le nom du paquet ou sa version installée : rien n'a été importé. Produisez le fichier avec Trivy, Grype ou osv-scanner.",
+        "IMPORT_INVALID_SBOM": "Le SBOM n'est pas un document CycloneDX JSON (1.4 à 1.7) lisible par cet import : rien n'a été importé. Produisez-le avec trivy fs --format cyclonedx, Syft ou cdxgen, et envoyez-le avec le SARIF du même scan.",
+        "IMPORT_FAILED": "L'import a échoué. Vérifiez le fichier et importez-le de nouveau.",
+        "FORBIDDEN": "Vous n'êtes pas autorisé à importer des résultats dans ce projet.",
+        "RATE_LIMITED": "Trop de requêtes. Patientez un instant, puis réessayez.",
+        "GENERIC": "Le fichier n'a pas pu être importé. Réessayez."
+      }
+    }
+  }
+}

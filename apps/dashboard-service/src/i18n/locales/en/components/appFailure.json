@@ -1,0 +1,20 @@
+{
+  "components": {
+    "appFailure": {
+      "workspace": {
+        "title": "Your workspace did not load",
+        "message": "Your profile and your organization could not be loaded just now. Wait a moment, then try again."
+      },
+      "session": {
+        "title": "Your session could not be restored",
+        "message": "This is usually a brief network issue. Wait a moment, then try again, or sign in again if it keeps happening."
+      },
+      "crash": {
+        "title": "This page stopped unexpectedly",
+        "message": "An error in the dashboard interrupted it. Try again to reload it, or sign in again if it keeps happening."
+      },
+      "retry": "Try again",
+      "signIn": "Sign in again"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "settingsOrganization": {
+      "toast": {
+        "deleteUserError": "Une erreur s'est produite lors de la suppression de l'utilisateur.",
+        "updateRoleError": "Une erreur s'est produite lors de la mise à jour du rôle de l'utilisateur.",
+        "inviteSuccess": "Invitation envoyée avec succès.",
+        "inviteError": "Une erreur s'est produite lors de l'ajout du nouvel utilisateur.",
+        "cancelInviteSuccess": "Invitation annulée avec succès.",
+        "cancelInviteError": "Une erreur s'est produite lors de l'annulation de l'invitation.",
+        "deleteUserSuccess": "Utilisateur retiré de l’organisation.",
+        "updateRoleSuccess": "Rôle mis à jour."
+      }
+    }
+  }
+}

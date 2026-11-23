@@ -1,0 +1,31 @@
+{
+  "components": {
+    "notificationsSettings": {
+      "slackChannel": "Slack Channel",
+      "noChannelSelected": "No channel selected",
+      "changeChannel": "Change channel",
+      "selectChannel": "Select channel",
+      "connectSlackHint": "Connect Slack in your organization settings to receive notifications in a Slack channel.",
+      "filters": "Notification Filters",
+      "severityThreshold": "Severity threshold",
+      "severityThresholdDescription": "Only receive notifications for vulnerabilities that meet the selected severity levels.",
+      "scannerTypes": "Scanner types",
+      "scannerTypesDescription": "Only receive notifications for results from selected scanner types.",
+      "scanComplete": "Scan complete",
+      "scanCompleteDescription": "Get notified when a scan finishes with a summary of the results.",
+      "reports": "Reports",
+      "weeklyReport": "Weekly report",
+      "monthlyReport": "Monthly report",
+      "emailAlert": "Email alert",
+      "emailAlertDescription": "Receive email alerts in the event of new critical vulnerabilities in your project.",
+      "configure": "Configure",
+      "monthlyReportDescription": "Receive a complete vulnerability report of your project each month by email.",
+      "weeklyReportDescription": "Receive a complete vulnerability report of your project each week by email.",
+      "incidentCreationConfig": "Configuration of incident creation",
+      "incidentCreationDescription": "You can select a parameter for incident creation. This setting is directly assigned to \"ticketing & notifications\" integrations. You can choose whether you want to create an incident for a vulnerability group or for each occurrence.",
+      "searchChannels": "Search channels...",
+      "channelLoadError": "Failed to load Slack channels",
+      "channelUpdateError": "Failed to update Slack channel"
+    }
+  }
+}

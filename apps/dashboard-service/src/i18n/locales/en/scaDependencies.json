@@ -1,0 +1,7 @@
+{
+  "scaDependencies": {
+    "dev": "Development",
+    "transitive": "Transitive",
+    "direct": "Direct"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "components": {
+    "startAnalysis": {
+      "errors": {
+        "noOrganization": "Aucune organisation n'est sélectionnée : le scan n'a pas été lancé.",
+        "noRepository": "Aucun dépôt n'est lié à ce projet : le scan n'a pas été lancé."
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "createProjects": {
+          "title": "Ajouter des projets GitHub",
+          "subtitle": "Créez plusieurs nouveaux projets à partir de vos dépôts GitHub en une seule fois.",
+          "bulkCreation": "Création en masse",
+          "bulkDescription": "Configurez rapidement plusieurs projets à partir des dépôts sélectionnés.",
+          "pageTitle": "Créer des Projets depuis GitHub",
+          "pageSubtitle": "Sélectionnez une équipe et choisissez les dépôts à partir desquels créer des projets.",
+          "team": "Équipe",
+          "noRepos": "Aucun dépôt disponible pour créer des projets.",
+          "createButton": "Créer les projets",
+          "selectTeamError": "Veuillez d'abord sélectionner une équipe.",
+          "noSelectedRepos": "Aucun dépôt sélectionné pour créer des projets. Veuillez en sélectionner au moins un.",
+          "failedToCreate": "Échec de la création/liaison du projet",
+          "failedToCreateMultiple": "Échec de la création et liaison des projets",
+          "projectName": "Nom du projet",
+          "projectNamePlaceholder": "Entrez le nom du projet...",
+          "searchPlaceholder": "Rechercher des dépôts...",
+          "noMatchingRepos": "Aucun dépôt correspondant trouvé",
+          "availableRepos": "disponibles",
+          "alreadyLinked": "déjà liés",
+          "showLinked": "Afficher les liés",
+          "linked": "Lié",
+          "alreadyLinkedToProject": "Déjà lié à un projet",
+          "totalRepos": "dépôts au total",
+          "available": "disponibles"
+        }
+      }
+    }
+  }
+}

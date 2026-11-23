@@ -1,0 +1,66 @@
+# Builds every CybeDefend image from this source tree instead of pulling it:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
+#
+# Contexts are the repository root (the services copy libs/ from it); the
+# dashboard builds from its own directory and takes no build argument: its API
+# address comes at runtime from CYBEDEFEND_API_URL.
+#
+# Each image is built once, by one service. The other services that run the
+# same image (workers, schedulers, crons) carry no build, so Compose does not
+# build and unpack it again for each of them, and `pull_policy: never`, so they
+# never pull a published image in place of the one built from this tree.
+
+services:
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  gateway:
+    build: { context: ../.., dockerfile: apps/gateway-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  global-management:
+    build: { context: ../.., dockerfile: apps/global-management-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  security-scanning:
+    build: { context: ../.., dockerfile: apps/security-scanning-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  security-scanning-cron:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  analysis-reporting:
+    build: { context: ../.., dockerfile: apps/analysis-reporting-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  analysis-reporting-worker:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  analysis-reporting-worker-reports:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  scheduler-analysis-reporting:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  file-management:
+    build: { context: ../.., dockerfile: apps/file-management-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  file-management-cron:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  external-integrations:
+    build: { context: ../.., dockerfile: apps/external-integrations-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  external-integrations-worker:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  scheduler-external-integrations:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  policy-management:
+    build: { context: ../.., dockerfile: apps/policy-management-service/Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only stops the pull of an image another service builds; security options, capabilities and the healthcheck come from docker-compose.yml
+  policy-management-worker:
+    pull_policy: never
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  dashboard:
+    build: { context: ../../apps/dashboard-service, dockerfile: Dockerfile }
+  # cybedefend-ignore[CD-IAC-1529,CD-IAC-1922,CD-IAC-2464]: an override that only adds the build context; security options, capabilities and the healthcheck come from docker-compose.yml
+  mcp:
+    build: { context: ../.., dockerfile: apps/mcp-service/Dockerfile }

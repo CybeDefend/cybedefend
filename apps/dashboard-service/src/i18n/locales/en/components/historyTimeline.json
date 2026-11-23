@@ -1,0 +1,25 @@
+{
+  "components": {
+    "historyTimeline": {
+      "title": "History and Comments",
+      "updatedThe": "updated the",
+      "status": "STATUS",
+      "priority": "PRIORITY",
+      "aiAnalysisTitle": "Agent Cybe Analysis",
+      "aiAnalysisLabel": "Cybe Analysis",
+      "pinnedLabel": "Pinned",
+      "verdict": {
+        "headline": "Exploitability assessment",
+        "exploitabilityScoreLabel": "Exploitability score",
+        "exploitabilityScorePct": "{{pct}}%",
+        "description": {
+          "actively_exploited": "Cybe considers this vulnerability actively exploited.",
+          "proven": "Cybe considers the exploitation of this vulnerability proven.",
+          "theoretical": "Cybe considers this vulnerability theoretically exploitable.",
+          "not_exploitable": "Cybe considers this vulnerability not exploitable.",
+          "malicious": "Cybe considers this package malicious: it is malware."
+        }
+      }
+    }
+  }
+}

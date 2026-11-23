@@ -1,0 +1,13 @@
+{
+  "components": {
+    "modal": {
+      "manageUser": {
+        "title": "Manage User",
+        "deleteUser": "Delete User",
+        "selectRole": "Select a role",
+        "validRoleError": "Please select a valid role from the list before updating.",
+        "confirmDeleteUser": "Are you sure you want to delete this user from the organization?"
+      }
+    }
+  }
+}

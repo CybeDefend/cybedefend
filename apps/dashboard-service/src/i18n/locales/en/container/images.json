@@ -1,0 +1,22 @@
+{
+  "container": {
+    "images": {
+      "confirmDelete": "Are you sure you want to delete the image \"{{imageName}}\" and all its associated data? This action cannot be undone.",
+      "deleteSuccess": "Image deleted successfully.",
+      "deleteError": "Failed to delete the image.",
+      "groupedDescription": "Images grouped by repository. Click to expand and see all tags.",
+      "loadErrorTitle": "The container images could not be loaded",
+      "loadErrorDescription": "Reload the page in a moment. If the list stays unavailable, contact support.",
+      "noneFound": "No images found for this project",
+      "repository": "Repository",
+      "startScan": "Start a new scan to see images here.",
+      "importScan": "Import a container scan's SARIF file to see its images here.",
+      "tags": "Tags",
+      "eolOs": {
+        "badge": "OS end of life: detection incomplete",
+        "title": "Base OS no longer supported",
+        "description": "{{os}} has reached end of life: the distribution no longer publishes security advisories, so vulnerability detection is incomplete. A result with 0 vulnerabilities does not mean the image is clean. Rebuild it on a supported base image and rescan."
+      }
+    }
+  }
+}

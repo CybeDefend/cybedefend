@@ -1,0 +1,33 @@
+{
+  "components": {
+    "generalSettings": {
+      "projectName": "Project Name",
+      "projectNameDescription": "Name of your project",
+      "applicationType": "Application Type",
+      "applicationTypeDescription": "Define the application type. This will change parameters at the static and dynamic analysis level of the application.",
+      "selectApplicationType": "Select an application type",
+      "linkedTeam": "Linked Team",
+      "linkedTeamDescription": "Team linked to your project, you can't change it",
+      "projectId": "Project ID",
+      "projectIdDescription": "Unique ID of your project, you can't change it. It can be used to identify this project or for automation with the API.",
+      "referenceBranch": "Reference Branch",
+      "referenceBranchDescription": "Set a reference branch to filter vulnerability statistics. When defined, only vulnerabilities from this branch will be counted in dashboards and reports.",
+      "selectReferenceBranch": "Select a reference branch",
+      "allBranches": "All branches",
+      "default": "default",
+      "referenceBranchWarning": "Statistics will only include vulnerabilities from this branch.",
+      "unlinkFromGithub": "Unlink from GitHub",
+      "unlinkFromGithubDescription": "This will disconnect the GitHub repository currently linked to this project.",
+      "unlinkFromGitlab": "Unlink from GitLab",
+      "unlinkFromGitlabDescription": "This will disconnect the GitLab repository currently linked to this project.",
+      "unlinkProject": "Unlink Project",
+      "deleteProject": "Delete Project",
+      "deleteProjectDescription": "Deleting a project will erase everything.",
+      "deleteConfirmation": "Are you sure you want to delete this project? This action is irreversible.",
+      "scanOnCommit": {
+        "title": "Scan on every commit",
+        "description": "Automatically start a security scan each time a commit is pushed to the monitored branch of the linked repository. Turn this off to scan only on demand."
+      }
+    }
+  }
+}

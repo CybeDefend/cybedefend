@@ -1,0 +1,11 @@
+{
+    "pages": {
+        "issuePage": {
+            "container": {
+                "targetImage": "Image cible",
+                "targetImageDescription": "Image et système d'exploitation où le paquet a été détecté",
+                "sourcePackage": "Paquet source"
+            }
+        }
+    }
+}

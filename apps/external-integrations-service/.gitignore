@@ -1,0 +1,42 @@
+# compiled output
+/dist
+/node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+.env
+# Generated ts-proto stubs (regenerated at build/dev via proto:generate).
+# Top-level grpc.module.ts and wrapper-grpc.module.ts are hand-written and
+# stay tracked; only the per-domain subdirectories are auto-generated and
+# diverge from one machine to another after a `proto:generate` run.
+/src/core/grpc/*/

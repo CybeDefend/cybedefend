@@ -1,0 +1,7 @@
+{
+  "pages": {
+    "homePage": {
+      "createProjectError": "Échec de la création du projet"
+    }
+  }
+}

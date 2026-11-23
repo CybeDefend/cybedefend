@@ -1,0 +1,539 @@
+syntax = "proto3";
+
+package cybedefend.external_integrations;
+
+// ========== Common Issue Types ==========
+
+/**
+ * Represents a vulnerability to be included in an issue.
+ * Used by both GitHub and GitLab issue creation services.
+ */
+message VulnerabilityInfo {
+  // Unique identifier of the vulnerability detection
+  string vulnerabilityId = 1;
+  // Type of scanner: sast, sca, iac, container, secret
+  string scannerType = 2;
+  // Severity level: critical, high, medium, low
+  string severity = 3;
+  // Name or title of the vulnerability
+  string name = 4;
+  // Short description of the vulnerability
+  string shortDescription = 5;
+  // Detailed description with remediation info
+  string description = 6;
+  // File path where the vulnerability was found
+  string filePath = 7;
+  // Start line number (for code-based vulnerabilities)
+  int32 startLine = 8;
+  // End line number (for code-based vulnerabilities)
+  int32 endLine = 9;
+  // CWE identifiers (e.g., CWE-89)
+  repeated string cwe = 10;
+  // OWASP Top 10 categories
+  repeated string owaspTop10 = 11;
+  // CVSS score (0.0 - 10.0)
+  float cvssScore = 12;
+  // For SCA: affected package name
+  string packageName = 13;
+  // For SCA: affected package version
+  string packageVersion = 14;
+  // For SCA: fixed version if available
+  string fixedVersion = 15;
+  // External vulnerability ID (e.g., CVE-2024-1234, GHSA-xxx)
+  string externalId = 16;
+  // Direct URL to the vulnerability in CybeDefend interface
+  string cybedefendUrl = 17;
+  // Branch where vulnerability was detected
+  string branch = 18;
+}
+
+/**
+ * Issue creation mode determining how vulnerabilities are grouped.
+ */
+enum IssueCreationMode {
+  ISSUE_CREATION_MODE_UNSPECIFIED = 0;
+  // One issue per individual vulnerability (SCA only)
+  ISSUE_CREATION_MODE_PER_VULNERABILITY = 1;
+  // One issue per vulnerability type (grouped by rule ID)
+  ISSUE_CREATION_MODE_PER_VULNERABILITY_TYPE = 2;
+  // One issue per affected file
+  ISSUE_CREATION_MODE_PER_FILE = 3;
+}
+
+/**
+ * Represents a created or existing issue.
+ */
+message IssueInfo {
+  // Platform-specific issue ID
+  string issueId = 1;
+  // Issue number (e.g., #42)
+  int32 issueNumber = 2;
+  // Issue title
+  string title = 3;
+  // Issue URL in the platform
+  string url = 4;
+  // Issue state: open, closed
+  string state = 5;
+  // Linked vulnerability IDs
+  repeated string vulnerabilityIds = 6;
+  // Creation timestamp (ISO8601)
+  string createdAt = 7;
+  // Last update timestamp (ISO8601)
+  string updatedAt = 8;
+  // Jira project key (e.g., "TEST") — only for Jira issues
+  optional string jiraProjectKey = 9;
+  // Jira priority name (e.g., "High") — only for Jira issues
+  optional string jiraPriority = 10;
+  // Jira assignee display name — only for Jira issues
+  optional string jiraAssignee = 11;
+  // Linear identifier (e.g., "ENG-142") — only for Linear issues
+  optional string linearIdentifier = 12;
+  // Linear team key (e.g., "ENG") — only for Linear issues
+  optional string linearTeamKey = 13;
+  // Linear priority label (e.g., "High") — only for Linear issues
+  optional string linearPriority = 14;
+  // Linear assignee display name — only for Linear issues
+  optional string linearAssignee = 15;
+  // Linear workflow state type (triage, backlog, unstarted, started, completed,
+  // canceled) — only for Linear issues
+  optional string linearStateType = 16;
+}
+
+// ========== GitHub Issue Service ==========
+
+service GithubIssueService {
+  // Create issues for vulnerabilities detected in a project
+  rpc CreateIssues(CreateGithubIssuesRequest) returns (CreateGithubIssuesResponse);
+  // Close issues when vulnerabilities are resolved or ignored
+  rpc CloseIssue(CloseGithubIssueRequest) returns (CloseGithubIssueResponse);
+  // Get existing issues for a project
+  rpc GetProjectIssues(GetGithubProjectIssuesRequest) returns (GetGithubProjectIssuesResponse);
+  // Update issue state (add comment, update labels)
+  rpc UpdateIssue(UpdateGithubIssueRequest) returns (UpdateGithubIssueResponse);
+}
+
+message CreateGithubIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Scan ID that triggered the issue creation
+  string scanId = 3;
+  // Issue creation mode
+  IssueCreationMode mode = 4;
+  // Vulnerabilities to create issues for
+  repeated VulnerabilityInfo vulnerabilities = 5;
+  // Base URL for CybeDefend links in issue descriptions
+  string cybedefendBaseUrl = 6;
+}
+
+message CreateGithubIssuesResponse {
+  bool success = 1;
+  string message = 2;
+  // Created issues
+  repeated IssueInfo issues = 3;
+  // Vulnerabilities that failed to create issues
+  repeated string failedVulnerabilityIds = 4;
+}
+
+message CloseGithubIssueRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Platform-specific issue number
+  int32 issueNumber = 3;
+  // Closing reason: resolved, ignored, false_positive
+  string reason = 4;
+  // Vulnerability IDs being resolved
+  repeated string vulnerabilityIds = 5;
+}
+
+message CloseGithubIssueResponse {
+  bool success = 1;
+  string message = 2;
+  IssueInfo issue = 3;
+}
+
+message GetGithubProjectIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Filter by issue state: open, closed, all
+  string state = 3;
+  // Filter by vulnerability IDs
+  repeated string vulnerabilityIds = 4;
+}
+
+message GetGithubProjectIssuesResponse {
+  bool success = 1;
+  repeated IssueInfo issues = 2;
+}
+
+message UpdateGithubIssueRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Issue number to update
+  int32 issueNumber = 3;
+  // Comment to add (optional)
+  string comment = 4;
+  // Labels to add (optional)
+  repeated string addLabels = 5;
+  // Labels to remove (optional)
+  repeated string removeLabels = 6;
+  // New body content (optional) - used when removing resolved vulnerabilities
+  string body = 7;
+  // New title (optional)
+  string title = 8;
+  // Remaining vulnerabilities after removing resolved ones
+  repeated VulnerabilityInfo remainingVulnerabilities = 9;
+  // Issue creation mode (needed to regenerate body)
+  IssueCreationMode mode = 10;
+  // Group key (needed to regenerate body)
+  string groupKey = 11;
+}
+
+message UpdateGithubIssueResponse {
+  bool success = 1;
+  string message = 2;
+  IssueInfo issue = 3;
+}
+
+// ========== GitLab Issue Service ==========
+
+service GitlabIssueService {
+  // Create issues for vulnerabilities detected in a project
+  rpc CreateIssues(CreateGitlabIssuesRequest) returns (CreateGitlabIssuesResponse);
+  // Close issues when vulnerabilities are resolved or ignored
+  rpc CloseIssue(CloseGitlabIssueRequest) returns (CloseGitlabIssueResponse);
+  // Get existing issues for a project
+  rpc GetProjectIssues(GetGitlabProjectIssuesRequest) returns (GetGitlabProjectIssuesResponse);
+  // Update issue state (add comment, update labels)
+  rpc UpdateIssue(UpdateGitlabIssueRequest) returns (UpdateGitlabIssueResponse);
+}
+
+message CreateGitlabIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Scan ID that triggered the issue creation
+  string scanId = 3;
+  // Issue creation mode
+  IssueCreationMode mode = 4;
+  // Vulnerabilities to create issues for
+  repeated VulnerabilityInfo vulnerabilities = 5;
+  // Base URL for CybeDefend links in issue descriptions
+  string cybedefendBaseUrl = 6;
+}
+
+message CreateGitlabIssuesResponse {
+  bool success = 1;
+  string message = 2;
+  // Created issues
+  repeated IssueInfo issues = 3;
+  // Vulnerabilities that failed to create issues
+  repeated string failedVulnerabilityIds = 4;
+}
+
+message CloseGitlabIssueRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Platform-specific issue IID (internal ID)
+  int32 issueIid = 3;
+  // Closing reason: resolved, ignored, false_positive
+  string reason = 4;
+  // Vulnerability IDs being resolved
+  repeated string vulnerabilityIds = 5;
+}
+
+message CloseGitlabIssueResponse {
+  bool success = 1;
+  string message = 2;
+  IssueInfo issue = 3;
+}
+
+message GetGitlabProjectIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Filter by issue state: opened, closed, all
+  string state = 3;
+  // Filter by vulnerability IDs
+  repeated string vulnerabilityIds = 4;
+}
+
+message GetGitlabProjectIssuesResponse {
+  bool success = 1;
+  repeated IssueInfo issues = 2;
+}
+
+message UpdateGitlabIssueRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Issue IID to update
+  int32 issueIid = 3;
+  // Comment to add (optional)
+  string comment = 4;
+  // Labels to add (optional)
+  repeated string addLabels = 5;
+  // Labels to remove (optional)
+  repeated string removeLabels = 6;
+  // New body content (optional) - used when removing resolved vulnerabilities
+  string body = 7;
+  // New title (optional)
+  string title = 8;
+  // Remaining vulnerabilities after removing resolved ones
+  repeated VulnerabilityInfo remainingVulnerabilities = 9;
+  // Issue creation mode (needed to regenerate body)
+  IssueCreationMode mode = 10;
+  // Group key (needed to regenerate body)
+  string groupKey = 11;
+}
+
+message UpdateGitlabIssueResponse {
+  bool success = 1;
+  string message = 2;
+  IssueInfo issue = 3;
+}
+
+// ========== Jira Issue Service ==========
+
+service JiraIssueService {
+  // Create Jira issues for vulnerabilities detected in a project
+  rpc CreateIssues(CreateJiraIssuesRequest) returns (CreateJiraIssuesResponse);
+  // Link vulnerabilities to an existing Jira issue (DB-only, no Jira modification)
+  rpc LinkExistingIssue(LinkJiraIssueRequest) returns (LinkJiraIssueResponse);
+  // Get existing Jira issues for a project
+  rpc GetProjectIssues(GetJiraProjectIssuesRequest) returns (GetJiraProjectIssuesResponse);
+  // Sync issue statuses from Jira (handles key changes when tickets are moved)
+  rpc GetIssueStatus(GetJiraIssueStatusRequest) returns (GetJiraIssueStatusResponse);
+}
+
+message CreateJiraIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Scan ID that triggered the issue creation
+  string scanId = 3;
+  // Issue creation mode
+  IssueCreationMode mode = 4;
+  // Vulnerabilities to create issues for
+  repeated VulnerabilityInfo vulnerabilities = 5;
+  // Base URL for CybeDefend links in issue descriptions
+  string cybedefendBaseUrl = 6;
+  // Jira project key to create issues in (e.g. "TRI")
+  string jiraProjectKey = 7;
+}
+
+message CreateJiraIssuesResponse {
+  bool success = 1;
+  string message = 2;
+  // Created issues
+  repeated IssueInfo issues = 3;
+  // Vulnerabilities that failed to create issues
+  repeated string failedVulnerabilityIds = 4;
+}
+
+message LinkJiraIssueRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Jira issue key to link to (e.g. "TRI-142")
+  string jiraIssueKey = 3;
+  // Vulnerability IDs to link
+  repeated string vulnerabilityIds = 4;
+  // Scanner type for the vulnerabilities
+  string scannerType = 5;
+  // Vulnerability details for enriching the Jira ticket description
+  repeated VulnerabilityInfo vulnerabilities = 6;
+  // Base URL for CybeDefend links in Jira description
+  string cybedefendBaseUrl = 7;
+}
+
+message LinkJiraIssueResponse {
+  bool success = 1;
+  string message = 2;
+  IssueInfo issue = 3;
+}
+
+message GetJiraProjectIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Filter by issue state: open, closed, all
+  string state = 3;
+  // Filter by vulnerability IDs
+  repeated string vulnerabilityIds = 4;
+}
+
+message GetJiraProjectIssuesResponse {
+  bool success = 1;
+  repeated IssueInfo issues = 2;
+}
+
+message GetJiraIssueStatusRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // External Jira issue keys to check status for
+  repeated string externalIssueKeys = 3;
+}
+
+message JiraIssueStatusInfo {
+  // Current Jira issue key (may differ from original if ticket was moved)
+  string issueKey = 1;
+  // Jira status name (e.g. "To Do", "In Progress", "Done")
+  string status = 2;
+  // Jira status category (e.g. "new", "indeterminate", "done")
+  string statusCategory = 3;
+  // Full URL to the issue
+  string issueUrl = 4;
+  // Whether a PR is linked to this issue (bonus US 4.3)
+  bool hasPullRequest = 5;
+}
+
+message GetJiraIssueStatusResponse {
+  bool success = 1;
+  repeated JiraIssueStatusInfo statuses = 2;
+}
+
+// ========== Linear Issue Service ==========
+
+// Refusals are the closed list documented in linear.proto
+// (LINEAR_NOT_CONNECTED, LINEAR_NEEDS_RECONNECT, LINEAR_WORKSPACE_TAKEN,
+// LINEAR_NO_TEAM, LINEAR_TEAM_NOT_FOUND, LINEAR_ISSUE_NOT_FOUND), carried by the
+// RpcException message.
+service LinearIssueService {
+  // Create Linear issues for vulnerabilities detected in a project
+  rpc CreateIssues(CreateLinearIssuesRequest) returns (CreateLinearIssuesResponse);
+  // Link vulnerabilities to an existing Linear issue: stores the links and adds
+  // the CybeDefend attachment on the issue; its description and fields are
+  // never written
+  rpc LinkExistingIssue(LinkLinearIssueRequest) returns (LinkLinearIssueResponse);
+  // Get existing Linear issues for a project
+  rpc GetProjectIssues(GetLinearProjectIssuesRequest) returns (GetLinearProjectIssuesResponse);
+  // Sync issue states from Linear (handles identifier changes when tickets are moved)
+  rpc SyncIssueStatus(SyncLinearIssueStatusRequest) returns (SyncLinearIssueStatusResponse);
+  // Close, comment on or reopen the Linear issues linked to findings whose state
+  // changed in CybeDefend
+  rpc ApplyFindingStates(ApplyLinearFindingStatesRequest) returns (ApplyLinearFindingStatesResponse);
+}
+
+message CreateLinearIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Scan ID that triggered the issue creation
+  string scanId = 3;
+  // Issue creation mode
+  IssueCreationMode mode = 4;
+  // Vulnerabilities to create issues for
+  repeated VulnerabilityInfo vulnerabilities = 5;
+  // Base URL for CybeDefend links in issue descriptions
+  string cybedefendBaseUrl = 6;
+  // Linear team ID to create issues in; empty = the project's configured team
+  string teamId = 7;
+  // Linear project ID to attach the issues to (optional)
+  string linearProjectId = 8;
+  // Linear label IDs to add to the issues (optional)
+  repeated string labelIds = 9;
+  // Linear user ID to assign the issues to (optional)
+  string assigneeId = 10;
+  // Linear priority (0 none, 1 urgent, 2 high, 3 medium, 4 low); absent =
+  // derived from the severity of the vulnerabilities
+  optional int32 priority = 11;
+}
+
+message CreateLinearIssuesResponse {
+  bool success = 1;
+  string message = 2;
+  // Created issues
+  repeated IssueInfo issues = 3;
+  // Vulnerabilities that failed to create issues
+  repeated string failedVulnerabilityIds = 4;
+}
+
+message LinkLinearIssueRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Linear issue reference to link to: an identifier (e.g. "ENG-142") or the
+  // issue URL
+  string issueRef = 3;
+  // Vulnerability IDs to link
+  repeated string vulnerabilityIds = 4;
+  // Scanner type for the vulnerabilities
+  string scannerType = 5;
+  // Vulnerability details for enriching the Linear issue description
+  repeated VulnerabilityInfo vulnerabilities = 6;
+  // Base URL for CybeDefend links in the Linear issue description
+  string cybedefendBaseUrl = 7;
+}
+
+message LinkLinearIssueResponse {
+  bool success = 1;
+  string message = 2;
+  IssueInfo issue = 3;
+}
+
+message GetLinearProjectIssuesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+  // Filter by issue state: open, closed, all
+  string state = 3;
+  // Filter by vulnerability IDs
+  repeated string vulnerabilityIds = 4;
+}
+
+message GetLinearProjectIssuesResponse {
+  bool success = 1;
+  repeated IssueInfo issues = 2;
+}
+
+message SyncLinearIssueStatusRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Organization ID for permission verification
+  string organizationId = 2;
+}
+
+message SyncLinearIssueStatusResponse {
+  bool success = 1;
+  // Number of stored issues whose state, identifier or URL was updated
+  int32 updated = 2;
+}
+
+message ApplyLinearFindingStatesRequest {
+  // CybeDefend project ID
+  string projectId = 1;
+  // Vulnerabilities whose state changed
+  repeated string vulnerabilityIds = 2;
+  // What happened to them: fixed, ignored or reopened
+  string outcome = 3;
+  // Reason shown in the Linear comment (optional)
+  string reason = 4;
+}
+
+message ApplyLinearFindingStatesResponse {
+  // Linear issues closed because all their linked findings are resolved
+  int32 closed = 1;
+  // Linear issues commented (some findings resolved, others still open; or reopened)
+  int32 commented = 2;
+}

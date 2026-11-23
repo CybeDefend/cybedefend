@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Grype",
+          "version": "0.121.1",
+          "informationUri": "https://github.com/anchore/grype",
+          "rules": [
+            {
+              "id": "CVE-2023-2650-libcrypto3",
+              "name": "ApkMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2023-2650 medium vulnerability for libcrypto3 package"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2023-2650\nSeverity: Medium\nPackage: libcrypto3\nVersion: 3.1.0-r4\nFix Version: 3.1.1-r0\nType: apk\nLocation: /lib/apk/db/installed\nLink: [CVE-2023-2650](https://nvd.nist.gov/vuln/detail/CVE-2023-2650)",
+                "markdown": "| Field | Value |\n| --- | --- |\n| Vulnerability | CVE-2023-2650 |\n| Severity | Medium |\n| Package | libcrypto3 |\n| Version | 3.1.0-r4 |\n| Fix Version | 3.1.1-r0 |\n| Type | apk |\n| Location | /lib/apk/db/installed |\n| Link | [CVE-2023-2650](https://nvd.nist.gov/vuln/detail/CVE-2023-2650) |"
+              },
+              "properties": {
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "CVE-2023-2650-libssl3",
+              "name": "ApkMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2023-2650 medium vulnerability for libssl3 package"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2023-2650\nSeverity: Medium\nPackage: libssl3\nVersion: 3.1.0-r4\nFix Version: 3.1.1-r0\nType: apk\nLocation: /lib/apk/db/installed\nLink: [CVE-2023-2650](https://nvd.nist.gov/vuln/detail/CVE-2023-2650)",
+                "markdown": "| Field | Value |\n| --- | --- |\n| Vulnerability | CVE-2023-2650 |\n| Severity | Medium |\n| Package | libssl3 |\n| Version | 3.1.0-r4 |\n| Fix Version | 3.1.1-r0 |\n| Type | apk |\n| Location | /lib/apk/db/installed |\n| Link | [CVE-2023-2650](https://nvd.nist.gov/vuln/detail/CVE-2023-2650) |"
+              },
+              "properties": {
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "CVE-2021-23337-lodash",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2021-23337 high vulnerability for lodash package"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2021-23337\nSeverity: High\nPackage: lodash\nVersion: 4.17.20\nFix Version: 4.17.21\nType: npm\nLocation: /app/package-lock.json\nLink: [CVE-2021-23337](https://nvd.nist.gov/vuln/detail/CVE-2021-23337)",
+                "markdown": "| Field | Value |\n| --- | --- |\n| Vulnerability | CVE-2021-23337 |\n| Severity | High |\n| Package | lodash |\n| Version | 4.17.20 |\n| Fix Version | 4.17.21 |\n| Type | npm |\n| Location | /app/package-lock.json |\n| Link | [CVE-2021-23337](https://nvd.nist.gov/vuln/detail/CVE-2021-23337) |"
+              },
+              "properties": {
+                "security-severity": "7.2"
+              }
+            },
+            {
+              "id": "GHSA-72xf-g2v4-qvf3-tough-cookie",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-72xf-g2v4-qvf3 medium vulnerability for tough-cookie package"
+              },
+              "help": {
+                "text": "Vulnerability GHSA-72xf-g2v4-qvf3\nSeverity: Medium\nPackage: tough-cookie\nVersion: 2.5.0\nFix Version: 4.1.3\nType: npm\nLocation: /app/package-lock.json\nLink: [GHSA-72xf-g2v4-qvf3](https://nvd.nist.gov/vuln/detail/GHSA-72xf-g2v4-qvf3)",
+                "markdown": "| Field | Value |\n| --- | --- |\n| Vulnerability | GHSA-72xf-g2v4-qvf3 |\n| Severity | Medium |\n| Package | tough-cookie |\n| Version | 2.5.0 |\n| Fix Version | 4.1.3 |\n| Type | npm |\n| Location | /app/package-lock.json |\n| Link | [GHSA-72xf-g2v4-qvf3](https://nvd.nist.gov/vuln/detail/GHSA-72xf-g2v4-qvf3) |"
+              },
+              "properties": {
+                "security-severity": "6.5"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2023-2650-libcrypto3",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: libcrypto3, version 3.1.0-r4 was found in image ghcr.io/example/web:1.4.2 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-2650-libssl3",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: libssl3, version 3.1.0-r4 was found in image ghcr.io/example/web:1.4.2 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2021-23337-lodash",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in npm package: lodash, version 4.17.20 was found in image ghcr.io/example/web:1.4.2 at: /app/package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "GHSA-72xf-g2v4-qvf3-tough-cookie",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in npm package: tough-cookie, version 2.5.0 was found in image ghcr.io/example/web:1.4.2 at: /app/package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

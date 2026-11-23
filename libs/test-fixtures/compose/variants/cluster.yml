@@ -1,0 +1,47 @@
+# Smoke variant « cluster »: scans run on a kind cluster (smoke/cluster.mjs).
+# Layered after deploy/community/docker-compose.yml. The smoke runner creates
+# the kind cluster on a docker network of its own (CYBEDEFEND_KIND_NETWORK, a
+# fixed /24), writes cluster/kubeconfig for the ServiceAccount of the README,
+# and puts in its .env the fixed addresses the front and the storage take on
+# that network: CYBEDEFEND_PUBLIC_URL and CYBEDEFEND_STORAGE_PUBLIC_URL point
+# at them, so that the scan pods reach both (a pod cannot
+# resolve a container name). security-scanning and its cron join the network
+# too, to reach the API server at the kubeconfig's address.
+
+x-cluster-scan-env: &cluster-scan-env
+  CYBEDEFEND_SCANNER_KUBECONFIG_FILE: /run/cybedefend-cluster/kubeconfig
+  CYBEDEFEND_SCANNER_NAMESPACE: cd-scans
+  CYBEDEFEND_SCANNER_IMAGE_REGISTRY: ghcr.io/cybedefend
+  CYBEDEFEND_SCANNER_IMAGE_TAG: ${CYBEDEFEND_SCANNER_IMAGE_TAG:-}
+  CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET: ""
+  CYBEDEFEND_SCANNER_MAX_CONCURRENT: "2"
+  CYBEDEFEND_SCANNER_RESOURCES: ""
+  CYBEDEFEND_SCANNER_KEEP_PODS: "false"
+
+services:
+  security-scanning:
+    environment: *cluster-scan-env
+    networks:
+      cybedefend: {}
+      kind: {}
+  security-scanning-cron:
+    environment: *cluster-scan-env
+    networks:
+      cybedefend: {}
+      kind: {}
+  dashboard:
+    networks:
+      front: {}
+      kind:
+        ipv4_address: ${CYBEDEFEND_KIND_DASHBOARD_IP:?the smoke runner sets CYBEDEFEND_KIND_DASHBOARD_IP}
+  storage:
+    networks:
+      storage-net: {}
+      storage-publish: {}
+      kind:
+        ipv4_address: ${CYBEDEFEND_KIND_STORAGE_IP:?the smoke runner sets CYBEDEFEND_KIND_STORAGE_IP}
+
+networks:
+  kind:
+    external: true
+    name: ${CYBEDEFEND_KIND_NETWORK:-cd-smoke-kind}

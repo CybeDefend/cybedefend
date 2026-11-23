@@ -1,0 +1,74 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cybedefend-scan-pods
+  namespace: cybedefend-scans
+spec:
+  # Every pod of the namespace, which holds only this instance's scan pods:
+  # deny by default, then allow the flows below.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rule: nothing may connect to a scan pod.
+  ingress: []
+  egress:
+    # DNS, to the cluster's resolver only. Its label differs on some
+    # distributions: kubectl -n kube-system get pods --show-labels
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # The instance: the pods download the archive from
+    # CYBEDEFEND_STORAGE_PUBLIC_URL and send their results to
+    # CYBEDEFEND_PUBLIC_URL. Replace 192.0.2.10/32 with the address those
+    # hosts resolve to from the cluster (one entry per address), and 443 with
+    # their ports: behind the TLS proxy both are on 443; without it, the
+    # published ports (8080 for the instance, 9000 for the storage).
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.10/32
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cybedefend-scan-pods-sca-database
+  namespace: cybedefend-scans
+spec:
+  # The SCA scanner (Trivy filesystem) downloads its vulnerability database at
+  # each scan, from mirror.gcr.io, then ghcr.io. A NetworkPolicy cannot name
+  # a host, so this pod alone may reach public addresses on 443; the private
+  # ranges (the cluster, your network, the cloud metadata address) stay
+  # closed. With an egress proxy or a firewall that filters by host name,
+  # delete this policy and allow those two hosts there instead.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: cybedefend
+      cybedefend.io/adapter: trivy-fs
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 443

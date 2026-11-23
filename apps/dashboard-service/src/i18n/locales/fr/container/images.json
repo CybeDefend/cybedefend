@@ -1,0 +1,22 @@
+{
+  "container": {
+    "images": {
+      "confirmDelete": "Êtes-vous sûr de vouloir supprimer l'image \"{{imageName}}\" et toutes ses données associées ? Cette action ne peut pas être annulée.",
+      "deleteSuccess": "Image supprimée avec succès.",
+      "deleteError": "Échec de la suppression de l'image.",
+      "groupedDescription": "Images regroupées par dépôt. Cliquez pour dérouler et voir tous les tags.",
+      "loadErrorTitle": "Les images de conteneur n'ont pas pu être chargées",
+      "loadErrorDescription": "Rechargez la page dans un instant. Si la liste reste indisponible, contactez le support.",
+      "noneFound": "Aucune image pour ce projet",
+      "repository": "Dépôt",
+      "startScan": "Lancez une analyse pour voir les images ici.",
+      "importScan": "Importez le fichier SARIF d'une analyse de conteneur pour voir ses images ici.",
+      "tags": "Tags",
+      "eolOs": {
+        "badge": "OS en fin de vie : détection incomplète",
+        "title": "OS de base plus supporté",
+        "description": "{{os}} est en fin de vie : la distribution ne publie plus d'avis de sécurité, la détection des vulnérabilités est donc incomplète. Un résultat à 0 vulnérabilité ne signifie pas que l'image est saine. Reconstruisez-la sur une image de base supportée puis relancez le scan."
+      }
+    }
+  }
+}

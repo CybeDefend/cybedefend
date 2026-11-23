@@ -1,0 +1,26 @@
+{
+  "components": {
+    "analysisTable": {
+      "projects": "Projects",
+      "project": "Project",
+      "searchPlaceholder": "Search projects...",
+      "createTeamError": "You need to create a team before creating a project.",
+      "loadError": "Projects could not be loaded. Reload the page to try again.",
+      "createProject": "Create Project",
+      "projectName": "Project Name",
+      "linkedTeam": "Linked Team",
+      "scanStatus": "Scan Status",
+      "riskLevel": "Risk Level",
+      "riskScore": "Risk Score",
+      "cyberRiskLevel": "CybeRisk Level",
+      "cyberRiskScore": "CybeRisk Score",
+      "issues": "Issues",
+      "noResultsFound": "No Results Found",
+      "noProjects": "We couldn't find any matching projects.",
+      "showing": "Showing {{count}} of {{total}} projects",
+      "lastSourceScan": "Last Source Scan",
+      "never": "Never",
+      "activeScansDetected": "Active scans detected - Auto-refreshing every 30s"
+    }
+  }
+}

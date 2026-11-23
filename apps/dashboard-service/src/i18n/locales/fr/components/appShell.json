@@ -1,0 +1,16 @@
+{
+  "components": {
+    "appShell": {
+      "toggleNavigation": "Afficher ou masquer la navigation",
+      "sidebar": "Barre latérale",
+      "signedInAs": "Connecté en tant que",
+      "userMenu": "Menu utilisateur",
+      "orgId": "ID de l'organisation :",
+      "copyOrgId": "Copier l'ID de l'organisation",
+      "orgIdCopied": "ID de l'organisation copié",
+      "orgIdCopyFailed": "Impossible de copier l'ID de l'organisation",
+      "ipDuplicate": "Cette adresse IP est déjà ajoutée.",
+      "ipInvalid": "Saisissez une adresse IPv4 ou IPv6 valide, ou une plage CIDR."
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "form": {
+        "title": "Finalisez votre inscription",
+        "subtitle": "Vous avez été invité à rejoindre {{organizationName}} en tant que membre de l'équipe",
+        "yourRole": "Votre rôle",
+        "invitedEmail": "Invitation envoyée à",
+        "expires": "L'invitation expire",
+        "loading": "Chargement...",
+        "buttonLoading": "Finalisation de l'inscription...",
+        "buttonAccept": "Accepter & rejoindre l'Organisation",
+        "terms": "En acceptant, vous acceptez nos Conditions d'Utilisation et notre Politique de Confidentialité",
+        "accepted": "Invitation acceptée",
+        "settingUpPermissions": "Configuration de vos permissions…"
+      }
+    }
+  }
+}

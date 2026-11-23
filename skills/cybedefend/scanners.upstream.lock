@@ -1,0 +1,33 @@
+# The same tools, the core six from their own projects' images, for the test
+# bench and for a machine where the CybeDefend images are not there yet.
+# Same format as scanners.lock (read its header). Opengrep publishes no
+# image: on this registry it runs from its binary only (on the PATH, its
+# rules in $OPENGREP_RULES), and Docker mode skips it. The deep and context
+# lines are the same as in scanners.lock.
+
+# ─── core ────────────────────────────────────────────────────────────────────
+opengrep|sast|core|always|none|-|opengrep scan --config {rules} --sarif --output {out}/opengrep.sarif --quiet {src}
+trivy-fs|sca|core|always|bridge|ghcr.io/aquasecurity/trivy:0.76.1|trivy fs --scanners vuln --cache-dir {cache}/trivy --format sarif --output {out}/trivy-fs.sarif --quiet {src}
+trivy-fs-sbom|sbom|core|always|bridge|ghcr.io/aquasecurity/trivy:0.76.1|trivy fs --cache-dir {cache}/trivy --format cyclonedx --output {out}/trivy-fs-sbom.cdx.json --quiet {src}
+trivy-config|iac|core|always|none|ghcr.io/aquasecurity/trivy:0.76.1|trivy config --cache-dir {cache}/trivy --skip-check-update --format sarif --output {out}/trivy-config.sarif --quiet {src}
+gitleaks|secret|core|always|none|ghcr.io/gitleaks/gitleaks:v8.30.1|gitleaks dir {src} --redact --no-banner --exit-code 0 --report-format sarif --report-path {out}/gitleaks.sarif
+zizmor|cicd|core|dir:.github/workflows|none|ghcr.io/zizmorcore/zizmor:1.31.1|zizmor --offline --no-exit-codes --format sarif {src} -
+trivy-image|container|core|image|bridge|ghcr.io/aquasecurity/trivy:0.76.1|trivy image --cache-dir {cache}/trivy --format sarif --quiet {image} -
+
+# ─── deep: by stack ──────────────────────────────────────────────────────────
+# Python. B101 (assert) is left out: it fires on every test file.
+bandit|sast|deep|ext:py|bridge|uvx:bandit[sarif]==1.9.4|bandit -r {src} -s B101 -f sarif -o {out}/bandit.sarif -q --exit-zero
+# Go, with type information: it loads the packages, so it needs the modules.
+gosec|sast|deep|name:go.mod|bridge|securego/gosec:2.24.6|gosec -fmt sarif -out {out}/gosec.sarif -no-fail ./...
+# Ruby on Rails.
+brakeman|sast|deep|path:config/routes.rb|none|presidentbeef/brakeman:v8.1.0|brakeman --format sarif --output {out}/brakeman.sarif --no-exit-on-warn --no-exit-on-error --quiet --no-pager {src}
+# Terraform, CloudFormation, Kubernetes, Helm, Dockerfile, ARM, Bicep, Serverless.
+checkov|iac|deep|ext:tf,name:Dockerfile,dir:k8s,dir:helm,dir:charts,ext:bicep,name:serverless.yml|none|bridgecrew/checkov:3.4.3|checkov -d {src} --framework terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless --skip-download --soft-fail --quiet --compact -o sarif --output-file-path {out}/checkov
+# CI/CD pipelines beyond GitHub Actions too (GitLab CI, Azure Pipelines, Tekton).
+poutine|cicd|deep|dir:.github/workflows,name:.gitlab-ci.yml,name:azure-pipelines.yml,dir:.tekton|none|ghcr.io/boostsecurityio/poutine:1.1.6|poutine analyze_local {src} --format sarif --quiet --disable-version-check -
+
+# ─── context: read by the audit and the fixes, never sent ────────────────────
+# The attack surface: every endpoint, its method and its parameters.
+noir|context|context|always|none|ghcr.io/owasp-noir/noir:1.5.0|noir scan -b {src} -f json -o {out}/noir.json --ai-context -T --no-log --no-color
+# Which vulnerable Go dependencies the code really calls.
+govulncheck|context|context|name:go.mod|bridge|-|govulncheck -format sarif ./... -

@@ -1,0 +1,13 @@
+{
+  "components": {
+    "modal": {
+      "createTeam": {
+        "title": "Create New Team",
+        "teamName": "Team Name",
+        "enterTeamName": "Enter team name",
+        "teamDescription": "Team Description",
+        "enterTeamDescription": "Enter team description"
+      }
+    }
+  }
+}

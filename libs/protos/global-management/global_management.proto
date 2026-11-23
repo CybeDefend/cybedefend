@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+import "secret-rotation/secret_rotation.proto";
+import "global-management/user.proto";
+import "global-management/team.proto";
+import "global-management/project.proto";
+import "global-management/organization.proto";
+import "global-management/mail.proto"; // Added for MailReportService definitions
+import "global-management/authorization.proto";
+
+service GlobalManagementSecretRotation {
+  rpc NotifyRotation(cybedefend.secretrotation.RotationRequest) returns (cybedefend.secretrotation.RotationResponse);
+}
+
+service UserService {
+  rpc CheckExistence    (UserExistenceRequest)      returns (UserExistenceResponse);
+  rpc GetByEmail        (UserGetByEmailRequest)     returns (UserInformationsResponse);
+  rpc GetById           (UserGetByIdRequest)        returns (UserInformationsResponse);
+  rpc GetByIds          (UserGetByIdsRequest)       returns (UserGetByIdsResponse);
+  rpc UpdateUser        (UpdateUserProfileRequest)  returns (UserUpdateResponse);
+  rpc CreateUser        (UserCreateRequest)         returns (UserCreateResponse);
+  rpc DeleteUser        (UserDeleteRequest)         returns (UserDeleteResponse);
+  rpc GetUserProfile    (GetUserProfileRequest)     returns (GetUserProfileResponse);
+  // Personal Access Tokens (Logto PAT)
+  rpc ListPersonalAccessTokens  (ListPersonalAccessTokensRequest)   returns (ListPersonalAccessTokensResponse);
+  rpc CreatePersonalAccessToken (CreatePersonalAccessTokenRequest)  returns (CreatePersonalAccessTokenResponse);
+  rpc DeletePersonalAccessToken (DeletePersonalAccessTokenRequest)  returns (DeletePersonalAccessTokenResponse);
+  rpc UpdatePersonalAccessTokenName (UpdatePersonalAccessTokenNameRequest) returns (UpdatePersonalAccessTokenNameResponse);
+  // Org-wide PAT count + delete (used by billing-service plan transitions)
+  rpc CountPatsForOrg (CountPatsForOrgRequest) returns (CountPatsForOrgResponse);
+  rpc DeleteAllPatsForOrg (DeleteAllPatsForOrgRequest) returns (DeleteAllPatsForOrgResponse);
+}
+
+service TeamService {
+  rpc getTeam             (TeamGetRequest)            returns (TeamInformationsResponse);
+  rpc getAllTeams         (TeamGetAllRequest)         returns (TeamInformationsList);
+  rpc createTeam          (TeamCreateRequest)         returns (TeamCreateResponse);
+  rpc updateTeam          (TeamUpdateRequest)         returns (TeamUpdateResponse);
+  rpc deleteTeam          (TeamDeleteRequest)         returns (TeamDeleteResponse);
+  rpc addMember           (TeamAddMemberRequest)      returns (TeamAddMemberResponse);
+  rpc removeMember        (TeamRemoveUserRequest)     returns (TeamRemoveUserResponse);
+  rpc updateMemberRole    (UpdateTeamRoleRequest)     returns (UpdateTeamRoleResponse);
+  rpc getMembers          (TeamGetMembersRequest)     returns (PaginatedUsersResponse);
+  rpc getMember           (TeamGetMemberRequest)      returns (UserInformationsResponse);
+  // Bulk validation for policy management (single SQL query)
+  rpc validateTeamsInOrganization(ValidateTeamsInOrganizationRequest) returns (ValidateTeamsInOrganizationResponse);
+}
+
+service ProjectService {
+  rpc GetAllFromOrganization(ProjectGetAllRequest) returns (PaginatedProjectsAllInformationsResponse);
+  rpc GetAllFromTeam        (ProjectGetAllRequest)    returns (PaginatedProjectsResponse);
+  rpc GetAllProjects        (ProjectGetAllGlobalRequest) returns (PaginatedProjectsResponse); // global internal use
+  rpc Get                   (ProjectGetRequest)       returns (ProjectInformationsResponse);
+  // Efficient count of projects in an organization (single SQL COUNT query)
+  rpc CountProjectsInOrganization(CountProjectsInOrganizationRequest) returns (CountProjectsInOrganizationResponse);
+  rpc Create                (ProjectCreateRequest)    returns (ProjectInformationsResponse);
+  rpc Update                (ProjectUpdateRequest)    returns (ProjectUpdateResponse);
+  rpc Delete                (ProjectDeleteRequest)    returns (ProjectDeleteResponse);
+  // The project becomes an AppSec project (first full scan).
+  rpc MarkProjectAppsec     (MarkProjectAppsecRequest) returns (MarkProjectAppsecResponse);
+  rpc GetProjectBranches    (GetProjectBranchesRequest)    returns (GetProjectBranchesResponse);
+  // Branch archiving (hide branches from selectors)
+  rpc ArchiveBranch         (ArchiveBranchRequest)         returns (ArchiveBranchResponse);
+  rpc UnarchiveBranch       (UnarchiveBranchRequest)       returns (UnarchiveBranchResponse);
+  rpc GetArchivedBranches   (GetArchivedBranchesRequest)   returns (GetArchivedBranchesResponse);
+  // Bulk validation for policy management (single SQL query)
+  rpc ValidateProjectsInOrganization(ValidateProjectsInOrganizationRequest) returns (ValidateProjectsInOrganizationResponse);
+  // Project security context (CVSS 4.0 environmental scoring)
+  rpc GetProjectSecurityContext(GetProjectSecurityContextRequest) returns (GetProjectSecurityContextResponse);
+  rpc UpdateProjectSecurityContext(UpdateProjectSecurityContextRequest) returns (UpdateProjectSecurityContextResponse);
+  // Denormalized CybeRisk score sync (called by analysis-reporting's recompute
+  // worker). Updates the SQL sort key on `project`; best-effort on the caller.
+  rpc SetProjectCyberRiskScores(SetProjectCyberRiskScoresRequest) returns (SetProjectCyberRiskScoresResponse);
+  // Org-wide home-page KPI cards, decoupled from the paginated project list so
+  // the list returns fast.
+  // @deprecated The gateway reads them from analysis-reporting's
+  // GetOrganizationStatistics itself. Kept so that an older gateway still gets
+  // an answer; to be removed with its handler and mapper in global-management.
+  rpc GetOrganizationMainStatistics(GetOrganizationMainStatisticsRequest) returns (MainStatisticsResponse);
+  // System-scope project IDs of an org (analysis-reporting's org-stats worker).
+  rpc GetOrganizationProjectIds(GetOrganizationProjectIdsRequest) returns (OrganizationProjectIdsResponse);
+  // USER-scoped (id, name) projection of an org's projects — one SELECT, no
+  // pagination ceiling, no fan-out. Used by the GRC findings export, which
+  // resolves the readable set on every page.
+  rpc GetReadableProjectsInOrganization(GetReadableProjectsRequest) returns (ReadableProjectsResponse);
+}
+
+service OrganizationService {
+  rpc Invite                         (OrganizationInviteRequest)                       returns (OrganizationInviteResponse);
+  rpc CancelInvitation               (OrganizationCancelRequest)                      returns (OrganizationInviteResponse);
+  // Bulk-cancel all pending invitations (called on a plan change that no longer allows invitations)
+  rpc CancelAllPendingInvitations    (CancelAllPendingInvitationsRequest)              returns (CancelAllPendingInvitationsResponse);
+  rpc GetInvitations                 (OrganizationGetInvitationsRequest)              returns (GetOrganizationInvitationsResponse);
+  rpc Get                            (OrganizationGetRequest)                         returns (OrganizationInformationsResponse);
+  rpc GetAll                         (OrganizationGetAllRequest)                      returns (OrganizationInformationsList);
+  rpc Update                         (OrganizationUpdateRequest)                      returns (OrganizationUpdateResponse);
+  rpc Create                         (OrganizationCreateRequest)                      returns (OrganizationCreateResponse);
+  // Refuses every call: an organization is deleted by ConfirmOrganizationDeletion only.
+  rpc Delete                         (OrganizationDeleteRequest)                      returns (OrganizationDeleteResponse);
+  // Creator only, with the code of RequestOrganizationDeletionCode. A new RPC so that an older
+  // global-management answers UNIMPLEMENTED rather than ignore the code and delete.
+  rpc ConfirmOrganizationDeletion    (ConfirmOrganizationDeletionRequest)             returns (OrganizationDeleteResponse);
+  // Creator only: e-mails the 6-digit code ConfirmOrganizationDeletion requires (10 minutes, single use).
+  rpc RequestOrganizationDeletionCode (RequestOrganizationDeletionCodeRequest)      returns (RequestOrganizationDeletionCodeResponse);
+  rpc GetMembers                     (OrganizationGetMembersRequest)                  returns (PaginatedOrganizationMembersResponse);
+  rpc AcceptInvitation               (OrganizationAcceptInviteRequest)                returns (OrganizationAcceptInviteResponse);
+  rpc UpdateMember                   (OrganizationUpdateRoleRequest)                  returns (OrganizationUpdateRoleResponse);
+  rpc RemoveMember                   (OrganizationDeleteMemberRequest)                returns (OrganizationDeleteMemberResponse);
+  rpc GetOrganizationIdByProjectId   (OrganizationGetIdByProjectIdRequest)            returns (OrganizationGetIdByProjectIdResponse);
+  // The organization a team belongs to (gateway FeatureGuard on /team/:teamId/* routes)
+  rpc GetOrganizationIdByTeamId      (OrganizationGetIdByTeamIdRequest)               returns (OrganizationGetIdByTeamIdResponse);
+  rpc GetByProject                   (OrganizationGetIdByProjectIdRequest)            returns (OrganizationInformationsResponse);
+  // Efficient member count (used by billing-service addon quantity validation)
+  rpc CountMembersInOrganization     (CountMembersInOrganizationRequest)              returns (CountMembersInOrganizationResponse);
+}

@@ -1,0 +1,11 @@
+{
+  "components": {
+    "integrationNotConfigured": {
+      "github": "GitHub n'est pas configuré sur cette instance. Un administrateur peut lui associer une GitHub App.",
+      "gitlab": "GitLab n'est pas configuré sur cette instance. Un administrateur peut lui associer une application GitLab.",
+      "jira": "Jira n'est pas configuré sur cette instance. Un administrateur peut lui associer une application OAuth Jira.",
+      "linear": "Linear n'est pas configuré sur cette instance. Un administrateur peut lui associer une application OAuth Linear.",
+      "guideLink": "Voir la section Optional integrations du guide d'auto-hébergement."
+    }
+  }
+}

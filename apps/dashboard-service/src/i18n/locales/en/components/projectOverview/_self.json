@@ -1,0 +1,8 @@
+{
+  "components": {
+    "projectOverview": {
+      "count": "Count",
+      "ofTotal": "of total"
+    }
+  }
+}

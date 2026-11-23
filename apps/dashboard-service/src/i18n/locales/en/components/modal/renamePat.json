@@ -1,0 +1,15 @@
+{
+    "components": {
+        "modal": {
+            "renamePat": {
+                "title": "Rename Token",
+                "nameLabel": "New Name",
+                "namePlaceholder": "Enter a new name for this token",
+                "errors": {
+                    "nameRequired": "Token name is required",
+                    "sameName": "New name must be different from the current name"
+                }
+            }
+        }
+    }
+}

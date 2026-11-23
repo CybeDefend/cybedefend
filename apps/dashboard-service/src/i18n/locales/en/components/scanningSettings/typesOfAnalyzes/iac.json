@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "iac": {
+          "title": "Infrastructure as code security analysis (IaC)",
+          "description": "Analysis of Infrastructure as code to identify configuration vulnerabilities."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+[
+  { "name": "report-mail-daily", "cron": "0 8 * * *", "env": { "APP_MODE": "cron-report-mail", "CRON_TASK": "daily" } },
+  { "name": "report-mail-weekly", "cron": "0 7 * * 1", "env": { "APP_MODE": "cron-report-mail", "CRON_TASK": "weekly" } },
+  { "name": "report-mail-monthly", "cron": "30 7 1 * *", "env": { "APP_MODE": "cron-report-mail", "CRON_TASK": "monthly" } },
+  { "name": "report-retention", "cron": "15 */12 * * *", "env": { "APP_MODE": "cron-report-retention" } }
+]

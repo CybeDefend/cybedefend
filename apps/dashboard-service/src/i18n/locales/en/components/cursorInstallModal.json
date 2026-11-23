@@ -1,0 +1,34 @@
+{
+    "components": {
+        "cursorInstallModal": {
+            "title": "Install CybeDefend in Cursor",
+            "description": "Cursor does not connect to the Open VSX Registry by default. You need to download the .vsix file and install it manually.",
+            "stepsTitle": "How to install:",
+            "step1": {
+                "title": "Download the .vsix file",
+                "description": "Go to the Open VSX Registry and download the latest CybeDefend .vsix file.",
+                "button": "Go to Open VSX"
+            },
+            "step2": {
+                "title": "Install the extension",
+                "description": "Choose one of the following methods to install the extension in Cursor:",
+                "optionA": {
+                    "label": "Option A: Command Palette",
+                    "description": "Open the Command Palette (Ctrl+Shift+P / Cmd+Shift+P), type \"Extensions: Install from VSIX...\" and select the downloaded file."
+                },
+                "optionB": {
+                    "label": "Option B: Terminal"
+                }
+            },
+            "step3": {
+                "title": "Configure and scan",
+                "description": "Select your region, authenticate via OAuth 2.0, configure your project, and start scanning. The workflow is the same as in VS Code.",
+                "importTitle": "Configure",
+                "importDescription": "Enter your instance's URL, sign in with a personal access token, choose your project and review the findings imported into it. The workflow is the same as in VS Code."
+            },
+            "downloadButton": "Download .vsix",
+            "warningTitle": "Manual updates required",
+            "warningDescription": "When a new version of CybeDefend is released, you will need to download and install the updated .vsix file manually. Cursor does not auto-update extensions installed from .vsix files."
+        }
+    }
+}

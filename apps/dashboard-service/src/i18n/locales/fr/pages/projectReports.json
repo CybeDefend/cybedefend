@@ -1,0 +1,38 @@
+{
+  "pages": {
+    "projectReports": {
+      "title": "Rapports",
+      "description": "Générez des rapports de sécurité pour votre projet dans différents formats.",
+      "errorFetchingProject": "Erreur lors de la récupération du projet",
+      "reportGeneratedSuccess": "Rapport généré avec succès",
+      "reportDownloadedSuccess": "Rapport téléchargé avec succès",
+      "generateReport": "Générer un rapport",
+      "reportType": "Type de rapport",
+      "format": "Format",
+      "selectReportType": "Sélectionner le type de rapport",
+      "selectFormat": "Sélectionner le format",
+      "generate": "Générer",
+      "download": "Télécharger",
+      "clear": "Effacer",
+      "preview": "Aperçu",
+      "previewLoading": "Chargement de l'aperçu…",
+      "previewError": "Impossible de charger l'aperçu. Essayez plutôt de télécharger le rapport.",
+      "pdfReady": "Rapport PDF prêt à télécharger",
+      "reportReady": "rapport prêt",
+      "noReportGenerated": "Aucun rapport généré",
+      "noReportDescription": "Sélectionnez un type de rapport et un format ci-dessus, puis cliquez sur Générer pour créer votre rapport.",
+      "owaspReport": "Rapport OWASP Top 10",
+      "owaspDescription": "Générez un rapport de sécurité complet OWASP Top 10 au format JSON, HTML ou PDF.",
+      "cweReport": "Rapport CWE Top 25",
+      "cweDescription": "Générez un rapport de sécurité complet CWE Top 25 2024 au format JSON, HTML ou PDF.",
+      "branchFilter": "Branche",
+      "detailedReport": "Rapport détaillé",
+      "detailedDescription": "Inclure des détails supplémentaires et des exemples dans le rapport",
+      "reportTypes": {
+        "sbom": "SBOM (liste des composants logiciels)",
+        "owasp": "OWASP Top 10",
+        "cwe": "CWE Top 25"
+      }
+    }
+  }
+}

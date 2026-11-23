@@ -1,0 +1,95 @@
+{
+  "pages": {
+    "editions": {
+      "title": "Editions",
+      "subtitle": "You are using CybeDefend Open Source, self-hosted. Cloud is the Pro and Team plans; Enterprise is the Enterprise plan.",
+      "highlights": {
+        "title": "Why Cloud",
+        "subtitle": "What CybeDefend Cloud adds to your SAST results.",
+        "reachability": {
+          "title": "Reachability analysis for SAST",
+          "body": "Each finding gets its exploitability, traced from the data flow."
+        },
+        "falsePositives": {
+          "title": "Fewer false positives",
+          "body": "Cybe Analysis triages each finding, so you review the ones that matter."
+        },
+        "rules": {
+          "title": "5,000+ proprietary rules",
+          "body": "Our own rules, many written in-house, on top of the open-source rule sets."
+        },
+        "languagesLabel": "Languages covered"
+      },
+      "tableLabel": "What each edition includes",
+      "feature": "Feature",
+      "columns": {
+        "community": "Open Source",
+        "cloud": "Cloud",
+        "enterprise": "Enterprise"
+      },
+      "included": "Included",
+      "notIncluded": "Not included",
+      "cta": {
+        "cloud": "Try CybeDefend Cloud",
+        "enterprise": "Contact us about Enterprise"
+      },
+      "opensInNewTab": "(opens in a new tab)",
+      "rows": {
+        "sarifImport": "SARIF import of scanner results",
+        "sastResults": "SAST results",
+        "iacResults": "IaC results",
+        "secretResults": "Secret results",
+        "cicdResults": "CI/CD results",
+        "scaResults": "SCA results",
+        "containerResults": "Container results",
+        "codeScans": "Code scans (SAST, IaC, secrets, CI/CD, SCA)",
+        "pushScans": "Scans on every push and pull request",
+        "containerImageScans": "Container image scans",
+        "containerRegistries": "Container registries",
+        "advisoryFeeds": "Advisory feeds (OSV matching, EPSS, malware, zero-day alerts)",
+        "triage": "Triage and history",
+        "policies": "Policies",
+        "owaspReport": "OWASP Top 10 report",
+        "cweReport": "CWE report",
+        "aggregatedReport": "Aggregated report",
+        "licenseReport": "Licence report",
+        "sbomReport": "SBOM report",
+        "aiBom": "AI-BOM",
+        "euAiActReport": "EU AI Act report",
+        "scannerReport": "Per-scanner report",
+        "githubIntegration": "GitHub integration",
+        "gitlabIntegration": "GitLab integration",
+        "jiraIntegration": "Jira integration",
+        "linearIntegration": "Linear integration",
+        "slackIntegration": "Slack integration",
+        "mcpServer": "MCP server for coding agents",
+        "grcExport": "GRC findings export (Comp AI)",
+        "pats": "Personal access tokens",
+        "reachabilityAnalysis": "Reachability analysis (SAST)",
+        "falsePositiveReduction": "False-positive reduction",
+        "proprietaryRules": "Proprietary rules",
+        "cybeAnalysis": "Cybe Analysis",
+        "autofix": "Cybe AutoFix",
+        "cybeChat": "Cybe chat",
+        "codeMap": "Code map",
+        "localAccounts": "Email and password accounts",
+        "sso": "SSO / SAML",
+        "mfa": "Multi-factor authentication",
+        "selfHosted": "Self-hosted on your infrastructure",
+        "support": "Support"
+      },
+      "notes": {
+        "ownCluster": "On your own Kubernetes cluster",
+        "managedScanners": "Managed scanners",
+        "withCluster": "With a connected cluster",
+        "importOnly": "Results by import",
+        "teamPlan": "Team plan",
+        "patAuth": "With personal access tokens",
+        "localInstance": "Local accounts on your instance",
+        "socialSignIn": "GitHub, GitLab, Microsoft or Google sign-in",
+        "composePostgres": "Docker Compose and PostgreSQL",
+        "proprietaryRuleCount": "5,000+ rules"
+      }
+    }
+  }
+}

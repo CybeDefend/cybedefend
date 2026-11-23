@@ -1,0 +1,290 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:5d3f2a3e-4b8c-4f0e-9a51-0c2b7a1e9f10",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-04T10:00:00+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "aquasecurity",
+          "name": "trivy",
+          "version": "0.58.1"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "6b0e6a3c-0d5f-4b5e-9f1e-2c3a4b5c6d7e",
+      "type": "application",
+      "name": ".",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:SchemaVersion",
+          "value": "2"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "1a2b3c4d-0000-4000-8000-000000000001",
+      "type": "application",
+      "name": "package-lock.json",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:Class",
+          "value": "lang-pkgs"
+        },
+        {
+          "name": "aquasecurity:trivy:Type",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "1a2b3c4d-0000-4000-8000-000000000002",
+      "type": "application",
+      "name": "requirements.txt",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:Class",
+          "value": "lang-pkgs"
+        },
+        {
+          "name": "aquasecurity:trivy:Type",
+          "value": "pip"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/express@4.17.1",
+      "type": "library",
+      "name": "express",
+      "version": "4.17.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:npm/express@4.17.1",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "express@4.17.1"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/lodash@4.17.20",
+      "type": "library",
+      "name": "lodash",
+      "version": "4.17.20",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:npm/lodash@4.17.20",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "lodash@4.17.20"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/request@2.88.2",
+      "type": "library",
+      "name": "request",
+      "version": "2.88.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/request@2.88.2",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "request@2.88.2"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/qs@6.5.2",
+      "type": "library",
+      "name": "qs",
+      "version": "6.5.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "purl": "pkg:npm/qs@6.5.2",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "qs@6.5.2"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/tough-cookie@2.5.0",
+      "type": "library",
+      "name": "tough-cookie",
+      "version": "2.5.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tough-cookie@2.5.0",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "tough-cookie@2.5.0"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/%40babel/code-frame@7.12.13",
+      "type": "library",
+      "group": "@babel",
+      "name": "code-frame",
+      "version": "7.12.13",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40babel/code-frame@7.12.13",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgID",
+          "value": "@babel/code-frame@7.12.13"
+        },
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "npm"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/requests@2.25.1",
+      "type": "library",
+      "name": "requests",
+      "version": "2.25.1",
+      "purl": "pkg:pypi/requests@2.25.1",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "pip"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/typing-extensions@4.7.1",
+      "type": "library",
+      "name": "typing_extensions",
+      "version": "4.7.1",
+      "licenses": [
+        {
+          "expression": "PSF-2.0"
+        }
+      ],
+      "purl": "pkg:pypi/typing-extensions@4.7.1",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "pip"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "6b0e6a3c-0d5f-4b5e-9f1e-2c3a4b5c6d7e",
+      "dependsOn": [
+        "1a2b3c4d-0000-4000-8000-000000000001",
+        "1a2b3c4d-0000-4000-8000-000000000002"
+      ]
+    },
+    {
+      "ref": "1a2b3c4d-0000-4000-8000-000000000001",
+      "dependsOn": [
+        "pkg:npm/express@4.17.1",
+        "pkg:npm/lodash@4.17.20",
+        "pkg:npm/request@2.88.2"
+      ]
+    },
+    {
+      "ref": "1a2b3c4d-0000-4000-8000-000000000002",
+      "dependsOn": [
+        "pkg:pypi/requests@2.25.1",
+        "pkg:pypi/typing-extensions@4.7.1"
+      ]
+    },
+    {
+      "ref": "pkg:npm/express@4.17.1",
+      "dependsOn": [
+        "pkg:npm/qs@6.5.2"
+      ]
+    },
+    {
+      "ref": "pkg:npm/request@2.88.2",
+      "dependsOn": [
+        "pkg:npm/qs@6.5.2",
+        "pkg:npm/tough-cookie@2.5.0"
+      ]
+    },
+    {
+      "ref": "pkg:npm/qs@6.5.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/tough-cookie@2.5.0",
+      "dependsOn": [
+        "pkg:npm/%40babel/code-frame@7.12.13"
+      ]
+    },
+    {
+      "ref": "pkg:npm/lodash@4.17.20",
+      "dependsOn": []
+    }
+  ]
+}

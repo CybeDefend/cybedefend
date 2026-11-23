@@ -1,0 +1,220 @@
+syntax = "proto3";
+package cybedefend.external_integrations;
+
+// Installation and configuration
+message GetGitlabInstallationForOrgaRequest {
+  string organization_id = 1;
+}
+
+message GetGitlabInstallationForOrgaResponse {
+  string id = 1;
+  string user_id = 2;
+  string organization_id = 3;
+  int64 gitlab_user_id = 4;
+  int64 gitlab_group_id = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  // GitLab refused the connection's refresh token (invalid_grant):
+  // the application was revoked on GitLab and the connection must be made again.
+  bool reconnect_required = 8;
+}
+
+// Disconnect GitLab from an organization (explicit user action).
+message DisconnectGitlabRequest {
+  string organization_id = 1;
+}
+
+message DisconnectGitlabResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// OAuth callback installation
+message GitlabCallbackInstallRequest {
+  string organization_id = 1;
+  string user_id = 2;
+  string code = 3; // OAuth authorization code
+  string state = 4; // OAuth state parameter
+}
+
+message GitlabCallbackInstallResponse {
+  string return_uri = 1;
+}
+
+// Repository management
+message GetGitlabRepositoriesRequest {
+  string organization_id = 1;
+}
+
+message GitlabRepositoryDto {
+  string id = 1;
+  int64 gitlab_id = 2;
+  string name = 3;
+  string name_with_namespace = 4;
+  string path = 5;
+  string path_with_namespace = 6;
+  bool private = 7;
+  string default_branch = 8;
+  string project_id = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  string scan_branch = 12; // User-selected branch for scanning
+}
+
+message GetGitlabRepositoriesResponse {
+  repeated GitlabRepositoryDto repositories = 1;
+  string organization_id = 2;
+}
+
+// Link/Unlink projects
+message LinkGitlabRepositoryRequest {
+  string organization_id = 1;
+  string project_id = 2;
+  string repository_id = 3;
+  string scan_branch = 4; // Optional: branch to scan (empty = use default)
+  // Space the link is made from: "appsec" or empty starts the full scan;
+  // "vibedefend" (closed extension) starts a graph-only scan.
+  optional string product = 5;
+}
+
+message UnlinkGitlabRepositoryRequest {
+  string repository_id = 1;
+  string project_id = 2;
+  string organization_id = 3;
+}
+
+message GitlabLinkRepositoryResponse {
+  string id = 1;
+  int64 gitlab_id = 2;
+  string name = 3;
+  string name_with_namespace = 4;
+  string path = 5;
+  string path_with_namespace = 6;
+  bool private = 7;
+  string default_branch = 8;
+  string project_id = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  string scan_branch = 12; // User-selected branch for scanning
+}
+
+// Scan management
+message StartGitlabScanRequest {
+  string project_id = 1;
+  string repository_id = 2;
+  string branch = 3; // Optional: branch to scan (empty = use configured or default)
+  // "vibedefend" (closed extension): a graph-only scan; "appsec" or empty:
+  // the full scan.
+  optional string product = 4;
+}
+
+message StartGitlabScanResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string detected_languages = 3;
+  string scan_id = 4;
+}
+
+// Access token retrieval (for internal agent use)
+message GetGitlabAccessTokenForProjectRequest {
+  string project_id = 1;
+}
+
+message GetGitlabAccessTokenForProjectResponse {
+  // OAuth user access token with sufficient scopes (e.g., write_repository)
+  string access_token = 1;
+  // Repository clone URL (https format)
+  string clone_url = 2;
+  // Repository full name (group/project or user/project)
+  string repository_full_name = 3;
+  // Default branch name
+  string default_branch = 4;
+}
+
+// Webhook events
+message GitlabWebhookEventRequest {
+  string body_json = 1;
+  string event = 2;
+  string gitlab_token = 3; // GitLab verification token
+}
+
+message GitlabWebhookResponse {
+  bool success = 1;
+}
+
+// Delete project
+message DeleteGitlabProjectRequest {
+  string project_id = 1;
+}
+
+// Branch management
+message GetGitlabBranchesRequest {
+  string organization_id = 1;
+  string repository_id = 2;
+}
+
+message GitlabBranchDto {
+  string name = 1;
+  bool is_default = 2;
+  bool is_protected = 3;
+}
+
+message GetGitlabBranchesResponse {
+  repeated GitlabBranchDto branches = 1;
+  string repository_id = 2;
+  string default_branch = 3;
+  string scan_branch = 4;
+}
+
+message PaginatedGitlabBranchDto {
+  string name = 1;
+  bool is_default = 2;
+  bool is_protected = 3;
+  bool archived = 4;
+}
+
+message GetGitlabRepositoryBranchesPaginatedRequest {
+  string organization_id = 1;
+  string project_id = 2;
+  string search = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+  bool include_archived = 6;
+  repeated string archived_names = 7;
+}
+
+message GetGitlabRepositoryBranchesPaginatedResponse {
+  repeated PaginatedGitlabBranchDto branches = 1;
+  int32 total = 2;
+  string default_branch = 3;
+  string scan_branch = 4;
+}
+
+// Check if a project has a linked GitLab repository
+message GetGitlabProjectLinkStatusRequest {
+  string project_id = 1;
+}
+
+message GetGitlabProjectLinkStatusResponse {
+  bool is_linked = 1;
+  string repository_id = 2;
+  string repository_name = 3;
+  string repository_full_name = 4;
+}
+
+// Batch request for checking link status of multiple projects at once
+message GetBatchGitlabProjectLinkStatusRequest {
+  repeated string project_ids = 1;
+}
+
+message GitlabProjectLinkStatusEntry {
+  string project_id = 1;
+  bool is_linked = 2;
+  string repository_id = 3;
+  string repository_name = 4;
+  string repository_full_name = 5;
+}
+
+message GetBatchGitlabProjectLinkStatusResponse {
+  repeated GitlabProjectLinkStatusEntry statuses = 1;
+}

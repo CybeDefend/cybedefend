@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "features": {
+        "ai": {
+          "title": "AI-Driven Precision",
+          "description": "Utilize advanced AI to reduce false positives, prioritize risks, and automate secure coding practices."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "components": {
+    "sidePanel": {
+      "details": "Détails",
+      "totalIssues": "Total des problèmes",
+      "analysisCategories": "Catégories d'Analyse",
+      "noAnalyses": "Aucune analyse disponible"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "components": {
+    "projectOverview": {
+      "overTime": {
+        "title": "Vulnérabilités au fil du temps",
+        "subtitle": "Distribution temporelle par sévérité"
+      }
+    }
+  }
+}

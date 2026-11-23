@@ -1,0 +1,13 @@
+{
+  "components": {
+    "modal": {
+      "pendingInvitations": {
+        "title": "Invitations en attente",
+        "noPendingInvitations": "Aucune invitation en attente.",
+        "email": "Email",
+        "role": "Rôle",
+        "expiresAt": "Expire le"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "components": {
+    "projectWrapper": {
+      "tabs": {
+        "overview": "Overview",
+        "vulnerabilities": "Vulnerabilities",
+        "codeGraph": "Code Map",
+        "reports": "Reports",
+        "compliance": "Compliance",
+        "settings": "Settings"
+      },
+      "sectionNavLabel": "Project sections"
+    }
+  }
+}

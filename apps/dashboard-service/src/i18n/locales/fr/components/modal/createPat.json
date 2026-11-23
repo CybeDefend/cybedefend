@@ -1,0 +1,22 @@
+{
+    "components": {
+        "modal": {
+            "createPat": {
+                "title": "Créer un jeton d'accès personnel",
+                "nameLabel": "Nom du jeton",
+                "namePlaceholder": "ex. pipeline-ci, mon-script",
+                "expirationLabel": "Expiration",
+                "selectExpiration": "Sélectionner l'expiration",
+                "days7": "7 jours",
+                "days30": "30 jours",
+                "months3": "3 mois",
+                "months6": "6 mois",
+                "year1": "1 an",
+                "never": "Jamais",
+                "errors": {
+                    "nameRequired": "Le nom du jeton est requis"
+                }
+            }
+        }
+    }
+}

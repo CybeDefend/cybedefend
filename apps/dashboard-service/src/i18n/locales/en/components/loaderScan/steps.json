@@ -1,0 +1,15 @@
+{
+  "components": {
+    "loaderScan": {
+      "steps": {
+        "initialization": "Initialization",
+        "stateUploading": "Uploading",
+        "fileUpload": "File Upload",
+        "filePreparation": "File Preparation",
+        "queued": "Queued",
+        "scanning": "Scanning",
+        "completed": "Completed"
+      }
+    }
+  }
+}

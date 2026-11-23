@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "projectSetting": {
+      "tabs": {
+        "scanning": "Scan",
+        "notifications": "Notifications",
+        "issues": "Issues",
+        "securityContext": "Contexte de sécurité"
+      }
+    }
+  }
+}

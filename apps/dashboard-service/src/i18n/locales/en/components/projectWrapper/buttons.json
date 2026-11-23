@@ -1,0 +1,9 @@
+{
+    "components": {
+        "projectWrapper": {
+            "buttons": {
+                "backToResults": "Back to analysis results"
+            }
+        }
+    }
+}

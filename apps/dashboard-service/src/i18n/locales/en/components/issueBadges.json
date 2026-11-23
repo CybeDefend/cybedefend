@@ -1,0 +1,11 @@
+{
+  "components": {
+    "issueBadges": {
+      "critical": "C",
+      "high": "H",
+      "medium": "M",
+      "low": "L",
+      "info": "I"
+    }
+  }
+}

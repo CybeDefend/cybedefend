@@ -1,0 +1,43 @@
+{
+    "pages": {
+        "settingsLicenses": {
+            "title": "Classification des licences",
+            "description": "Personnalisez la classification des licences pour votre organisation. Les changements s'appliquent à tous les projets.",
+            "back": "Retour aux paramètres",
+            "searchPlaceholder": "Rechercher par identifiant ou nom de licence...",
+            "allCategories": "Toutes les catégories",
+            "resetAll": "Réinitialiser",
+            "customized": "Personnalisé",
+            "total": "Total",
+            "noResults": "Aucune licence trouvée.",
+            "table": {
+                "license": "Licence",
+                "name": "Nom",
+                "defaultCategory": "Par défaut",
+                "classification": "Classification"
+            },
+            "addCustom": "Ajouter une licence",
+            "deleteCustom": "Supprimer",
+            "deleting": "Suppression...",
+            "addModal": {
+                "title": "Ajouter une licence",
+                "description": "Ajoutez une licence personnalisée à la liste de classification de votre organisation.",
+                "spdxLabel": "Identifiant de licence (SPDX)",
+                "spdxPlaceholder": "ex. MIT, Apache-2.0, LicenseRef-Custom",
+                "categoryLabel": "Classification",
+                "cancel": "Annuler",
+                "confirm": "Ajouter"
+            },
+            "toast": {
+                "loadError": "Erreur lors du chargement des classifications",
+                "saveSuccess": "Classifications mises à jour avec succès",
+                "saveError": "Erreur lors de la sauvegarde",
+                "resetSuccess": "Classifications réinitialisées",
+                "resetError": "Erreur lors de la réinitialisation",
+                "alreadyExists": "Cet identifiant de licence existe déjà",
+                "deleteSuccess": "Licence personnalisée supprimée avec succès",
+                "deleteError": "Erreur lors de la suppression de la licence"
+            }
+        }
+    }
+}

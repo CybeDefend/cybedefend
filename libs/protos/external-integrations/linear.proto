@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package cybedefend.external_integrations;
+
+// Linear issue-tracker integration. Modelled on jira.proto: the
+// installation is organization-scoped (one Linear workspace per organization),
+// the per-project configuration picks a Linear team (plus an optional Linear
+// project and labels) for the tickets created from a CybeDefend project.
+//
+// Refusals are a closed list carried by the RpcException message:
+// LINEAR_NOT_CONNECTED, LINEAR_NEEDS_RECONNECT, LINEAR_WORKSPACE_TAKEN,
+// LINEAR_NO_TEAM, LINEAR_TEAM_NOT_FOUND, LINEAR_ISSUE_NOT_FOUND.
+
+// ========== Linear OAuth URL Generation ==========
+
+message GenerateLinearOAuthUrlRequest {
+  string redirect_uri = 1;
+  string state = 2;
+}
+
+message GenerateLinearOAuthUrlResponse {
+  string install_url = 1;
+}
+
+// ========== Linear OAuth Installation ==========
+
+message LinearCallbackInstallRequest {
+  string organization_id = 1;
+  string user_id = 2;
+  string code = 3;        // OAuth2 authorization code from Linear
+  string redirect_uri = 4;
+}
+
+message LinearCallbackInstallResponse {
+  string return_uri = 1;
+}
+
+message GetLinearInstallationForOrgaRequest {
+  string organization_id = 1;
+}
+
+message GetLinearInstallationForOrgaResponse {
+  // false => no Linear installation for this organization. See
+  // GetSlackInstallationForOrgaResponse.is_configured in slack.proto for the
+  // full rationale.
+  bool is_configured = 1;
+  string id = 2;
+  string linear_organization_id = 3;  // Linear workspace (organization) ID
+  string workspace_name = 4;          // e.g. "Acme"
+  string workspace_url_key = 5;       // e.g. "acme" (linear.app/acme)
+  string organization_id = 6;         // CybeDefend organization ID
+  string installed_by_user_id = 7;
+  // true when the refresh token was rejected (revoked, app uninstalled on the
+  // Linear side): the workspace must be connected again.
+  bool needs_reconnect = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message DisconnectLinearRequest {
+  string organization_id = 1;
+}
+
+message LinearGenericResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ========== Linear Team Listing ==========
+
+message ListLinearTeamsRequest {
+  string organization_id = 1;
+}
+
+message LinearTeamDto {
+  string id = 1;     // Linear team ID (UUID)
+  string key = 2;    // e.g. "ENG"
+  string name = 3;   // e.g. "Engineering"
+}
+
+message ListLinearTeamsResponse {
+  repeated LinearTeamDto teams = 1;
+}
+
+// ========== Linear Team Options (projects, labels, members) ==========
+
+message GetLinearTeamOptionsRequest {
+  string organization_id = 1;
+  string team_id = 2;
+}
+
+message LinearOptionDto {
+  string id = 1;
+  string name = 2;
+}
+
+message LinearMemberDto {
+  string id = 1;
+  string name = 2;
+  string display_name = 3;
+}
+
+message GetLinearTeamOptionsResponse {
+  repeated LinearOptionDto projects = 1;
+  repeated LinearOptionDto labels = 2;
+  repeated LinearMemberDto members = 3;
+}
+
+// ========== Per-Project Linear Config ==========
+
+message SetProjectLinearConfigRequest {
+  string organization_id = 1;
+  string project_id = 2;              // CybeDefend project ID
+  string team_id = 3;                 // Linear team ID
+  string linear_project_id = 4;       // Linear project ID, "" = none
+  repeated string label_ids = 5;      // Linear label IDs added to every ticket
+  repeated string allowed_branches = 6; // Empty = all branches allowed
+  bool auto_create_enabled = 7;       // Auto-create tickets after scans
+}
+
+message RemoveProjectLinearConfigRequest {
+  string organization_id = 1;
+  string project_id = 2;
+}
+
+message GetProjectLinearConfigRequest {
+  string project_id = 1;
+  string organization_id = 2;
+}
+
+message GetProjectLinearConfigResponse {
+  bool is_configured = 1;
+  string team_id = 2;
+  string team_key = 3;
+  string team_name = 4;
+  string linear_project_id = 5;
+  string linear_project_name = 6;
+  repeated LinearOptionDto labels = 7;
+  repeated string allowed_branches = 8;
+  bool auto_create_enabled = 9;
+}
+
+// ========== Linear Webhook ==========
+
+message LinearWebhookEventRequest {
+  string raw_body = 1;        // Raw JSON body, signed as received
+  string signature = 2;       // Linear-Signature header (HMAC-SHA256 hex of the raw body)
+}
+
+message LinearWebhookResponse {
+  bool success = 1;
+  string message = 2;
+}

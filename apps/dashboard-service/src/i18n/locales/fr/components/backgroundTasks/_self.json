@@ -1,0 +1,35 @@
+{
+  "components": {
+    "backgroundTasks": {
+      "title": "Tâches en arrière-plan",
+      "pill": "{{count}} tâche(s), {{percent}} %",
+      "types": {
+        "vuln_batch_update": "Mise à jour des vulnérabilités",
+        "autofix": "Correction auto",
+        "sca_autofix": "Correction auto SCA",
+        "report_generation": "Génération du rapport",
+        "scan": "Analyse de sécurité",
+        "default": "Tâche en arrière-plan"
+      },
+      "summary": {
+        "updated": "{{count}} mises à jour",
+        "failed": "{{count}} échecs"
+      },
+      "scan": {
+        "completed": "Analyse terminée",
+        "degraded": "Analyse terminée avec avertissements",
+        "cancelled": "Analyse annulée",
+        "failed": "Analyse échouée"
+      },
+      "failed": "Échec",
+      "collapse": "Réduire le panneau des tâches",
+      "expand": "Développer le panneau des tâches",
+      "close": "Fermer le panneau des tâches",
+      "dismiss": "Ignorer la tâche",
+      "started": "Mise à jour lancée",
+      "viewPr": "Voir la PR",
+      "viewReport": "Voir le rapport",
+      "reportStarted": "Génération du rapport lancée. Suivez-la dans le panneau des tâches"
+    }
+  }
+}

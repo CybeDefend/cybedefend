@@ -1,0 +1,16 @@
+{
+  "components": {
+    "apiKeyTable": {
+      "addApiKey": "Ajouter une clé API",
+      "name": "Nom",
+      "description": "Description",
+      "apiKey": "Clé API",
+      "expiration": "Expiration",
+      "created": "Créée le",
+      "manage": "Gérer",
+      "noResultsFound": "Aucun résultat trouvé",
+      "noApiKeys": "Nous n'avons trouvé aucune clé API correspondante.",
+      "totalKeys": "Clés API"
+    }
+  }
+}

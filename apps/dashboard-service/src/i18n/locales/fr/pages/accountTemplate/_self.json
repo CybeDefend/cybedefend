@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "accountTemplate": {
+      "accountInfo": "Informations du compte",
+      "emailAddress": "Adresse email",
+      "notifications": "Notifications",
+      "emailNotifications": "Notifications par email"
+    }
+  }
+}

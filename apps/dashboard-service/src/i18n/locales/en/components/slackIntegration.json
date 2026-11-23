@@ -1,0 +1,20 @@
+{
+  "components": {
+    "slackIntegration": {
+      "title": "Slack Integration",
+      "connected": "Connected",
+      "connectedSince": "Connected since {{date}}",
+      "connectedDescription": "Slack is connected to your organization. You can configure notification channels in each project's notification settings.",
+      "notConnected": "Slack is not connected",
+      "notConnectedDescription": "Connect your Slack workspace to receive vulnerability alerts and reports in Slack channels.",
+      "connectButton": "Connect to Slack",
+      "disconnect": "Disconnect",
+      "disconnectConfirmTitle": "Disconnect Slack",
+      "disconnectConfirmMessage": "Are you sure you want to disconnect Slack? All project channel mappings will be removed and Slack notifications will stop.",
+      "disconnectSuccess": "Slack disconnected successfully",
+      "disconnectError": "Failed to disconnect Slack",
+      "installSuccess": "Slack connected successfully",
+      "installError": "Failed to connect Slack"
+    }
+  }
+}

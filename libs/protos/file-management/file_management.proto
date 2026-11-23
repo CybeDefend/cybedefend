@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package cybedefend.file_management;
+
+import "file-management/data_purge.proto";
+import "secret-rotation/secret_rotation.proto";
+import "file-management/file.proto";
+
+service FileManagementSecretRotation {
+  rpc NotifyRotation(cybedefend.secretrotation.RotationRequest) returns (cybedefend.secretrotation.RotationResponse);
+}
+
+service FileService {
+  rpc UploadFile (UploadFileRequest) returns (UploadFileResponse);
+  rpc DeleteFile (DeleteFileRequest) returns (DeleteFileResponse);
+  rpc GetDownloadUrl (GetDownloadUrlRequest) returns (GetDownloadUrlResponse);
+  // Two-step generic upload for analysis-reporting (avoids buffer-over-gRPC).
+  rpc RequestReportUploadUrl (RequestReportUploadUrlRequest) returns (RequestReportUploadUrlResponse);
+  rpc FinalizeReportUpload (FinalizeReportUploadRequest) returns (FinalizeReportUploadResponse);
+  // Hard-delete a stored report object by its key (retention purge +
+  // user-initiated delete). Idempotent: a missing object resolves successfully.
+  rpc DeleteReportObject (DeleteReportObjectRequest) returns (DeleteReportObjectResponse);
+  // SARIF import objects under import/<projectId>/<scanId>.sarif,
+  // whatever the compression (gzip is detected from the first bytes by readers).
+  // The upload URL is valid 300 s, the download URL 1200 s; both are signed on
+  // the internal endpoint. An import object gets no file_scan row and is never
+  // picked up by the upload cron; security-scanning deletes it at every terminal
+  // state, the project purge covers the rest.
+  rpc RequestImportUploadUrl (RequestImportUploadUrlRequest) returns (RequestImportUploadUrlResponse);
+  rpc GetImportDownloadUrl (GetImportDownloadUrlRequest) returns (GetImportDownloadUrlResponse);
+  rpc DeleteImportObject (DeleteImportObjectRequest) returns (DeleteImportObjectResponse);
+}

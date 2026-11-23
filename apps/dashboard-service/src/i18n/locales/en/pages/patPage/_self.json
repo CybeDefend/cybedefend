@@ -1,0 +1,21 @@
+{
+    "pages": {
+        "patPage": {
+            "unavailable": "Unavailable",
+            "title": "Personal Access Tokens",
+            "description": "Create and manage personal access tokens to authenticate with the CybeDefend API programmatically.",
+            "toast": {
+                "createSuccess": "Personal access token created successfully",
+                "createError": "Failed to create personal access token",
+                "capReached": "Maximum 10 PATs allowed. Delete an existing token to create a new one.",
+                "nameTaken": "A personal access token with this name already exists. Choose a different name.",
+                "copiedSuccess": "Token copied to clipboard",
+                "copiedError": "Failed to copy token",
+                "deleteSuccess": "Personal access token deleted successfully",
+                "deleteError": "Failed to delete personal access token",
+                "renameSuccess": "Personal access token renamed successfully",
+                "renameError": "Failed to rename personal access token"
+            }
+        }
+    }
+}

@@ -1,0 +1,13 @@
+{
+  "components": {
+    "modal": {
+      "inviteMember": {
+        "teamAssignments": {
+          "errors": {
+            "roleRequired": "Please select a role for each selected team"
+          }
+        }
+      }
+    }
+  }
+}

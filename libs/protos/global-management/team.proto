@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+import "global-management/user.proto";
+
+message TeamGetRequest {
+  string teamId = 1;
+  string organizationId = 2;
+}
+
+message TeamInformationsResponse {
+  string id          = 1;
+  string name        = 2;
+  string description = 3;
+  string createdAt = 4;
+  string updatedAt = 5;
+}
+
+message TeamInformationsList {
+  repeated TeamInformationsResponse teams = 1;
+}
+
+message TeamGetAllRequest {
+  string organizationId = 1;
+  string userId         = 2;
+}
+
+message TeamCreateRequest {
+  string organizationId = 1;
+  string name           = 2;
+  string description    = 3;
+  string creatorId      = 4;
+}
+
+message TeamCreateResponse {
+  string message        = 1;
+  string organizationId = 2;
+  string teamId         = 3;
+  string name           = 4;
+  string description    = 5;
+}
+
+message TeamUpdateRequest {
+  string teamId      = 1;
+  string name        = 2;
+  string description = 3;
+}
+
+message TeamUpdateResponse {
+  string message        = 1;
+  TeamInformationsResponse updatedTeam = 2;
+}
+
+message TeamDeleteRequest {
+  string teamId       = 1;
+}
+
+message TeamDeleteResponse {
+  string message = 1;
+}
+
+message TeamAddMemberRequest {
+  string teamId = 1;
+  string userId = 2;
+  string role   = 3;
+}
+
+message TeamAddMemberResponse {
+  string message = 1;
+  TeamInformationsResponse updatedTeam = 2;
+}
+
+message TeamRemoveUserRequest {
+  string teamId = 1;
+  string userId = 2;
+}
+
+message TeamRemoveUserResponse {
+  string message = 1;
+}
+
+message UpdateTeamRoleRequest {
+  string teamId = 1;
+  string userId = 2;
+  string role   = 3;
+}
+
+message UpdateTeamRoleResponse {
+  string message = 1;
+}
+
+message TeamGetMembersRequest {
+  string teamId    = 1;
+  int32  page      = 2;
+  int32  pageSize  = 3;
+  string searchQuery = 4;
+}
+
+message PaginatedUsersResponse {
+  repeated UserInformationsResponse users     = 1;
+  int32 totalUsers      = 2;
+  int32 totalPages      = 3;
+}
+
+message TeamGetMemberRequest {
+  string teamId = 1;
+  string userId = 2;
+}
+
+message TeamRemoveOrganizationRequest {
+  string teamId          = 1;
+  string organizationId  = 2;
+}
+
+message TeamAddMemberRelationResponse {
+  string message = 1;
+}
+
+// ============================================================================
+// Bulk validation for policy management
+// ============================================================================
+
+// Request to validate that multiple teams belong to an organization
+message ValidateTeamsInOrganizationRequest {
+  repeated string teamIds = 1;
+  string organizationId = 2;
+}
+
+// Response for team validation - returns which teams are valid/invalid/not found
+message ValidateTeamsInOrganizationResponse {
+  bool valid = 1; // true if all teams are valid
+  repeated string notFoundIds = 2; // teams that don't exist in the org
+}

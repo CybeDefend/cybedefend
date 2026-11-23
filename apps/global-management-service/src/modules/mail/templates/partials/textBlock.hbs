@@ -1,0 +1,14 @@
+{{!--
+  `content` is ESCAPED (double stache): a caller may hand it raw, unfiltered
+  user text — an organization name, a role, a person's name — and it must land
+  in the mail as text, never as markup. A block that is genuinely assembled
+  HTML opts out explicitly by passing a Handlebars SafeString (see
+  `trustedHtml()` in mail.service.ts). Never restore the triple stache here.
+--}}
+<tr>
+  <td align="left" style="padding:0;Margin:0;padding-top:10px;padding-bottom:10px">
+    <p style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:24px;letter-spacing:0;color:#333333;font-size:16px">
+      {{content}}
+    </p>
+  </td>
+</tr>

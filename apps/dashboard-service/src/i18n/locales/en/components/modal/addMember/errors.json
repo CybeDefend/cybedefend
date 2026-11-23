@@ -1,0 +1,12 @@
+{
+  "components": {
+    "modal": {
+      "addMember": {
+        "errors": {
+          "selectUser": "Please select a user.",
+          "selectRole": "Please select a role."
+        }
+      }
+    }
+  }
+}

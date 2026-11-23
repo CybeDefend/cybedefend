@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package cybedefend.policy_management;
+
+import "policy-management/policy_types.proto";
+
+// ============================================================================
+// Policy CRUD Request/Response Messages
+// ============================================================================
+
+message CreatePolicyRequest {
+  string organization_id = 1;
+  string yaml_content = 2;
+  string created_by = 3;
+}
+
+message UpdatePolicyRequest {
+  string policy_id = 1;
+  string yaml_content = 2;
+  string updated_by = 3;
+  // Tenant scope: the policy must belong to this organization (BOLA guard).
+  string organization_id = 4;
+}
+
+message GetPolicyRequest {
+  string policy_id = 1;
+  // Tenant scope: the policy must belong to this organization (BOLA guard).
+  string organization_id = 2;
+}
+
+message ListPoliciesRequest {
+  string organization_id = 1;
+  optional PolicyScope scope = 2;
+  optional bool is_enabled = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+  optional string search = 6;
+}
+
+message DeletePolicyRequest {
+  string policy_id = 1;
+  string organization_id = 2;
+  string deleted_by = 3;
+}
+
+message GetEffectivePolicyRequest {
+  string project_id = 1;
+  optional string team_id = 2;
+  optional string organization_id = 3;
+}
+
+message ValidatePolicyRequest {
+  string yaml_content = 1;
+}
+
+message ExportPolicyYamlRequest {
+  string policy_id = 1;
+  // Tenant scope: the policy must belong to this organization (BOLA guard).
+  string organization_id = 2;
+}
+
+message PolicyResponse {
+  SecurityPolicy policy = 1;
+}
+
+message ListPoliciesResponse {
+  repeated SecurityPolicy policies = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message DeletePolicyResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message TogglePolicyRequest {
+  string policy_id = 1;
+  string organization_id = 2;
+  bool is_enabled = 3;
+  string updated_by = 4;
+}
+
+message TogglePolicyResponse {
+  bool success = 1;
+  string message = 2;
+  SecurityPolicy policy = 3;
+}
+
+message EffectivePolicyResponse {
+  string effective_config_json = 1;
+  repeated SecurityPolicy applied_policies = 2;
+}
+
+message ValidatePolicyResponse {
+  bool valid = 1;
+  repeated string errors = 2;
+  repeated string warnings = 3;
+}
+
+message ExportPolicyYamlResponse {
+  string yaml_content = 1;
+}
+
+// ============================================================================
+// Org-wide Count/Delete (used by billing-service plan transitions)
+// ============================================================================
+
+message CountPoliciesForOrgRequest {
+  string organization_id = 1;
+}
+
+message CountPoliciesForOrgResponse {
+  uint32 count = 1;
+}
+
+message DeleteAllPoliciesForOrgRequest {
+  string organization_id = 1;
+}
+
+message DeleteAllPoliciesForOrgResponse {
+  uint32 deleted_count = 1;
+}

@@ -1,0 +1,10 @@
+{
+  "components": {
+    "notificationsSettings": {
+      "incidentOptions": {
+        "eachOccurrence": "Create an incident for each occurrence",
+        "eachGroup": "Create an incident for each vulnerability group"
+      }
+    }
+  }
+}

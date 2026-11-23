@@ -1,0 +1,21 @@
+{
+    "pages": {
+        "patPage": {
+            "unavailable": "Indisponible",
+            "title": "Jetons d'accès personnels",
+            "description": "Créez et gérez des jetons d'accès personnels pour vous authentifier à l'API CybeDefend de manière programmatique.",
+            "toast": {
+                "createSuccess": "Jeton d'accès personnel créé avec succès",
+                "createError": "Échec de la création du jeton d'accès personnel",
+                "capReached": "Maximum 10 jetons autorisés. Supprimez un jeton existant pour en créer un nouveau.",
+                "nameTaken": "Un jeton d'accès personnel porte déjà ce nom. Choisissez-en un autre.",
+                "copiedSuccess": "Jeton copié dans le presse-papiers",
+                "copiedError": "Échec de la copie du jeton",
+                "deleteSuccess": "Jeton d'accès personnel supprimé avec succès",
+                "deleteError": "Échec de la suppression du jeton d'accès personnel",
+                "renameSuccess": "Jeton d'accès personnel renommé avec succès",
+                "renameError": "Échec du renommage du jeton d'accès personnel"
+            }
+        }
+    }
+}

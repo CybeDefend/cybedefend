@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package cybedefend.analysis_reporting;
+
+import "data-purge/data_purge.proto";
+
+// Purges this service's data of a deleted project, team or organization.
+// Declares only the RPCs this service implements; see data-purge/data_purge.proto.
+service DataPurgeService {
+  rpc PurgeProjectData (cybedefend.data_purge.PurgeProjectDataRequest) returns (cybedefend.data_purge.PurgeDataResponse);
+  rpc PurgeTeamData (cybedefend.data_purge.PurgeTeamDataRequest) returns (cybedefend.data_purge.PurgeDataResponse);
+  rpc PurgeOrganizationData (cybedefend.data_purge.PurgeOrganizationDataRequest) returns (cybedefend.data_purge.PurgeDataResponse);
+}

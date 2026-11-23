@@ -1,0 +1,96 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "pipeline": {
+        "title": "Scan progress",
+        "headline": {
+          "waitingForFile": "Waiting for the source code",
+          "queued": "Queued: position {{position}} in your organization's queue",
+          "queuedNoPosition": "Queued, waiting for a free slot",
+          "starting": "Starting the scanners",
+          "scanners": "Scanners running, {{done}}/{{total}} done",
+          "aiIngesting": "Scanners done, indexing the code for the AI",
+          "aiWaitingForScanners": "Scanners done, preparing the AI analysis",
+          "aiQueued": "Scanners done, waiting for an AI slot (≈ position {{position}})",
+          "aiQueuedNoPosition": "Scanners done, waiting for an AI slot",
+          "aiAnalyzing": "Scanners done, AI analyzing {{processed}}/{{total}}",
+          "aiAnalyzingNoProgress": "Scanners done, AI analyzing",
+          "scannersDone": "Scanners done, finishing the scan",
+          "finished": "Scan finished"
+        },
+        "banner": {
+          "slotReleased": "Scanner results are ready. The AI analysis continues in the background, and this scan no longer holds up the next ones.",
+          "scannersDone": "Scanner results are ready. The AI analysis continues in the background.",
+          "resultsSaving": "Scanners are done. Their results are being saved; the scan completes once every result is stored."
+        },
+        "queue": {
+          "position": "Position {{position}} in your organization's queue",
+          "org_limit": "Another scan is using your organization's slot.",
+          "platform_limit": "The platform is at full capacity.",
+          "starting": "Starting shortly."
+        },
+        "lane": {
+          "scanners": "Scanners",
+          "ai": "Cybe AI analysis",
+          "scannersProgress": "{{done}}/{{total}} done",
+          "scannersProgressWithFailures": "{{done}}/{{total}} done, {{failed}} failed"
+        },
+        "scanner": {
+          "sast": "SAST",
+          "sca": "SCA",
+          "iac": "IaC",
+          "secret": "Secrets",
+          "container": "Container",
+          "cicd": "CI/CD",
+          "aibom": "AI-BOM",
+          "other": "Other scanner"
+        },
+        "scannerState": {
+          "waiting": "waiting",
+          "running": "running",
+          "done": "done",
+          "failed": "failed"
+        },
+        "step": {
+          "ingesting": "Indexing code",
+          "waiting_for_scanners": "Waiting for scanner results",
+          "queued_for_ai": "Waiting for an AI slot",
+          "analyzing": "AI analysis",
+          "outcome": "Result"
+        },
+        "stage": {
+          "ingesting": "Indexing code",
+          "waiting_for_scanners": "Waiting for scanner results",
+          "queued_for_ai": "Waiting for an AI slot (≈ position {{position}})",
+          "analyzing": "AI analysis {{processed}}/{{total}}",
+          "done": "AI analysis done",
+          "skipped": "AI analysis skipped",
+          "interrupted": "AI analysis interrupted",
+          "failed": "AI analysis failed"
+        },
+        "reason": {
+          "nothing_to_analyze": "There were no SAST or IaC results to analyze.",
+          "skipped_by_agent": "Cybe did not analyze this scan, for instance because Cybe Analysis is turned off for the project.",
+          "disabled_for_project": "AI result improvement is turned off for this project.",
+          "quota_exhausted": "Your organization's analysis quota is used up.",
+          "parse_timeout": "Indexing the code took longer than allowed.",
+          "parse_failed": "The code could not be indexed.",
+          "ingestion_stalled": "Indexing the code never reported its end.",
+          "ai_queue_timeout": "No AI slot came free within the allowed wait.",
+          "analysis_timeout": "The analysis ran past its time limit.",
+          "scan_time_limit": "The scan reached its maximum duration.",
+          "analysis_failed": "The analysis ran into an error.",
+          "service_unavailable": "The AI analysis service could not be reached.",
+          "scanner_timeout": "A scanner ran past its time limit.",
+          "unknown": "No further detail is available."
+        },
+        "time": {
+          "elapsedJustNow": "just started",
+          "elapsedMinutes": "{{minutes}} min elapsed",
+          "elapsedHours": "{{hours}} h {{minutes}} min elapsed",
+          "limitAt": "time limit at {{time}}"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "pages": {
+    "onBoarding": {
+      "chooser": {
+        "title": "Get started with CybeDefend",
+        "subtitle": "Create a new organization, or join one you've been invited to.",
+        "back": "Back",
+        "createCard": {
+          "title": "Create my organization",
+          "description": "Set up a brand-new organization and invite your team.",
+          "cta": "Create an organization"
+        },
+        "joinCard": {
+          "title": "Join an organization",
+          "description": "Your team already uses CybeDefend? Ask an administrator to invite you.",
+          "cta": "Join an organization"
+        }
+      },
+      "join": {
+        "title": "Join an existing organization",
+        "description": "To join an organization, ask one of its administrators to invite you. There is no way to join without an invitation.",
+        "emailIntro": "The invitation email will be sent to:",
+        "back": "Back to options"
+      },
+      "appsec": {
+        "banner": "First things first: you need to join an organization or create your own to scan your code."
+      }
+    }
+  }
+}

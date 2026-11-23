@@ -1,0 +1,72 @@
+{
+  "pages": {
+    "organizationOverview": {
+      "glance": {
+        "headline": {
+          "projects_one": "projet",
+          "projects_other": "projets",
+          "in": "dans",
+          "teams_one": "équipe",
+          "teams_other": "équipes",
+          "open_one": "vulnérabilité ouverte",
+          "open_other": "vulnérabilités ouvertes",
+          "critical_one": "critique",
+          "critical_other": "critiques"
+        },
+        "meta": {
+          "allProjects": "Tous les projets",
+          "filtered": "Vue filtrée"
+        },
+        "bands": {
+          "now": "Posture actuelle",
+          "look": "À regarder"
+        },
+        "kpi": {
+          "open": "Vulnérabilités ouvertes",
+          "net7": "net sur 7 jours",
+          "resolved": "Résolues",
+          "in7": "sur 7 jours",
+          "new": "Nouvelles vulnérabilités",
+          "last7": "7 derniers jours",
+          "risk": "Projets à risque critique ou élevé",
+          "ofProjects_one": "sur {{count}} projet",
+          "ofProjects_other": "sur {{count}} projets"
+        },
+        "licences": {
+          "label": "Licences",
+          "permissive": "permissives",
+          "weakCopyleft": "copyleft faible",
+          "strongCopyleft": "copyleft fort",
+          "unknown": "inconnues",
+          "packages_one": "{{value}} paquet",
+          "packages_other": "{{value}} paquets"
+        },
+        "projectsAtRisk": {
+          "title": "Projets à risque",
+          "meta": "Classés par vulnérabilités ouvertes",
+          "rank": "#",
+          "project": "Projet",
+          "risk": "Risque",
+          "open": "Ouvertes",
+          "priority": "Critiques / élevées",
+          "delta": "7 jours",
+          "seeAll": "Voir tous les projets",
+          "empty": "Aucun projet à risque.",
+          "riskNone": "Aucun risque",
+          "riskUnknown": "Non évalué"
+        },
+        "teams": {
+          "title": "Équipes",
+          "meta_one": "{{count}} équipe",
+          "meta_other": "{{count}} équipes",
+          "projects_one": "{{count}} projet",
+          "projects_other": "{{count}} projets",
+          "noPriority": "Aucune vulnérabilité critique ou élevée",
+          "more_one": "et {{count}} autre équipe",
+          "more_other": "et {{count}} autres équipes",
+          "empty": "Aucune équipe."
+        }
+      }
+    }
+  }
+}

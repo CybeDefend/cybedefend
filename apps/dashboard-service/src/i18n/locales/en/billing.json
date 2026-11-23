@@ -1,0 +1,23 @@
+{
+  "billing": {
+    "upgrade_to_pro": "Upgrade to Pro to unlock",
+    "container_scanning_locked": "Container Scanning requires a Pro plan or above",
+    "issue_tracking_locked": "Issue Tracking is available on the Pro plan and above",
+    "read_only_scan_disabled": "Scans are disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "read_only_integration_disabled": "Integration changes are disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "read_only_member_management_disabled": "Member management is disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "read_only_role_change_disabled": "Role changes are disabled: your free trial is fully exhausted. Member removal is still available so you can downgrade.",
+    "read_only_team_management_disabled": "Team management is disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "read_only_policy_disabled": "Policy management is disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "read_only_vulnerability_disabled": "Vulnerability state changes are disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "feature_locked_slack": "Slack integration requires the Team plan or higher.",
+    "feature_locked_pat": "Personal Access Tokens are required for this integration and available on the Team plan or higher.",
+    "trial": {
+      "widget": {
+        "exhausted_title": "Trial exhausted"
+      }
+    },
+    "trial_exhausted_create_project_disabled": "Project creation is disabled: your free trial is fully exhausted. Upgrade to continue.",
+    "trial_exhausted_report_disabled": "Report generation is disabled: your free trial is fully exhausted. Upgrade to continue."
+  }
+}

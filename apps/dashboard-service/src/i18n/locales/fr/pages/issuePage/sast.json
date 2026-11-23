@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "issuePage": {
+      "sast": {
+        "codeExamples": "Exemples de Code",
+        "references": "Références"
+      }
+    }
+  }
+}

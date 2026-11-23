@@ -1,0 +1,8 @@
+{
+  "components": {
+    "emptyState": {
+      "noProject": "Vous n'avez pas encore de projet. Créez-en un, puis importez les résultats de vos scanners.",
+      "noVuln": "Aucune vulnérabilité détectée sur ce projet."
+    }
+  }
+}

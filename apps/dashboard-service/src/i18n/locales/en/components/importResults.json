@@ -1,0 +1,93 @@
+{
+  "components": {
+    "importResults": {
+      "button": "Import results",
+      "title": "Import results",
+      "description": "Import the SARIF file a scanner produced. The results appear on this branch once the file is processed.",
+      "submit": "Import",
+      "cancel": "Cancel",
+      "uploading": "Uploading… {{percent}} %",
+      "file": {
+        "label": "SARIF file (.sarif, .json or .sarif.gz, 50 MB at most)",
+        "errors": {
+          "missing": "Choose a SARIF file to import.",
+          "extension": "The file must be a .sarif, .json or .sarif.gz file.",
+          "size": "The file is larger than 50 MB.",
+          "empty": "The file is empty."
+        }
+      },
+      "type": {
+        "label": "Results type"
+      },
+      "types": {
+        "sast": "SAST",
+        "iac": "IaC",
+        "secret": "Secrets",
+        "cicd": "CI/CD",
+        "sca": "SCA",
+        "container": "Container"
+      },
+      "typeNote": {
+        "sca": "An SCA import is this branch's whole dependency picture: packages it does not list are marked resolved. Scan the repository root into one file and use one SCA tool per branch.",
+        "container": "A container import is this image's whole picture on this branch: packages it does not list are marked resolved."
+      },
+      "image": {
+        "label": "Image",
+        "placeholder": "e.g., ghcr.io/acme/api:1.4.2",
+        "hint": "The image the file describes, as name[:tag][@sha256:digest].",
+        "errors": {
+          "missing": "Enter the image this file describes.",
+          "invalid": "This is not a valid image reference, for example ghcr.io/acme/api:1.4.2."
+        }
+      },
+      "branch": {
+        "label": "Branch",
+        "placeholder": "e.g., main",
+        "errors": {
+          "missing": "Enter the branch these results belong to.",
+          "tooLong": "The branch name is longer than 255 characters."
+        }
+      },
+      "commit": {
+        "label": "Commit (optional)",
+        "placeholder": "e.g., 3f2a9c1",
+        "errors": {
+          "invalid": "A commit is 7 to 40 hexadecimal characters."
+        }
+      },
+      "hint": {
+        "title": "Or import from a terminal or a CI job",
+        "cli": "With the CybeDefend CLI",
+        "curl": "With curl, a personal access token in CYBEDEFEND_TOKEN",
+        "producer": "Produce the file with Trivy",
+        "copyCli": "Copy the CLI command",
+        "copyCurl": "Copy the curl command",
+        "copyProducer": "Copy the Trivy command"
+      },
+      "errors": {
+        "IMPORT_INVALID_REQUEST": "The import request is invalid. Check the branch, the commit and the image, then try again.",
+        "IMPORT_UNSUPPORTED_FORMAT": "Only SARIF files can be imported.",
+        "IMPORT_UNSUPPORTED_FILE": "The file must be a .sarif, .json or .sarif.gz file.",
+        "IMPORT_INVALID_SARIF": "The file is not a valid SARIF document.",
+        "IMPORT_UPLOAD_TOO_LARGE": "The file is larger than 50 MB.",
+        "IMPORT_BUSY": "Too many imports are in progress. Try again in {{seconds}} seconds.",
+        "IMPORT_STORAGE_UNAVAILABLE": "The file could not be stored. Please try again in a moment.",
+        "IMPORT_UNAVAILABLE": "The results could not be queued for processing. Please try again in a moment.",
+        "IMPORT_IMAGE_REQUIRED": "A container import needs the image it describes.",
+        "IMPORT_IMAGE_INVALID": "The image reference is invalid.",
+        "IMPORT_TYPE_NOT_AVAILABLE": "This edition does not import this type of results.",
+        "IMPORT_TOO_LARGE": "The file is too large: 50 MB uploaded or 200 MB decompressed at most.",
+        "IMPORT_TOO_MANY_RESULTS": "The file holds more than 100,000 results.",
+        "IMPORT_TOO_MANY_RUNS": "The file holds more than 20 runs.",
+        "IMPORT_TIMEOUT": "The import did not finish in time. Please import the file again.",
+        "IMPORT_INTERNAL_ERROR": "An unexpected error occurred while importing the results. Please import the file again.",
+        "IMPORT_UNSUPPORTED_RESULT": "A result of this import lacks its package name or installed version, so nothing was imported. Produce the file with Trivy, Grype or osv-scanner.",
+        "IMPORT_INVALID_SBOM": "The SBOM is not a CycloneDX JSON document (1.4 to 1.7) this import can read, so nothing was imported. Produce it with trivy fs --format cyclonedx, Syft or cdxgen, and send it with the SARIF of the same scan.",
+        "IMPORT_FAILED": "The import failed. Please check the file and import it again.",
+        "FORBIDDEN": "You are not allowed to import results into this project.",
+        "RATE_LIMITED": "Too many requests. Please wait a moment and try again.",
+        "GENERIC": "The file could not be imported. Please try again."
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+version: 2
+
+# Security updates only. This repository mirrors the CybeDefend source: its main
+# branch moves only when a new release is published, and version updates are
+# made upstream, then published here. A version-update pull request opened here
+# could never be merged as is, so every entry sets open-pull-requests-limit: 0,
+# which turns version updates off and keeps the security updates (a pull
+# request when an advisory affects a dependency). Those are reviewed here and
+# brought upstream like any other pull request. They need no CLA (see cla.yml).
+#
+# Security updates need "Dependabot alerts" and "Dependabot security updates"
+# on in the repository settings. Docker base images have no advisories, so
+# they are not listed.
+
+updates:
+  - package-ecosystem: npm
+    directory: /apps/gateway-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/global-management-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/security-scanning-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/analysis-reporting-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/file-management-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/external-integrations-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/policy-management-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/mcp-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /apps/dashboard-service
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /libs/realtime-publisher
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /libs/db-dialect
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0

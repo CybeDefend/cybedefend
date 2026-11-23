@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+// The purge contract of project, team and organization deletion.
+//
+// Only the messages are shared. Each service declares its own
+// `service DataPurgeService` in its own package (`<domain>/data_purge.proto`):
+// the central envoy routes the shared listener by package prefix, and a
+// service in this package would fall to its 503 fallback.
+//
+// A call stops starting new work after 60 s and answers `complete: false`;
+// the caller calls again until `complete: true`. Any error inside a service
+// answers an error (fail closed): a partial purge is fine, the next call
+// continues where this one stopped.
+package cybedefend.data_purge;
+
+message PurgeProjectDataRequest {
+  string project_id = 1;
+  string organization_id = 2;
+}
+
+message PurgeTeamDataRequest {
+  string team_id = 1;
+  string organization_id = 2;
+}
+
+message PurgeOrganizationDataRequest {
+  string organization_id = 1;
+  repeated string team_ids = 2;
+}
+
+message PurgeDataResponse {
+  // false: more remains, call again.
+  bool complete = 1;
+  // Rows, objects or nodes deleted by this call only, per table / prefix / label.
+  map<string, int32> deleted = 2;
+}

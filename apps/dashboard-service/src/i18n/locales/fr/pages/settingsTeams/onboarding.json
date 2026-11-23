@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "onboarding": {
+        "title": "Ici, vous pouvez gérer vos équipes.",
+        "subtitle": "Vous pouvez créer, supprimer et gérer vos équipes. Vous pouvez également ajouter des membres et gérer leurs rôles."
+      }
+    }
+  }
+}

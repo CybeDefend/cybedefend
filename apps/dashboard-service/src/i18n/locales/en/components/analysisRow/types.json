@@ -1,0 +1,14 @@
+{
+  "components": {
+    "analysisRow": {
+      "types": {
+        "sast": "Source Code (SAST)",
+        "iac": "Infrastructure as Code (IaC)",
+        "sca": "Software Dependencies (SCA)",
+        "container": "Container Security",
+        "cicd": "Supply Chain Security (CI/CD)",
+        "secret": "Secret Detection"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "components": {
+    "dataFlow": {
+      "noItems": "Aucun élément de flux de données à afficher",
+      "issue": "Problème",
+      "source": "Source",
+      "step": "Étape",
+      "noCode": "Aucun code à afficher.",
+      "invalidLine": "Ligne invalide"
+    }
+  }
+}

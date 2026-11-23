@@ -1,0 +1,606 @@
+syntax = "proto3";
+
+package cybedefend.security_scanning;
+
+message GetScanRequest {
+  string scan_id = 1;
+  // Binds the requested scan to a project so the
+  // security-scanning service can reject cross-project lookups.
+  // Optional for backwards compatibility with internal callers that
+  // do not need the cross-tenant check (e.g. crons), but the gateway
+  // MUST always send it.
+  optional string project_id = 2;
+  // Computes ScanResponse.pipeline (queue position, scanner lane, AI stage).
+  // Only the gateway's user-facing route sets it; internal callers never do,
+  // so they pay no extra query.
+  optional bool include_pipeline = 3;
+}
+
+message CreateScanRequest {
+  string scan_id = 1;
+  string initializer_user_id = 2;
+  string project_id = 3;
+  bool privateScan = 4;
+  repeated string vulnerability_types = 5;
+  optional string scan_type = 6;
+  optional string branch = 7; // Branch being scanned (for GitHub/GitLab integrations)
+  optional string source_type = 8; // Source type of the scan (manual, cli, github, gitlab, jetbrains, vscode)
+  // When true, this is a diff scan limited to changed files (agent/MCP path).
+  optional bool is_diff_scan = 9;
+  // Effective scanner types for a diff scan (comma-joined subset of
+  // sast/iac/secret), computed by the gateway from the changed files. When set,
+  // these override the project's enabled scan types for this scan only.
+  // Optional string (not repeated) to avoid making it required on every existing
+  // CreateScanRequest constructor across the platform.
+  optional string scan_types_csv = 10;
+  // AI coding agent that requested the scan: the name its MCP client declared
+  // in `initialize` (e.g. "claude-code", "cursor-vscode"). Declarative, shown
+  // as a label only. Set by the diff-scan path.
+  optional string coding_agent = 11;
+  // A graph-only scan (closed extension): no scanner pod, only the code
+  // graph ingestion. Hidden from the AppSec scan lists.
+  optional bool graph_only = 12;
+  // Community import: set by the gateway's import
+  // route. When import_format is set, the scan is an import scan: no scanner
+  // pod, no conflict check, and StartScan hands the stored file
+  // (import/<project_id>/<scan_id>.sarif) to analysis-reporting ImportResults.
+  // vulnerability_types keeps its meaning (severities); the type is import_type.
+  // CreateScan refusals (INVALID_ARGUMENT): IMPORT_FORMAT_UNSUPPORTED,
+  // IMPORT_TYPE_INVALID (any type outside the Community Edition: imports are Community-only),
+  // IMPORT_IMAGE_REQUIRED (import_type container without import_image),
+  // IMPORT_BRANCH_REQUIRED, IMPORT_BRANCH_TOO_LONG, IMPORT_FLAGS_CONFLICT.
+  optional string import_format = 13; // "sarif" (the only format today)
+  optional string import_tool = 14;   // unset today; the stored tool comes from CompleteImportScan.tool_name
+  optional string import_type = 15;   // sast | iac | secret | cicd | sca | container
+                                      // (sca and container: Community Edition only)
+  // Container import only: the image reference the gateway validated
+  // (255 characters at most). security-scanning
+  // stores it in metadata.imageToScan. Unset for every other type.
+  optional string import_image = 16;
+  // sca import only: the gateway stored a CycloneDX SBOM next to the SARIF
+  // (import/<project_id>/<scan_id>.sbom). security-scanning keeps it in
+  // metadata.importSbom, hands its key to ImportResults (sbom_file_key) and
+  // deletes it with the SARIF at every terminal state. With any other
+  // import_type: IMPORT_FLAGS_CONFLICT.
+  optional bool import_sbom = 17;
+}
+
+message CreateScanResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StartScanRequest {
+  string scan_id = 1;
+  string project_id = 2;
+  optional string image_to_scan = 3;
+  optional string branch = 4;
+  // Registry authentication for private container registries
+  optional RegistryAuth registry_auth = 5;
+
+  // Optional pre-computed file metrics. When the caller already has the
+  // ZIP in hand (typically file-management-service after its filter step),
+  // it computes these and passes them here so security-scanning can skip
+  // the expensive second download + parse (`processZipFile`). When omitted
+  // (totalLOC == 0 AND language empty), security-scanning falls back to
+  // `processZipFile` on its side for backward compatibility with callers
+  // that do not yet supply the metrics (gateway re-run path, manual API
+  // invocations, etc.).
+  optional int32 totalLOC = 6;
+  optional string totalSize = 7;
+  repeated string language = 8;
+}
+
+// Registry authentication configuration for private container registries
+message RegistryAuth {
+  bool enabled = 1;
+  string registry_type = 2; // gitlab, github, dockerhub, ecr, gcr, acr, quay, harbor, scaleway
+  string registry_url = 3; // e.g., registry.gitlab.com, ghcr.io
+  string username = 4;
+  string password = 5;
+  // Cloud provider specific fields
+  optional string aws_region = 6;
+  optional string aws_access_key_id = 7;
+  optional string aws_secret_access_key = 8;
+  optional string gcp_service_account_key = 9;  // base64 encoded JSON
+}
+
+message UpdateScanRequest {
+  string scan_id = 1;
+  optional string state = 2;
+  optional string startedAt = 3;
+  optional string clusterId = 4;
+  optional string podId = 5;
+  optional string podName = 6;
+  optional string image = 7;
+  optional string version = 8;
+  optional int32 totalVulnerabilities = 9;
+  optional  int32 processedVulnerabilities = 10;
+  optional string step = 11;
+  // Why an agent container ended, from a closed vocabulary: parse_timeout, parse_failed, analysis_failed,
+  // quota_exhausted... Only read together with a closed state.
+  optional string outcome_reason = 12;
+  // Outcome of the git history pass: "ok" | "failed"
+  optional string history_outcome = 13;
+}
+
+message UpdateScanDataRequest {
+  string scan_id = 1;
+  optional string state = 2;
+  optional string startedAt = 3;
+  optional string endTime = 4;
+  optional int32 startTime = 5;
+  optional string language = 6;
+  optional string totalLOC = 7;
+  optional string scanType = 8;
+  optional string errorMessage = 9;
+  optional string totalSize = 10;
+  // Exit code of the container scanner (see apps/security-scanning-service/src/core/constants/scanlink-error-codes.ts)
+  optional int32 errorCode = 12;
+  // Error category: authentication, cloud_provider, network, scan, api, unknown
+  optional string errorCategory = 13;
+  reserved 11;
+  reserved "potpieProjectId";
+}
+
+message ProjectGetRequest {
+  string project_id = 1;
+  // GetLastScanStatus returns the project's latest graph-only scan (closed
+  // extension) instead of its latest AppSec scan.
+  optional bool graph_only = 2;
+}
+
+message CreateFailedScanRequest {
+  string project_id = 1;
+  string organizationId = 2;
+  string errorMessage = 3;
+  // Exit code of the container scanner (see apps/security-scanning-service/src/core/constants/scanlink-error-codes.ts)
+  optional int32 errorCode = 4;
+  // Error category: authentication, cloud_provider, network, scan, api, unknown
+  optional string errorCategory = 5;
+}
+
+message StartScanResponse {
+  bool success = 1;
+  string message = 2;
+  optional string scan_id = 3;
+  repeated string detectedLanguages = 4;
+
+}
+
+message UpdateScanResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetLastScanStatusResponse {
+  string id = 1;
+  string state = 2;
+  string project_id = 3;
+  string createAt = 4;
+  string scanType = 5;
+}
+
+message CreateFailedScanResponse {
+  string scan_id = 1;
+  string state = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+message ScanResponse {
+  string id = 1;
+  string name = 2;
+  string state = 3;
+  repeated string language = 4;
+  string project_id = 5;
+  bool private = 6;
+  string initializer_user_id = 7;
+  string createAt = 8;
+  string updatedAt = 9;
+  string scanType = 10;
+  string startTime = 11;
+  string endTime = 12;
+  repeated Container containers = 13;
+  int32 progress = 14;
+  string step = 15;
+  int32 vulnerabilityDetected = 16;
+  string branch = 18; // Branch being scanned (for GitHub/GitLab integrations)
+  // Container image name when scanType is 'container'
+  optional string containerImageToScan = 19;
+  // Error information from the container scanner
+  optional string errorMessage = 20;
+  optional int32 errorCode = 21;
+  optional string errorCategory = 22;
+  // True when this scan is a diff scan (changed-files only). Read by
+  // analysis-reporting to skip the finalize auto-resolve of out-of-scope vulns.
+  bool is_diff_scan = 23;
+  // AI coding agent that requested the scan (see CreateScanRequest.coding_agent).
+  // Read by analysis-reporting into the scan-diff history.
+  optional string coding_agent = 24;
+  // Where the scan really is: queue, scanner lane, AI stage. Only filled when
+  // GetScanRequest.include_pipeline is set.
+  optional ScanPipeline pipeline = 25;
+  // A graph-only scan (closed extension).
+  bool is_graph_only = 26;
+  // The import read model. Set only on an import scan
+  // (`importFormat` IS NOT NULL on the scan row): the format the gateway sent
+  // at CreateScan, and the comma-separated tool list CompleteImportScan
+  // reported. Absent on every other scan.
+  optional string import_format = 27;
+  optional string import_tool = 28;
+  // Whether the scan's results are final: pending, processing or ready.
+  // A scan reaches completed only once its results are ready.
+  // Absent when not computed.
+  optional string results_status = 29;
+  // ISO-8601 time the results became final. Absent until then.
+  optional string results_finalized_at = 30;
+  // Git history pass recorded for this scan, and the history coverage of its branch
+  optional GitHistoryPass history_pass = 31;
+  optional GitHistoryCoverage history_coverage = 32;
+  reserved 17;
+  reserved "potpie_project_id";
+}
+
+// Scan pipeline read model. The scan state
+// stays the source of truth; this explains a `running` or `queued` scan.
+message ScanPipeline {
+  // Running scan whose scanners are all closed: it no longer counts against
+  // its organisation's slot nor the platform cap while its AI runs.
+  bool slot_released = 1;
+  // Queued scans: 1-based position in the organisation's queue.
+  optional int32 queue_position = 2;
+  // Queued scans: org_limit | platform_limit | starting.
+  optional string queue_reason = 3;
+  ScannerLane scanners = 4;
+  AgentLane agent = 5;
+}
+
+message ScannerLane {
+  int32 total = 1;
+  int32 open = 2;
+  // completed + completed_degraded
+  int32 completed = 3;
+  int32 failed = 4;
+}
+
+message AgentLane {
+  // not_applicable | ingesting | waiting_for_scanners | queued_for_ai |
+  // analyzing | done | skipped | interrupted | failed
+  string stage = 1;
+  optional string outcome_reason = 2;
+  // queued_for_ai: approximate 1-based position, platform-wide.
+  optional int32 ai_queue_position = 3;
+  optional int32 processed = 4;
+  optional int32 total = 5;
+  // ISO-8601: when the current stage began, and when its budget ends.
+  optional string stage_since = 6;
+  optional string stage_deadline = 7;
+}
+
+message Container {
+  string id = 1;
+  string status = 2;
+  string createdAt = 3;
+  string startedAt = 4;
+  string finishedAt = 5;
+  string scan_id = 6;
+  string step = 7;
+  string image = 8;
+  // Newly added: expose pod name so agent can resolve its container without heuristics
+  string podName = 9;
+  // scanner.scannerType (sast, sca, iac, ...); empty for the agent.
+  optional string scanner_type = 10;
+  optional int32 total_vulnerabilities = 11;
+  optional int32 processed_vulnerabilities = 12;
+  // Why the container ended (see UpdateScanRequest.outcome_reason).
+  optional string outcome_reason = 13;
+  // Agent container only, ISO-8601: eligible for the AI queue, and claimed.
+  optional string analysis_queued_at = 14;
+  optional string analysis_started_at = 15;
+}
+
+message CheckExistingScanRequest {
+  string project_id = 1;
+  optional string branch = 2;
+  // Kind of scan about to start. Code scans (SAST/SCA/IaC…) and container
+  // scans are independent pools: a running code scan never blocks a container
+  // scan and vice versa. Absent/other = code scan.
+  optional string scan_type = 3;
+  // Container pool only: the image about to be scanned. The conflict is
+  // "this image is already being scanned on the project", not "any scan".
+  optional string image_to_scan = 4;
+}
+
+message CheckExistingScanResponse {
+  bool exists = 1;
+  string message = 4;
+}
+
+message GetScanIdsByBranchRequest {
+  string project_id = 1;
+  string branch = 2;
+}
+
+message GetScanIdsByBranchResponse {
+  repeated string scan_ids = 1;
+}
+
+message StartContainerScanRequest {
+  string scan_id = 1;
+  string project_id = 2;
+  string initializer_user_id = 3;
+  bool private_scan = 4;
+  repeated string vulnerability_types = 5;
+  string image_to_scan = 6;
+}
+
+message ProjectScanSettings {
+  repeated string enabledScanTypes = 1;
+  map<string, string> vulnerabilityTypesByScan = 2;
+  bool sastFastScanEnabled = 3;
+  string organizationId = 4;
+  bool scaDevelopmentDependenciesEnabled = 5;
+  bool scaTransitiveDependenciesEnabled = 6;
+  bool containerEnabled = 7;
+  repeated string containerSeverities = 8;
+  bool scaReachabilityPriorityEnabled = 11;
+  bool scaReachabilityStatusEnabled = 12;
+  // True when the project already has at least one parsed
+  // code graph (gm's parsedBranches is pre-filtered to PARSED). Drives the
+  // "build the first graph once even when the AI credits are exhausted" rule.
+  bool hasCodeGraph = 13;
+  // The project's reference branch, "" when none is set. A container scan
+  // sent without a branch is stored on it.
+  string referenceBranch = 14;
+  reserved 9, 10;
+  reserved "improvedSastEnabled", "securityChampionEnabled";
+}
+
+message GetProjectBranchesFromScansRequest {
+  string project_id = 1;
+}
+
+message GetProjectBranchesFromScansResponse {
+  repeated string branches = 1;
+}
+
+message ScanBranchDto {
+  string name = 1;
+  bool is_default = 2;
+  bool archived = 3;
+}
+
+message GetProjectBranchesFromScansPaginatedRequest {
+  string project_id = 1;
+  string search = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  bool include_archived = 5;
+  repeated string archived_names = 6;
+  string default_branch = 7;
+}
+
+message GetProjectBranchesFromScansPaginatedResponse {
+  repeated ScanBranchDto branches = 1;
+  int32 total = 2;
+}
+
+// Request for batch checking scan status of multiple projects
+message GetProjectsScanStatusRequest {
+  repeated string project_ids = 1;
+}
+
+// Scan status entry for a single project
+message ProjectScanStatusEntry {
+  string project_id = 1;
+  bool is_scanning = 2;
+}
+
+// Response containing scan status for multiple projects
+message GetProjectsScanStatusResponse {
+  repeated ProjectScanStatusEntry statuses = 1;
+}
+
+// Request for batch getting last scan dates of multiple projects
+message GetBatchLastScansRequest {
+  repeated string project_ids = 1;
+}
+
+// Last scan entry for a single project
+message ProjectLastScanEntry {
+  string project_id = 1;
+  string last_scan = 2; // ISO 8601 format, empty if never scanned
+}
+
+// Response containing last scan dates for multiple projects
+message GetBatchLastScansResponse {
+  repeated ProjectLastScanEntry scans = 1;
+}
+
+// Request to create a completed scan (for OSV sync)
+message CreateCompletedScanRequest {
+  string project_id = 1;
+  string organization_id = 2;
+  // Reason for creating this scan (e.g., "osv-sync", "manual-reevaluation")
+  string reason = 3;
+  // Optional branch name
+  optional string branch = 4;
+  // Optional user ID who triggered this (for audit)
+  optional string triggered_by = 5;
+}
+
+// Response from creating a completed scan
+message CreateCompletedScanResponse {
+  bool success = 1;
+  string message = 2;
+  string scan_id = 3;
+}
+
+// analysis-reporting ends an import scan.
+//   INVALID_ARGUMENT    IMPORT_STATUS_INVALID      (status not "completed" | "failed")
+//   INVALID_ARGUMENT    IMPORT_ERROR_CODE_INVALID  (failed without an ^IMPORT_[A-Z_]{1,40}$ code)
+//   NOT_FOUND           (no such scan)
+//   FAILED_PRECONDITION NOT_AN_IMPORT_SCAN
+//   FAILED_PRECONDITION (the scan is already in another terminal state)
+// A scan already in the requested terminal state answers OK and changes nothing (a retried call).
+message CompleteImportScanRequest {
+  string scan_id        = 1;
+  string status         = 2; // "completed" | "failed"
+  string error_code     = 3; // empty when completed; when failed: IMPORT_INVALID_SARIF | IMPORT_TOO_LARGE
+                             // | IMPORT_TOO_MANY_RESULTS | IMPORT_TOO_MANY_RUNS | IMPORT_STORAGE_UNAVAILABLE
+                             // | IMPORT_INTERNAL_ERROR (never empty). Stored verbatim as errorMessage,
+                             // with errorCode 70–74 and 77 (79 for any other IMPORT_* code), category "import"
+  int32  findings_count = 4; // findings raised by the import (0 when failed)
+  string tool_name      = 5; // distinct tool names of the file, in run order, comma-joined; each element
+                             // [a-z0-9._-]{1,64}, 255 characters at most
+  // Community cluster scans only: the scanner container whose results this import read
+  // (only the Community cluster engine sets it). Set, the import object's key is
+  // import/<project_id>/<scan_id>/<container_id>.sarif and the call closes that container;
+  // absent, everything stays as for a file import (import/<project_id>/<scan_id>.sarif).
+  optional string container_id = 6;
+}
+
+// -------------------------------------------------------------------
+// Community cluster scans. A scanner pod holds one upload
+// token per container: cdst_ + 32 random bytes in base64url. Only its SHA-256
+// hex (token_hash) ever crosses the wire or reaches storage; never log it.
+// -------------------------------------------------------------------
+
+// The gateway checks a pod's token before it stores the results file.
+//   FAILED_PRECONDITION SCAN_PROTOCOL_UNSUPPORTED  (protocol_version is not 1)
+//   UNAUTHENTICATED     SCAN_TOKEN_INVALID         (no such token for this scan, expired, or its container closed)
+//   ALREADY_EXISTS      SCAN_RESULTS_ALREADY_SUBMITTED (the token was spent: a success for the runner)
+message AuthorizeScanUploadRequest {
+  string scan_id          = 1;
+  string token_hash       = 2; // SHA-256 hex of the whole token
+  int32  protocol_version = 3; // X-CybeDefend-Scan-Protocol: 1, or 2 (an sca container may send its SBOM)
+}
+
+message AuthorizeScanUploadResponse {
+  string project_id      = 1;
+  string organization_id = 2;
+  string container_id    = 3; // the container the token belongs to
+  string category        = 4; // import category of its adapter: sast | cicd | secret | iac | sca
+}
+
+// The gateway stored the file under object_key; security-scanning spends the
+// token (once) and hands the object to analysis-reporting's ImportResults.
+// Same refusals as AuthorizeScanUpload; a second submit answers ALREADY_EXISTS.
+message SubmitScanResultsRequest {
+  string scan_id    = 1;
+  string token_hash = 2; // SHA-256 hex of the whole token
+  string object_key = 3; // import/<project_id>/<scan_id>/<container_id>.sarif
+  // Protocol 2, the sca container (trivy fs) only: the CycloneDX SBOM sent
+  // with the SARIF in the same request, import/<project_id>/<scan_id>/<container_id>.sbom.
+  // Handed to ImportResults as sbom_file_key and deleted with the SARIF when
+  // the container closes. Any other container, or any other key:
+  // INVALID_ARGUMENT IMPORT_OBJECT_KEY_INVALID, before the token is spent.
+  optional string sbom_object_key = 4;
+}
+
+message SubmitScanResultsResponse {
+  bool accepted = 1;
+}
+
+message GetScanCapabilitiesRequest {}
+
+message GetScanCapabilitiesResponse {
+  // True only when a Community instance is configured for a cluster and its access check passed.
+  bool cluster_scans = 1;
+}
+
+message CompleteImportScanResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+// Marks a running scan's results final once analysis has finished with them.
+message MarkScanResultsFinalRequest {
+  string scan_id = 1;
+}
+
+// outcome is one of: finalized, already_final, containers_open, not_running, not_found.
+message MarkScanResultsFinalResponse {
+  bool   success = 1;
+  string outcome = 2;
+}
+
+// Request to cancel a scan
+message CancelScanRequest {
+  string scan_id = 1;
+  string project_id = 2;
+}
+
+// A span of history no pass has covered: the commits after from_sha up to to_sha.
+message GitHistoryGap {
+  string from_sha = 1;
+  string to_sha = 2;
+  optional string from_date = 3;
+  optional string to_date = 4;
+}
+
+// What one scan did about the git history of its branch.
+message GitHistoryPass {
+  // "full" | "partial" | "incremental" | "incremental_with_gap" | "none"
+  string mode = 1;
+  optional string tip_sha = 2;
+  // Cursor tip the pass started from (absent on a first pass)
+  optional string base_tip_sha = 3;
+  // Revisions the secret scanner excludes (--not)
+  repeated string exclude_shas = 4;
+  // ISO-8601 committer date of the oldest commit scanned
+  optional string oldest_commit_at = 5;
+  // Size of the scanned history in bytes, an int64 as a decimal string
+  string bytes = 6;
+  optional GitHistoryGap gap = 7;
+  bool first_pass = 8;
+  // "github:<owner>/<repo>" or "gitlab:<repositoryId>"
+  string repository_key = 9;
+}
+
+// How much of the history of a branch has been scanned.
+message GitHistoryCoverage {
+  bool complete = 1;
+  optional string covered_since = 2;
+  repeated GitHistoryGap gaps = 3;
+  optional string last_pass_outcome = 4;
+}
+
+message GetGitHistoryCursorRequest {
+  string project_id = 1;
+  string branch = 2;
+  string repository_key = 3;
+}
+
+message GetGitHistoryCursorResponse {
+  // "in_archive" | "incremental_artifact"
+  string mode = 1;
+  optional string tip_sha = 2;
+  optional GitHistoryCoverage coverage = 3;
+}
+
+message RecordGitHistoryPassRequest {
+  string scan_id = 1;
+  GitHistoryPass pass = 2;
+}
+
+message RecordGitHistoryPassResponse {
+  bool success = 1;
+}
+
+// analysis-reporting could not store every result of the secret scanner of a
+// scan that recorded a history pass (a batch dropped after its retries, or the
+// scanner given up). The history pass then counts as failed: the cursor never
+// moves past commits whose findings were lost.
+//   INVALID_ARGUMENT  scan_id missing
+//   NOT_FOUND         no such scan
+message MarkHistoryIngestionFailedRequest {
+  string scan_id = 1;
+  // The scanner whose results were lost, for the logs.
+  string scanner_name = 2;
+}
+
+message MarkHistoryIngestionFailedResponse {
+  bool success = 1;
+}

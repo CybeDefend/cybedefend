@@ -1,0 +1,15 @@
+{
+    "components": {
+        "modal": {
+            "renamePat": {
+                "title": "Renommer le jeton",
+                "nameLabel": "Nouveau nom",
+                "namePlaceholder": "Entrez un nouveau nom pour ce jeton",
+                "errors": {
+                    "nameRequired": "Le nom du jeton est requis",
+                    "sameName": "Le nouveau nom doit être différent du nom actuel"
+                }
+            }
+        }
+    }
+}

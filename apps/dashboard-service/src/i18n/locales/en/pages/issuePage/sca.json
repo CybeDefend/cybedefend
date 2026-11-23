@@ -1,0 +1,30 @@
+{
+    "pages": {
+        "issuePage": {
+            "sca": {
+                "reachability": {
+                    "title": "Reachability",
+                    "used": "Used",
+                    "unused": "Unused",
+                    "potentially_used": "Potentially Used",
+                    "test_only": "Test only",
+                    "unknown": "Unknown"
+                },
+                "importLocations": {
+                    "title": "Import Locations",
+                    "file": "File",
+                    "line": "Line",
+                    "description": "Locations where this package is imported in your codebase."
+                },
+                "exploitablePath": {
+                    "title": "Exploitable Path",
+                    "description": "Files where this package is imported, showing the exploitable entry points in your application.",
+                    "transitiveDescription": "This is a transitive dependency. The locations below show where its parent package ({{parentName}}) is imported.",
+                    "noData": "No exploitable path detected. This package is a transitive dependency not directly imported in the codebase.",
+                    "importCount_one": "Imported in {{count}} file",
+                    "importCount_other": "Imported in {{count}} files"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "components": {
+        "resultsScaLicensesTable": {
+            "permissive": "Permissive",
+            "weakCopyleft": "Copyleft faible",
+            "strongCopyleft": "Copyleft fort",
+            "unknown": "Inconnue",
+            "summary": "{{withLicense}} paquet(s) avec licence(s) sur {{total}} paquet(s)",
+            "type": "Type",
+            "licenseName": "Nom de la licence",
+            "severity": "Sévérité",
+            "packages": "Paquets",
+            "riskDescription": "Description du risque",
+            "noLicensesFound": "Aucune licence trouvée",
+            "noLicensesDescription": "Aucune licence n'a été détectée pour ce projet.",
+            "refresh": "Actualiser"
+        }
+    }
+}

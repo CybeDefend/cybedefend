@@ -1,0 +1,17 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "login": {
+        "heading": "Connectez-vous pour accepter",
+        "description": "Choisissez un fournisseur pour vous connecter. Vous reviendrez ensuite automatiquement sur cette invitation.",
+        "continueWithGoogle": "Continuer avec google",
+        "continueWithMicrosoft": "Continuer avec microsoft",
+        "continueWithGithub": "Continuer avec GitHub",
+        "continueWithGitlab": "Continuer avec GitLab",
+        "connecting": "Connexion...",
+        "backHome": "Retour à la Page d'Accueil",
+        "providerError": "Impossible de lancer la connexion. Veuillez réessayer."
+      }
+    }
+  }
+}

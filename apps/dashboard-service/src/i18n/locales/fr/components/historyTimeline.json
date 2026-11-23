@@ -1,0 +1,25 @@
+{
+  "components": {
+    "historyTimeline": {
+      "title": "Historique et commentaires",
+      "updatedThe": "a mis à jour le",
+      "status": "STATUT",
+      "priority": "PRIORITÉ",
+      "aiAnalysisTitle": "Analyses de l'agent Cybe",
+      "aiAnalysisLabel": "Analyse de Cybe",
+      "pinnedLabel": "Épinglé",
+      "verdict": {
+        "headline": "Évaluation d'exploitabilité",
+        "exploitabilityScoreLabel": "Score d'exploitabilité",
+        "exploitabilityScorePct": "{{pct}} %",
+        "description": {
+          "actively_exploited": "Cybe estime cette vulnérabilité activement exploitée.",
+          "proven": "Cybe estime l'exploitation de cette vulnérabilité prouvée.",
+          "theoretical": "Cybe estime cette vulnérabilité théoriquement exploitable.",
+          "not_exploitable": "Cybe estime cette vulnérabilité non exploitable.",
+          "malicious": "Cybe estime ce paquet malveillant : c'est un logiciel malveillant."
+        }
+      }
+    }
+  }
+}

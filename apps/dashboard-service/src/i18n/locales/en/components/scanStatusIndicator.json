@@ -1,0 +1,7 @@
+{
+    "components": {
+        "scanStatusIndicator": {
+            "scanning": "Scanning in progress"
+        }
+    }
+}

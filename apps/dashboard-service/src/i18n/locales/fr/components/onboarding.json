@@ -1,0 +1,18 @@
+{
+  "components": {
+    "onboarding": {
+      "welcome": "Bienvenue sur CybeDefend !",
+      "startTour": "Commençons par une visite rapide.",
+      "reports": {
+        "title": "Générer des rapports de sécurité",
+        "subtitle": "Créez des rapports complets OWASP ou CWE pour votre organisation, vos équipes ou des projets spécifiques. Exportez-les en PDF, HTML ou JSON."
+      },
+      "organizationOverview": {
+        "title": "Vue d'ensemble de l'organisation",
+        "subtitle": "Obtenez une vue globale de la posture de sécurité de votre organisation. Suivez les vulnérabilités par sévérité, surveillez les tendances dans le temps et identifiez les zones à haut risque."
+      },
+      "clickToContinue": "Cliquez pour continuer",
+      "saveFailed": "Impossible d'enregistrer la fin de la visite. Réessayez."
+    }
+  }
+}

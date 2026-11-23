@@ -1,0 +1,28 @@
+{
+  "pages": {
+    "onBoarding": {
+      "form": {
+        "organizationName": "Organization Name",
+        "organizationNamePlaceholder": "Acme Inc.",
+        "organizationNameHelper": "Visible to everyone you invite. You can rename it at any time.",
+        "optional": "optional",
+        "createButton": "Create Organization",
+        "creatingButton": "Creating Organization...",
+        "hdyhau": {
+          "label": "How did you hear about us?",
+          "search_engine": "Search engine (Google, Bing…)",
+          "social_media": "Social media",
+          "friend_colleague": "Friend or colleague",
+          "blog_article": "Blog or article",
+          "event_conference": "Event or conference",
+          "advertising": "Advertising",
+          "ai_assistant": "AI assistant (ChatGPT, Claude…)",
+          "other": "Other"
+        },
+        "pageTitle": "Create your organisation",
+        "pageSubtitle": "A name is all we need to get started. You can invite your team and change everything else once you are in.",
+        "noPaymentRequired": "No payment details required. We only ask for invoicing information if you upgrade."
+      }
+    }
+  }
+}

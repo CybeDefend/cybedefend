@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Accent per product space ───────────────────────────────────────────
+   The `secondary` and `secondary-light` colours of tailwind.config.js read
+   the two `--color-*-rgb` variables below (channels, so `bg-secondary/10`
+   keeps working). `data-product` decides their value: the shell sets it on
+   <html> (useProductAccentRoot), and any element can carry it to give its
+   subtree the accent of the product it leads to.
+
+   Without the attribute, and in AppSec, the values are the brand violet:
+   #7845FF on light surfaces and as a fill, #A78BFA (the dark accent in
+   dark) for accent words on a dark surface. The magenta #DD50FF that
+   `secondary-light` used to hold is banned: never use it.
+   #A78BFA reads 7.31:1 on as-bg,
+   6.92:1 on as-surface, 6.30:1 on as-raised and 6.27:1 on the rail; it is a
+   colour for words on dark, never a fill under a white label (2.72:1).
+
+   Kept outside any @layer: Tailwind drops a layered rule whose class it does
+   not find in the source, and `.dark` must not depend on that.
+   Not named --color-secondary: that name, and --color-secondary-light, stay
+   undefined. */
+:root,
+[data-product="appsec"] {
+  --product-accent-on-light: 120 69 255; /* #7845FF */
+  --product-accent-on-dark: 120 69 255; /* #7845FF */
+  --color-secondary-light-rgb: 167 139 250; /* #A78BFA, violet-400 */
+}
+/* Which of the two an element shows depends on the surface it sits on. It is
+   decided again on every element that changes the product or the surface, so
+   a subtree always reads the values of its own product. */
+:root,
+[data-product] {
+  --color-secondary-rgb: var(--product-accent-on-light);
+}
+/* Dark surfaces: the dark theme, and `data-surface="dark"` for what is dark in
+   both themes (the sidebar). */
+.dark,
+.dark [data-product],
+[data-surface="dark"],
+[data-surface="dark"] [data-product] {
+  --color-secondary-rgb: var(--product-accent-on-dark);
+}
+
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+
+.theme-light {
+  @apply bg-alternative-light;
+}
+
+.theme-dark {
+  @apply dark:bg-alternative-dark;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* ── Scrollbars, both products ──────────────────────
+   One quiet style in every scroller of both spaces: thin, a track
+   that is never painted, a zinc thumb that reads as a hint and firms up under
+   the pointer. Standard properties (Chrome 121+, Firefox; Chrome then ignores
+   every ::-webkit-scrollbar rule), so the pseudo-elements below only serve a
+   browser without scrollbar-color. `:where()` keeps the block at zero
+   specificity: a component's own choice (`.scrollbar-hide`,
+   `[scrollbar-width:none]`) always wins. A dark tile in the light theme
+   (`data-surface="dark"`) takes the dark thumb. */
+:where(html, html *) {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(24 24 27 / 0.2) transparent;
+}
+:where(html *:hover) {
+  scrollbar-color: rgb(24 24 27 / 0.36) transparent;
+}
+:where(html.dark, html.dark *, [data-surface="dark"], [data-surface="dark"] *) {
+  scrollbar-color: rgb(255 255 255 / 0.14) transparent;
+}
+:where(html.dark *:hover, [data-surface="dark"] *:hover) {
+  scrollbar-color: rgb(255 255 255 / 0.28) transparent;
+}
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(24 24 27 / 0.2);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(24 24 27 / 0.36);
+  }
+  .dark ::-webkit-scrollbar-thumb,
+  [data-surface="dark"] ::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.14);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover,
+  [data-surface="dark"] ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 0.28);
+  }
+}
+
+/* ── Calm motion ───────────────────────────────────────────
+   `useLivingMotion` writes data-calm="true" on <html> under reduced motion or
+   when the viewer chose Calm. `motion-safe:` only answers the system setting,
+   so the viewer's own choice needs this escape hatch for the CSS-only
+   breathing of the live dots. Outside any @layer: Tailwind would drop a
+   layered rule it does not find in the source. */
+[data-calm="true"] .motion-safe\:animate-breathe {
+  animation: none;
+}
+
+
+/* The page atmosphere of the closed product space: one fixed layer
+   behind the content of its shell, static, so scrolling never repaints
+   it. In dark: a wide, soft iris glow at the top, a fainter mint glow low on
+   the right, a gentle vignette and a very fine grain, so the black reads as
+   a material rather than a void. In light: only a breath of iris at the top.
+   Every colour comes from the tokens above; nothing here carries a word. */
+.vd-atmosphere {
+  background: radial-gradient(ellipse 70% 42% at 50% -6%, rgb(var(--vd-iris-rgb) / 0.05), transparent 72%);
+}
+.dark .vd-atmosphere {
+  background:
+    radial-gradient(ellipse 85% 62% at 50% -4%, rgb(var(--vd-iris-rgb) / 0.11), transparent 74%),
+    radial-gradient(ellipse 50% 45% at 102% 100%, rgb(var(--vd-mint-rgb) / 0.045), transparent 72%),
+    radial-gradient(ellipse 130% 100% at 50% 30%, transparent 60%, rgb(0 0 0 / 0.4) 100%);
+}
+.dark .vd-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+
+
+/* ── AppSec surfaces and hairlines ──────────────────────
+   Three layers in dark (page < surface < raised) and two hairline weights.
+   Names are AppSec's own (`as-*`); the closed product space never reads them, so they live
+   on :root and .dark without a product scope. Light values exist so a
+   `dark:`-less use stays sane. */
+:root {
+  --as-bg-rgb: 250 250 250;        /* #FAFAFA */
+  --as-surface-rgb: 255 255 255;   /* #FFFFFF */
+  --as-raised-rgb: 244 244 245;    /* #F4F4F5, zinc-100 */
+  --as-line: rgb(24 24 27 / 0.09);
+  --as-line-strong: rgb(24 24 27 / 0.16);
+  --as-chart-tick: #71717a;        /* zinc-500: 4.83:1 on white */
+  --as-chart-grid: #e4e4e7;
+  --as-chart-cursor: rgb(24 24 27 / 0.04);
+  --as-chart-tooltip-bg: #ffffff;
+  --as-chart-tooltip-border: #e4e4e7;
+  --as-chart-tooltip-text: #18181b;
+}
+.dark {
+  --as-bg-rgb: 9 9 11;             /* #09090B */
+  --as-surface-rgb: 17 17 21;      /* #111115 */
+  --as-raised-rgb: 27 27 32;       /* #1B1B20 */
+  --as-line: rgb(255 255 255 / 0.08);
+  --as-line-strong: rgb(255 255 255 / 0.13);
+  --as-chart-tick: #a1a1aa;        /* zinc-400: 7.35:1 on as-surface */
+  --as-chart-grid: rgb(255 255 255 / 0.06);
+  --as-chart-cursor: rgb(255 255 255 / 0.04);
+  --as-chart-tooltip-bg: #1b1b20;
+  --as-chart-tooltip-border: rgb(255 255 255 / 0.13);
+  --as-chart-tooltip-text: #f4f4f5;
+}
+
+/* AppSec reads in Geist too. Pages without the attribute
+   (sign-in, integration project creation) are AppSec's. Rubik stays the
+   first fallback while Geist loads. */
+html[data-product="appsec"] body,
+html[data-product="appsec"] button,
+html[data-product="appsec"] input,
+html[data-product="appsec"] select,
+html[data-product="appsec"] textarea,
+html:not([data-product]) body,
+html:not([data-product]) button,
+html:not([data-product]) input,
+html:not([data-product]) select,
+html:not([data-product]) textarea {
+  font-family: "Geist", "Rubik", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+html[data-product="appsec"] .font-mono,
+html[data-product="appsec"] code,
+html[data-product="appsec"] kbd,
+html:not([data-product]) .font-mono,
+html:not([data-product]) code,
+html:not([data-product]) kbd {
+  font-family: "Geist Mono", ui-monospace, monospace;
+}
+
+/* Toasts outside the closed product space: a 12 px plate on a
+   hairline, 13 px text, a 2 px timer in the accent instead of the library's
+   rainbow. The toast takes the page's family through `font-family: inherit`:
+   react-toastify paints `var(--toastify-font-family)`, `sans-serif` on its
+   :root, and that variable set to `inherit` would only inherit `sans-serif`. */
+html[data-product="appsec"] .Toastify, html:not([data-product]) .Toastify {
+  --toastify-toast-min-height: 48px;
+  --toastify-toast-bd-radius: 12px;
+  --toastify-toast-padding: 12px;
+  --toastify-toast-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.16), 0 1px 2px rgb(0 0 0 / 0.04);
+  --toastify-text-color-light: #3f3f46;
+  --toastify-color-dark: #1b1b20;
+  --toastify-text-color-dark: #f4f4f5;
+  --toastify-color-progress-light: #7845ff;
+  --toastify-color-progress-dark: #a78bfa;
+}
+html[data-product="appsec"] .Toastify__toast, html:not([data-product]) .Toastify__toast {
+  border: 1px solid #e4e4e7;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+html[data-product="appsec"] .Toastify__toast-theme--dark, html:not([data-product]) .Toastify__toast-theme--dark {
+  border-color: rgb(255 255 255 / 0.13);
+  --toastify-toast-shadow: 0 16px 40px -8px rgb(0 0 0 / 0.7);
+}
+html[data-product="appsec"] .Toastify__progress-bar, html:not([data-product]) .Toastify__progress-bar {
+  height: 2px;
+}
+
+/* The agents coverage report (a print page): an
+   A4 landscape sheet that prints on white whatever the theme. The brand
+   tokens are pinned to their light values on the sheet (under `.dark` they
+   would print light violet on white), and the sheet keeps its colours in
+   print. The named page sits on the document itself (on the sheet alone it
+   would break a blank page before it), and the app's own wrappers print on
+   white. Scoped by `html[data-print-sheet]`, which only that page sets:
+   printing anything else is unchanged. */
+.vd-print-sheet {
+  --vd-iris-rgb: 120 69 255;
+  --vd-mint-rgb: 4 120 87;
+  color-scheme: light;
+}
+html[data-print-sheet='coverage'],
+html[data-print-sheet='coverage'] body {
+  page: vd-coverage;
+}
+@page vd-coverage {
+  size: A4 landscape;
+  margin: 12mm;
+}
+@media print {
+  html[data-print-sheet='coverage'],
+  html[data-print-sheet='coverage'] body,
+  html[data-print-sheet='coverage'] #root,
+  html[data-print-sheet='coverage'] #root > * {
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+  html[data-print-sheet='coverage'] .vd-print-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

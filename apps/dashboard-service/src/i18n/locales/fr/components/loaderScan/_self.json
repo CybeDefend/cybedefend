@@ -1,0 +1,50 @@
+{
+  "components": {
+    "loaderScan": {
+      "title": "Analyse de sécurité",
+      "stateCompleted": "Scan terminé",
+      "stateFailed": "Échec du scan",
+      "stateDegraded": "Scan terminé avec des problèmes",
+      "stateInProgress": "Scan en cours",
+      "stateInitializing": "Initialisation du scan...",
+      "stateQueued": "En attente de traitement",
+      "stateWaitingForFile": "En attente du fichier",
+      "stateRunning": "Analyse en cours",
+      "stepWaiting": "En attente du démarrage du scan...",
+      "errorDefaultFailed": "Nous nous excusons pour ce désagrément. Veuillez réessayer plus tard ou contacter le support si le problème persiste.",
+      "buttonRetry": "Réessayer le scan",
+      "messageDefaultDegraded": "Le scan est terminé, mais a rencontré quelques problèmes. Certains résultats pourraient être incomplets.",
+      "vulnerabilitiesDetected": "Vulnérabilités détectées",
+      "progress": "Progrès",
+      "stateWaitingInQueue": "En attente dans la file...",
+      "stateCancelled": "Scan annulé",
+      "buttonCancel": "Annuler le scan",
+      "buttonDismiss": "Ignorer",
+      "messageCancelled": "Ce scan a été annulé.",
+      "agentLabel": "Agent IA",
+      "messageDegraded": "L'analyse est terminée, mais certains scanners n'ont pas pu aller au bout. Les résultats peuvent être incomplets.",
+      "agentStatus": {
+        "analysisDone": "Analyse terminée",
+        "analysisStarted": "Analyse démarrée",
+        "analysisRunning": "Analyse en cours",
+        "analyzing": "Analyse en cours…",
+        "reviewed": "{{processed}} sur {{total}} vulnérabilités examinées",
+        "confirmed_one": "{{count}} confirmée",
+        "confirmed_other": "{{count}} confirmées",
+        "falsePositives_one": "{{count}} faux positif",
+        "falsePositives_other": "{{count}} faux positifs",
+        "failed_one": "{{count}} n'a pas pu être examinée",
+        "failed_other": "{{count}} n'ont pas pu être examinées",
+        "vulnStart": "Analyse d'une vulnérabilité…",
+        "vulnResult": "Résultats affinés pour une vulnérabilité",
+        "vulnDone": "Analyse des vulnérabilités terminée",
+        "vulnRunning": "Analyse des vulnérabilités en cours…",
+        "prioritizationStart": "Priorisation en cours…",
+        "prioritizationDecided": "Décisions de priorisation appliquées",
+        "prioritizationRunning": "Priorisation en cours…",
+        "parsing": "Traitement des données du scan…",
+        "ingestion": "Préparation des données pour l'analyse…"
+      }
+    }
+  }
+}

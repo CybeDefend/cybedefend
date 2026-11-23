@@ -1,0 +1,10 @@
+{
+  "components": {
+    "profileWrapper": {
+      "tabs": {
+        "general": "General",
+        "pat": "Access Tokens"
+      }
+    }
+  }
+}

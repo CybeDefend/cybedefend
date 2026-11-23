@@ -1,0 +1,26 @@
+{
+  "components": {
+    "analysisTable": {
+      "projects": "Projets",
+      "project": "Projet",
+      "searchPlaceholder": "Rechercher des projets...",
+      "createTeamError": "Vous devez créer une équipe avant de créer un projet.",
+      "loadError": "Les projets n'ont pas pu être chargés. Rechargez la page pour réessayer.",
+      "createProject": "Créer un projet",
+      "projectName": "Nom du projet",
+      "linkedTeam": "Équipe liée",
+      "scanStatus": "Statut du scan",
+      "riskLevel": "Niveau de risque",
+      "riskScore": "Score de risque",
+      "cyberRiskLevel": "Niveau CybeRisk",
+      "cyberRiskScore": "Score CybeRisk",
+      "issues": "Problèmes",
+      "noResultsFound": "Aucun résultat trouvé",
+      "noProjects": "Nous n'avons trouvé aucun projet correspondant.",
+      "showing": "Affichage de {{count}} sur {{total}} projets",
+      "lastSourceScan": "Dernière source de scan",
+      "never": "Jamais",
+      "activeScansDetected": "Scans actifs détectés - Actualisation automatique toutes les 30s"
+    }
+  }
+}

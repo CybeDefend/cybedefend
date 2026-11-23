@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "apiKeyPage": {
+      "title": "Mes clés API (obsolète)",
+      "deprecated": {
+        "title": "Les clés API sont obsolètes",
+        "message": "Les clés API ne sont plus fonctionnelles et ont été remplacées par les jetons d'accès personnels (PAT). Les PAT utilisent le flux OIDC token exchange pour une sécurité renforcée. Veuillez migrer vers les jetons d'accès personnels.",
+        "goToPat": "Aller aux jetons d'accès personnels"
+      }
+    }
+  }
+}

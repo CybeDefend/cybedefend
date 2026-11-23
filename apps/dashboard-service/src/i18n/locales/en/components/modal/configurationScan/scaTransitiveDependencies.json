@@ -1,0 +1,12 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "scaTransitiveDependencies": {
+          "title": "Transitive Dependencies",
+          "description": "Include transitive dependencies in the SCA scan analysis."
+        }
+      }
+    }
+  }
+}

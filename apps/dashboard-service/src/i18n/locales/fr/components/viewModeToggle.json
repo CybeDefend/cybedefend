@@ -1,0 +1,8 @@
+{
+    "components": {
+        "viewModeToggle": {
+            "detailed": "Détaillée",
+            "grouped": "Groupée"
+        }
+    }
+}

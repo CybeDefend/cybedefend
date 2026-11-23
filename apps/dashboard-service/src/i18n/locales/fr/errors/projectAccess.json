@@ -1,0 +1,8 @@
+{
+  "errors": {
+    "projectAccess": {
+      "noAccess": "Vous n'avez pas accès à ce projet ou il n'existe pas.",
+      "checkFailed": "Échec de la vérification de l'accès au projet. Veuillez réessayer."
+    }
+  }
+}

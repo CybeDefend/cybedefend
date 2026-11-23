@@ -1,0 +1,12 @@
+{
+  "components": {
+    "sidebar": {
+      "help": {
+        "changelog": {
+          "title": "Notes de version",
+          "description": "Dernières mises à jour et fonctionnalités"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "components": {
+    "sidebar": {
+      "organization": "Organisation",
+      "selectOrganization": "Sélectionner une organisation",
+      "navigation": "Navigation",
+      "getStarted": "Démarrer",
+      "manageProjects": "Gérer les projets",
+      "reports": "Rapports de sécurité",
+      "organizationOverview": "Vue d'ensemble de l'Organisation",
+      "organizationSettings": "Membres de l'Organisation",
+      "teamsSettings": "Paramètres des équipes",
+      "policiesSettings": "Politiques de sécurité",
+      "billing": "Facturation et abonnement",
+      "usage": "Utilisation et droits",
+      "currentProject": "Projet en cours",
+      "recentProjects": "Projets récents",
+      "account": "Compte",
+      "sections": {
+        "manage": "Gestion",
+        "features": "Fonctionnalités"
+      }
+    }
+  }
+}

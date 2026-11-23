@@ -1,0 +1,30 @@
+{
+  "pages": {
+    "onBoarding": {
+      "chooser": {
+        "title": "Démarrez avec CybeDefend",
+        "subtitle": "Créez une nouvelle organisation, ou rejoignez celle à laquelle vous avez été invité.",
+        "back": "Retour",
+        "createCard": {
+          "title": "Créer mon organisation",
+          "description": "Configurez une toute nouvelle organisation et invitez votre équipe.",
+          "cta": "Créer une organisation"
+        },
+        "joinCard": {
+          "title": "Rejoindre une organisation",
+          "description": "Votre équipe utilise déjà CybeDefend ? Demandez à un administrateur de vous inviter.",
+          "cta": "Rejoindre une organisation"
+        }
+      },
+      "join": {
+        "title": "Rejoindre une organisation existante",
+        "description": "Pour rejoindre une organisation, demandez à l'un de ses administrateurs de vous inviter. Il n'est pas possible de la rejoindre sans invitation.",
+        "emailIntro": "L'e-mail d'invitation sera envoyé à :",
+        "back": "Retour aux options"
+      },
+      "appsec": {
+        "banner": "Avant tout : rejoignez une organisation ou créez la vôtre pour scanner votre code."
+      }
+    }
+  }
+}

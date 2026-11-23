@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "api": {
+          "title": "Test de sécurité des API",
+          "description": "Détecte les vulnérabilités en interagissant avec l'API et en analysant ses réponses."
+        }
+      }
+    }
+  }
+}

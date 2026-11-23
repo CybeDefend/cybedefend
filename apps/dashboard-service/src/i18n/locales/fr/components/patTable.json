@@ -1,0 +1,25 @@
+{
+    "components": {
+        "patTable": {
+            "addToken": "Nouveau jeton",
+            "name": "Nom",
+            "token": "Jeton",
+            "expiration": "Expiration",
+            "created": "Créé le",
+            "manage": "Gérer",
+            "noTokens": "Aucun jeton d'accès personnel",
+            "noTokensDescription": "Créez un jeton d'accès personnel pour vous authentifier à l'API CybeDefend.",
+            "totalTokens": "jetons",
+            "show": "Afficher le jeton",
+            "hide": "Masquer le jeton",
+            "copy": "Copier le jeton",
+            "rename": "Renommer",
+            "expired": "Expiré",
+            "usageLabel": "jetons utilisés",
+            "capReached": "Maximum 10 jetons autorisés. Supprimez un jeton existant pour en créer un nouveau.",
+            "lastUsed": "Dernière utilisation",
+            "neverUsed": "Jamais",
+            "loadError": "Les jetons d'accès personnels n'ont pas pu être chargés. Réessayez."
+        }
+    }
+}

@@ -1,0 +1,217 @@
+{
+  "columns": [
+    {
+      "table": "file_scan",
+      "property": "createdAt",
+      "column": "createdAt",
+      "type": "datetime",
+      "length": "",
+      "precision": 6,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": "CURRENT_TIMESTAMP(6)",
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "fileName",
+      "column": "fileName",
+      "type": "String",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "id",
+      "column": "id",
+      "type": "uuid",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": true,
+      "generationStrategy": "uuid",
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "isDiffScan",
+      "column": "isDiffScan",
+      "type": "boolean",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": "false",
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "objectPath",
+      "column": "objectPath",
+      "type": "String",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": true,
+      "primary": false,
+      "generationStrategy": null,
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "projectId",
+      "column": "projectId",
+      "type": "String",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "scanId",
+      "column": "scanId",
+      "type": "String",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "status",
+      "column": "status",
+      "type": "enum",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": "PENDING_UPLOAD",
+      "onUpdate": null,
+      "enum": [
+        "PENDING_UPLOAD",
+        "PROCESSING",
+        "UPLOADED",
+        "PROCESSED",
+        "FAILED"
+      ],
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "typeScan",
+      "column": "typeScan",
+      "type": "String",
+      "length": "",
+      "precision": null,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "file_scan",
+      "property": "updatedAt",
+      "column": "updatedAt",
+      "type": "datetime",
+      "length": "",
+      "precision": 6,
+      "scale": null,
+      "nullable": false,
+      "primary": false,
+      "generationStrategy": null,
+      "default": "CURRENT_TIMESTAMP(6)",
+      "onUpdate": "CURRENT_TIMESTAMP(6)",
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    }
+  ],
+  "indexes": [
+    {
+      "table": "file_scan",
+      "name": "IDX_file_scan_projectId",
+      "columns": [
+        "projectId"
+      ],
+      "unique": false
+    },
+    {
+      "table": "file_scan",
+      "name": "IDX_file_scan_scanId",
+      "columns": [
+        "scanId"
+      ],
+      "unique": false
+    },
+    {
+      "table": "file_scan",
+      "name": "IDX_file_scan_status_createdAt",
+      "columns": [
+        "status",
+        "createdAt"
+      ],
+      "unique": false
+    },
+    {
+      "table": "file_scan",
+      "name": "IDX_file_scan_status_updatedAt",
+      "columns": [
+        "status",
+        "updatedAt"
+      ],
+      "unique": false
+    }
+  ],
+  "foreignKeys": []
+}

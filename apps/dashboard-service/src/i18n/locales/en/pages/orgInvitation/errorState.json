@@ -1,0 +1,15 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "errorState": {
+        "title": "Invalid Invitation",
+        "whatToDo": "What to do next:",
+        "contactMember": "Contact the team member who sent you this invitation",
+        "askNewLink": "Ask them to send you a new invitation link",
+        "useWithin7Days": "Make sure to use the new link within 7 days",
+        "needHelp": "Need help? Contact us at",
+        "returnHome": "Return to Homepage"
+      }
+    }
+  }
+}

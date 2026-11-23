@@ -1,0 +1,3 @@
+[
+  { "name": "jira-webhook-refresh", "cron": "0 3 * * 0", "env": { "APP_MODE": "cron-webhook", "CRON_TASK": "jira-webhook-refresh" } }
+]

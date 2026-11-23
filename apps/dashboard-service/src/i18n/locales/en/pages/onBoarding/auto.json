@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "onBoarding": {
+      "auto": {
+        "creating": "Creating your workspace…",
+        "hint": "You will be taken to it as soon as it is ready.",
+        "fallbackName": "My organization",
+        "failed": "We couldn't create your workspace automatically. Check its name and create it below."
+      }
+    }
+  }
+}

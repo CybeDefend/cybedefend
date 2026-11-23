@@ -1,0 +1,12 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "scaDevDependencies": {
+          "title": "Development Dependencies",
+          "description": "Include development dependencies in the SCA scan analysis."
+        }
+      }
+    }
+  }
+}

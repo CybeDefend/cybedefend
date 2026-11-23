@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "apiKeyPage": {
+      "title": "My Api Keys (Deprecated)",
+      "deprecated": {
+        "title": "API Keys are deprecated",
+        "message": "API Keys are no longer functional and have been replaced by Personal Access Tokens (PATs). PATs use the OIDC token exchange flow for enhanced security. Please migrate to Personal Access Tokens.",
+        "goToPat": "Go to Personal Access Tokens"
+      }
+    }
+  }
+}

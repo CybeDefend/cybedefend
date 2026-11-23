@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "onBoarding": {
+      "errors": {
+        "requiredFields": "Veuillez remplir tous les champs requis.",
+        "failedToCreate": "Échec de la création de l'organisation"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+    "components": {
+        "projectWrapper": {
+            "buttons": {
+                "backToResults": "Retour aux résultats d'analyse"
+            }
+        }
+    }
+}

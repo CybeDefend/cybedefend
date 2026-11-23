@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>🚨 Critical Vulnerabilities Detected</title>
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      table {
+        border-collapse: collapse;
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+      }
+      img {
+        border: 0;
+        height: auto;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+        -ms-interpolation-mode: bicubic;
+      }
+      a {
+        text-decoration: none;
+      }
+      @media only screen and (max-width: 600px) {
+        .email-container {
+          width: 100% !important;
+        }
+        .mobile-padding {
+          padding: 15px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f3f4f6;">
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      width="100%"
+      style="background-color:#f3f4f6;"
+    >
+      <tr>
+        <td align="center" style="padding:20px 0;">
+          <table
+            role="presentation"
+            cellspacing="0"
+            cellpadding="0"
+            width="600"
+            class="email-container"
+            style="background-color:#ffffff;max-width:600px;margin:0 auto;"
+          >
+            <tr>
+              <td>
+                {{!-- Header with gradient banner --}}
+                {{> reportHeader}}
+
+                {{!-- Main Content --}}
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td style="padding:30px 24px;">
+                      {{!-- Alert Banner --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="background:linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);border-radius:12px;border-left:4px solid #DC2626;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="padding:20px 24px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                              <tr>
+                                <td style="vertical-align:middle;width:48px;">
+                                  <div style="width:48px;height:48px;background:#DC2626;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                                    <span style="font-size:24px;color:#fff;">🚨</span>
+                                  </div>
+                                </td>
+                                <td style="vertical-align:middle;padding-left:16px;">
+                                  <h2 style="margin:0;font-family:Arial,sans-serif;font-size:20px;color:#991B1B;font-weight:700;">
+                                    Critical Security Alert
+                                  </h2>
+                                  <p style="margin:4px 0 0 0;font-family:Arial,sans-serif;font-size:14px;color:#7F1D1D;">
+                                    {{totalCritical}} critical {{#if (eq totalCritical 1)}}vulnerability{{else}}vulnerabilities{{/if}} detected in the last 24 hours
+                                  </p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Title --}}
+                      <h1 style="margin:0 0 8px 0;font-family:Arial,sans-serif;font-size:24px;color:#111827;font-weight:700;">
+                        {{userName}}, immediate action required
+                      </h1>
+                      <p style="margin:0 0 24px 0;font-family:Arial,sans-serif;font-size:14px;color:#6b7280;">
+                        {{todayDate}} • Project: <strong>{{projectName}}</strong>
+                      </p>
+
+                      {{!-- Type Breakdown --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="border-radius:8px;padding:16px;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td>
+                            <p style="margin:0 0 12px 0;font-family:Arial,sans-serif;font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+                              Vulnerability Types Detected
+                            </p>
+                            <table cellpadding="0" cellspacing="0" role="presentation">
+                              <tr>
+                                {{#if typeCounts.sast}}
+                                <td style="padding-right:16px;">
+                                  <span style="display:inline-block;background:#DBEAFE;color:#1E40AF;padding:6px 12px;border-radius:6px;font-family:Arial,sans-serif;font-size:12px;font-weight:600;">
+                                    {{typeCounts.sast}} SAST
+                                  </span>
+                                </td>
+                                {{/if}}
+                                {{#if typeCounts.iac}}
+                                <td style="padding-right:16px;">
+                                  <span style="display:inline-block;background:#E0E7FF;color:#3730A3;padding:6px 12px;border-radius:6px;font-family:Arial,sans-serif;font-size:12px;font-weight:600;">
+                                    {{typeCounts.iac}} IAC
+                                  </span>
+                                </td>
+                                {{/if}}
+                                {{#if typeCounts.sca}}
+                                <td style="padding-right:16px;">
+                                  <span style="display:inline-block;background:#FCE7F3;color:#831843;padding:6px 12px;border-radius:6px;font-family:Arial,sans-serif;font-size:12px;font-weight:600;">
+                                    {{typeCounts.sca}} SCA
+                                  </span>
+                                </td>
+                                {{/if}}
+                                {{#if typeCounts.container}}
+                                <td>
+                                  <span style="display:inline-block;background:#FEF3C7;color:#78350F;padding:6px 12px;border-radius:6px;font-family:Arial,sans-serif;font-size:12px;font-weight:600;">
+                                    {{typeCounts.container}} CONTAINER
+                                  </span>
+                                </td>
+                                {{/if}}
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Critical Vulnerabilities List --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="background:linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);border-bottom:2px solid #DC2626;padding:16px 24px;">
+                            <h3 style="margin:0;font-family:Arial,sans-serif;font-size:16px;color:#991B1B;font-weight:700;">
+                              🔴 Critical Vulnerabilities Detected Today
+                            </h3>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:20px 24px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                              {{#each vulnerabilities}}
+                                <tr>
+                                  <td style="padding:0 0 16px 0;{{#unless @last}}border-bottom:1px solid #F3F4F6;padding-bottom:16px;margin-bottom:16px;{{/unless}}">
+                                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                                      <tr>
+                                        <td style="vertical-align:top;width:24px;">
+                                          <span style="display:inline-block;width:8px;height:8px;background:#DC2626;border-radius:50%;margin-top:6px;"></span>
+                                        </td>
+                                        <td style="vertical-align:top;padding-left:12px;">
+                                          <div style="margin-bottom:6px;">
+                                            <span style="display:inline-block;background:#FEE2E2;color:#991B1B;padding:3px 8px;border-radius:4px;font-family:Arial,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-right:6px;">
+                                              CRITICAL
+                                            </span>
+                                            <span style="display:inline-block;background:#F3F4F6;color:#4B5563;padding:3px 8px;border-radius:4px;font-family:Arial,sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;">
+                                              {{type}}
+                                            </span>
+                                          </div>
+                                          <p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:14px;color:#111827;font-weight:600;line-height:1.4;">
+                                            {{title}}
+                                          </p>
+                                          {{#if packageName}}
+                                          <p style="margin:0;font-family:'Courier New',monospace;font-size:12px;color:#6B7280;">
+                                            📦 {{packageName}}{{#if version}} @ {{version}}{{/if}}
+                                          </p>
+                                          {{/if}}
+                                          {{#if cvss}}
+                                          <p style="margin:4px 0 0 0;font-family:Arial,sans-serif;font-size:12px;color:#DC2626;font-weight:600;">
+                                            CVSS Score: {{cvss}}
+                                          </p>
+                                          {{/if}}
+                                        </td>
+                                      </tr>
+                                    </table>
+                                  </td>
+                                </tr>
+                              {{/each}}
+                            </table>
+
+                            {{#if hasMore}}
+                              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:16px;border-top:1px solid #F3F4F6;padding-top:16px;">
+                                <tr>
+                                  <td align="center">
+                                    <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#DC2626;font-weight:600;">
+                                      ⚠️ + {{remainingCount}} more critical {{#if (eq remainingCount 1)}}vulnerability{{else}}vulnerabilities{{/if}} not shown
+                                    </p>
+                                  </td>
+                                </tr>
+                              </table>
+                            {{/if}}
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Action Button --}}
+                      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:24px;">
+                        <tr>
+                          <td align="center">
+                            <a
+                              href="{{projectUrl}}" {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path; no user or tenant value chooses its scheme }}
+                              style="display:inline-block;background:#DC2626;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-family:Arial,sans-serif;font-size:15px;font-weight:700;box-shadow:0 4px 6px rgba(220, 38, 38, 0.3);"
+                            >
+                              🚨 Review Critical Vulnerabilities Now
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Security Tip --}}
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="background:#FEF3C7;border-radius:8px;border-left:4px solid #F59E0B;padding:16px;margin-bottom:24px;"
+                      >
+                        <tr>
+                          <td style="padding:16px;">
+                            <p style="margin:0 0 8px 0;font-family:Arial,sans-serif;font-size:13px;color:#92400E;font-weight:700;">
+                              💡 Security Tip
+                            </p>
+                            <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#78350F;line-height:1.5;">
+                              Critical vulnerabilities require immediate attention. Review and prioritize fixes for high-impact security issues to protect your application and data.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                {{!-- Footer --}}
+                {{> reportFooter 
+                  notificationSettingsUrl=notificationSettingsUrl 
+                  currentYear=currentYear
+                }}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+# Smoke variant « storage-late »: the stack starts without its object storage.
+# The storage relay, SeaweedFS and the bucket job only start with `--profile late`, and
+# file-management no longer waits for them: !override replaces its depends_on
+# (Compose >= 2.24.4; !reset would drop it whole, the database role job included). The smoke
+# checks that every service stays healthy, that an import is refused 503
+# IMPORT_STORAGE_UNAVAILABLE, then starts the storage and imports again.
+
+services:
+  storage:
+    profiles: [late]
+  storage-server:
+    profiles: [late]
+  storage-init:
+    profiles: [late]
+  file-management:
+    depends_on: !override
+      # Its database role, set up by postgres-roles once postgres is healthy.
+      postgres-roles:
+        condition: service_completed_successfully
+      # The storage secret file it reads at boot, written before the storage starts.
+      init-secrets:
+        condition: service_completed_successfully

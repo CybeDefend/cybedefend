@@ -1,0 +1,72 @@
+{
+  "pages": {
+    "organizationOverview": {
+      "glance": {
+        "headline": {
+          "projects_one": "project",
+          "projects_other": "projects",
+          "in": "in",
+          "teams_one": "team",
+          "teams_other": "teams",
+          "open_one": "open finding",
+          "open_other": "open findings",
+          "critical_one": "critical",
+          "critical_other": "critical"
+        },
+        "meta": {
+          "allProjects": "All projects",
+          "filtered": "Filtered view"
+        },
+        "bands": {
+          "now": "Posture now",
+          "look": "What to look at"
+        },
+        "kpi": {
+          "open": "Open findings",
+          "net7": "net in 7 days",
+          "resolved": "Resolved",
+          "in7": "in 7 days",
+          "new": "New findings",
+          "last7": "last 7 days",
+          "risk": "Projects at critical or high risk",
+          "ofProjects_one": "of {{count}} project",
+          "ofProjects_other": "of {{count}} projects"
+        },
+        "licences": {
+          "label": "Licences",
+          "permissive": "permissive",
+          "weakCopyleft": "weak copyleft",
+          "strongCopyleft": "strong copyleft",
+          "unknown": "unknown",
+          "packages_one": "{{value}} package",
+          "packages_other": "{{value}} packages"
+        },
+        "projectsAtRisk": {
+          "title": "Projects at risk",
+          "meta": "Ranked by open findings",
+          "rank": "#",
+          "project": "Project",
+          "risk": "Risk",
+          "open": "Open",
+          "priority": "Critical / high",
+          "delta": "7 days",
+          "seeAll": "See all projects",
+          "empty": "No project at risk.",
+          "riskNone": "No risk",
+          "riskUnknown": "Not rated"
+        },
+        "teams": {
+          "title": "Teams",
+          "meta_one": "{{count}} team",
+          "meta_other": "{{count}} teams",
+          "projects_one": "{{count}} project",
+          "projects_other": "{{count}} projects",
+          "noPriority": "No critical or high finding",
+          "more_one": "and {{count}} more team",
+          "more_other": "and {{count}} more teams",
+          "empty": "No team."
+        }
+      }
+    }
+  }
+}

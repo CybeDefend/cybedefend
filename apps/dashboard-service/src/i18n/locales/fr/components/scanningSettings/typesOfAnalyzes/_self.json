@@ -1,0 +1,18 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "title": "Types d'analyses",
+        "source": {
+          "label": "Source",
+          "all": "Tous",
+          "code": "Code actuel",
+          "history": "Historique git"
+        },
+        "commitSha": {
+          "placeholder": "SHA de commit (partiel)"
+        }
+      }
+    }
+  }
+}

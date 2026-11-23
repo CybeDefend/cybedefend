@@ -1,0 +1,260 @@
+syntax = "proto3";
+
+package cybedefend.analysis_reporting;
+
+import "analysis-reporting/data_purge.proto";
+import "secret-rotation/secret_rotation.proto";
+import "analysis-reporting/result.proto";
+import "analysis-reporting/vulnerability.proto";
+
+service AnalysisReportingSecretRotation {
+  rpc NotifyRotation(cybedefend.secretrotation.RotationRequest) returns (cybedefend.secretrotation.RotationResponse);
+}
+
+service ResultService {
+  rpc AddScaScanResult(ScanAddScaResultRequest)          returns (ScanAddScaResultResponse);
+  rpc AddScanResult(ScanAddResultRequest)                returns (ScanAddResultResponse);
+  // Hands an import scan's stored SARIF file to the results-import queue
+  rpc ImportResults(ImportResultsRequest)                returns (ImportResultsResponse);
+  rpc GetVulnerabilitiesCount(ProjectGetRequest)         returns (GetProjectVulnerabilitiesCountResponse);
+  // What global-management's ProjectService/Get keeps from the
+  // analysis side (the persisted CybeRisk score and the detected languages),
+  // without the severity counts or the security-scanning call of
+  // GetVulnerabilitiesCount, which it threw away.
+  rpc GetProjectRiskSummary(GetProjectRiskSummaryRequest) returns (GetProjectRiskSummaryResponse);
+  // Batch version for getting vulnerabilities count for multiple projects in one request
+  rpc GetBatchVulnerabilitiesCount(GetBatchVulnerabilitiesCountRequest) returns (GetBatchVulnerabilitiesCountResponse);
+  rpc GetProjectOverview(GetProjectOverviewRequest)      returns (GetProjectOverviewResponse);
+  // Get organization-wide overview aggregating all projects
+  rpc GetOrganizationOverview(GetOrganizationOverviewRequest) returns (GetOrganizationOverviewResponse);
+  // Dedicated lazy blocks carved out of GetOrganizationOverview.
+  // Get severity distribution across all organization projects (lazy)
+  rpc GetOrganizationSeverityDistribution(GetOrganizationSeverityDistributionRequest) returns (GetOrganizationSeverityDistributionResponse);
+  // Get vulnerability state distribution across all organization projects (lazy)
+  rpc GetOrganizationStateDistribution(GetOrganizationStateDistributionRequest) returns (GetOrganizationStateDistributionResponse);
+  // Get vulnerability trend over time for the organization (lazy, with period comparison)
+  rpc GetOrganizationVulnerabilitiesOverTime(GetOrganizationVulnerabilitiesOverTimeRequest) returns (GetOrganizationVulnerabilitiesOverTimeResponse);
+  rpc GetMainStatistics(GetMainStatisticsRequest)        returns (GetMainStatisticsResponse);
+  // Org-wide KPI cards read O(1) from the persisted organization_statistics
+  // row (computed by the debounced recompute worker). Same payload shape.
+  rpc GetOrganizationStatistics(GetOrganizationStatisticsRequest) returns (GetMainStatisticsResponse);
+  rpc GetProjectSastVulnerabilities(
+    GetProjectSastVulnerabilitiesRequest
+  )                                                      returns (GetProjectSastVulnerabilitiesResponse);
+
+  rpc GetProjectIacVulnerabilities(
+    GetProjectIacVulnerabilitiesRequest
+  )                                                      returns (GetProjectIacVulnerabilitiesResponse);
+  rpc GetProjectCicdVulnerabilities(
+    GetProjectCicdVulnerabilitiesRequest
+  )                                                      returns (GetProjectCicdVulnerabilitiesResponse);
+  rpc GetProjectSecretVulnerabilities(
+    GetProjectSecretVulnerabilitiesRequest
+  )                                                      returns (GetProjectSecretVulnerabilitiesResponse);
+  rpc GetProjectScaVulnerabilities(
+    GetProjectScaVulnerabilitiesRequest
+  )                                                      returns (GetProjectScaVulnerabilitiesResponse);
+  rpc GetProjectScaPackages(
+    GetProjectScaVulnerabilitiesRequest
+  )                                                      returns (GetProjectPackagesResponse);
+  rpc GetScaFilterOptions(GetScaFilterOptionsRequest) returns (GetScaFilterOptionsResponse);
+  rpc GetSastVulnerabilityById(GetProjectVulnerabilityByIdRequest)
+                                                          returns (GetProjectVulnerabilityByIdResponse);
+  rpc GetIacVulnerabilityById(GetProjectVulnerabilityByIdRequest)
+                                                          returns (GetProjectVulnerabilityByIdResponse);
+  rpc GetCicdVulnerabilityById(GetProjectVulnerabilityByIdRequest)
+                                                          returns (GetProjectVulnerabilityByIdResponse);
+  rpc GetSecretVulnerabilityById(GetProjectVulnerabilityByIdRequest)
+                                                          returns (GetProjectVulnerabilityByIdResponse);
+  rpc GetScaVulnerabilityById(GetProjectVulnerabilityByIdRequest)
+                                                          returns (GetProjectVulnerabilityByIdResponse);
+  rpc UpdateScanResult(UpdateResultRequest)              returns (UpdateProjectVulnerabilityResponse);
+  // Batch update multiple vulnerabilities at once (status, priority, comment)
+  rpc BatchUpdateScanResults(BatchUpdateResultRequest)   returns (BatchUpdateResultResponse);
+  rpc EnqueueBatchUpdate(EnqueueBatchUpdateRequest)      returns (EnqueueBatchUpdateResponse);
+  rpc GetAsyncTask(GetAsyncTaskRequest)                  returns (AsyncTask);
+  rpc ListAsyncTasks(ListAsyncTasksRequest)              returns (AsyncTaskList);
+  rpc DeleteAsyncTask(DeleteAsyncTaskRequest)            returns (DeleteAsyncTaskResponse);
+
+  rpc AddContainerScanResult(ScanAddContainerResultRequest) returns (ScanAddContainerResultResponse);
+
+  rpc DeleteProjectVulnerabilityDetections(ProjectDeleteRequest) returns (ProjectDeleteResponse);
+
+  rpc GetProjectContainerImages (GetProjectContainerImagesRequest) returns (GetProjectContainerImagesResponse);
+
+  // Get container images grouped by repository name (showing all tags within each image)
+  rpc GetGroupedContainerImages(GetGroupedContainerImagesRequest) returns (GetGroupedContainerImagesResponse);
+
+  rpc getProjectContainerPackages(
+    GetProjectScaVulnerabilitiesRequest
+  ) returns (GetProjectPackagesResponse);
+  
+  rpc GetProjectContainerVulnerabilities(
+    GetProjectContainerVulnerabilitiesRequest
+  ) returns (GetProjectContainerVulnerabilitiesResponse);
+
+  rpc GetContainerVulnerabilityById(
+    GetProjectContainerVulnerabilityByIdRequest
+  ) returns (GetProjectContainerVulnerabilityByIdResponse);
+
+  rpc DeleteContainerImage(DeleteContainerImageRequest) returns (ProjectDeleteResponse);
+  // Generate OWASP Top 10 report
+  rpc GenerateOwaspReport(GenerateOwaspReportRequest) returns (GenerateOwaspReportResponse);
+  // Generate CWE Top 25 report
+  rpc GenerateCweReport(GenerateCweReportRequest) returns (GenerateCweReportResponse);
+  // Generate Organization aggregated report
+  rpc GenerateOrganizationReport(GenerateOrganizationReportRequest) returns (GenerateAggregatedReportResponse);
+  // Generate Team aggregated report
+  rpc GenerateTeamReport(GenerateTeamReportRequest) returns (GenerateAggregatedReportResponse);
+  // Generate Batch projects report
+  rpc GenerateBatchReport(GenerateBatchReportRequest) returns (GenerateAggregatedReportResponse);
+  // Fetch the status of an async-generated report and a fresh signed download URL.
+  rpc GetGeneratedReport(GetGeneratedReportRequest) returns (GetGeneratedReportResponse);
+  // Fetch the status of an async-generated aggregated report (org/team/batch) and a fresh signed download URL.
+  rpc GetGeneratedAggregatedReport(GetGeneratedAggregatedReportRequest) returns (GetGeneratedAggregatedReportResponse);
+  // Delete a stored report (frees a quota slot + removes the stored object).
+  rpc DeleteGeneratedReport(DeleteGeneratedReportRequest) returns (DeleteGeneratedReportResponse);
+  rpc DeleteAggregatedReport(DeleteAggregatedReportRequest) returns (DeleteAggregatedReportResponse);
+  // Paginated history of stored reports (per-project + aggregated).
+  rpc ListGeneratedReports(ListGeneratedReportsRequest) returns (ListGeneratedReportsResponse);
+  rpc ListAggregatedReports(ListAggregatedReportsRequest) returns (ListAggregatedReportsResponse);
+  rpc GetReportUsage(GetReportUsageRequest) returns (GetReportUsageResponse);
+  // Get distinct branches from vulnerability detections (SAST, SCA, IAC) for a project
+  rpc GetProjectBranches(GetProjectBranchesRequest) returns (GetProjectBranchesResponse);
+  // Deprecated: what security-scanning pods older than
+  // NotifyScanEnded call when a scan ends. analysis-reporting treats it as
+  // NotifyScanEnded and creates the issues itself, once the scan's results are
+  // final. Remove once every security-scanning pod calls NotifyScanEnded.
+  rpc CreateIssuesForScan(CreateIssuesForScanRequest) returns (CreateIssuesForScanResponse);
+
+  // ===================================================================
+  // GROUPED VULNERABILITIES - New endpoints for consolidated view
+  // ===================================================================
+  
+  // Get SAST vulnerabilities grouped by rule ID
+  rpc GetGroupedSastVulnerabilities(GetGroupedSastVulnerabilitiesRequest) returns (GetGroupedSastVulnerabilitiesResponse);
+  // Get IAC vulnerabilities grouped by rule ID
+  rpc GetGroupedIacVulnerabilities(GetGroupedIacVulnerabilitiesRequest) returns (GetGroupedIacVulnerabilitiesResponse);
+  // Get CICD vulnerabilities grouped by rule ID
+  rpc GetGroupedCicdVulnerabilities(GetGroupedCicdVulnerabilitiesRequest) returns (GetGroupedCicdVulnerabilitiesResponse);
+  // Get Secret vulnerabilities grouped by rule ID
+  rpc GetGroupedSecretVulnerabilities(GetGroupedSecretVulnerabilitiesRequest) returns (GetGroupedSecretVulnerabilitiesResponse);
+  // Get SCA vulnerabilities grouped by CVE + package name
+  rpc GetGroupedScaVulnerabilities(GetGroupedScaVulnerabilitiesRequest) returns (GetGroupedScaVulnerabilitiesResponse);
+  // Get container vulnerabilities grouped by package (name + version)
+  rpc GetGroupedContainerVulnerabilities(GetGroupedContainerVulnerabilitiesRequest) returns (GetGroupedContainerVulnerabilitiesResponse);
+  // Get a vulnerability by ID with similar occurrences
+  rpc GetVulnerabilityWithSimilar(GetVulnerabilityWithSimilarRequest) returns (GetVulnerabilityWithSimilarResponse);
+
+  // ===================================================================
+  // POLICY EVALUATION - Get vulnerabilities for policy evaluation
+  // ===================================================================
+  
+  // Get all vulnerabilities for a scan (for policy evaluation)
+  // Returns a unified list across all scanner types (SAST, SCA, IAC, Container, etc.)
+  rpc GetScanVulnerabilitiesForPolicy(GetScanVulnerabilitiesForPolicyRequest) returns (GetScanVulnerabilitiesForPolicyResponse);
+  
+  // Get the processing status of a scan's vulnerability queue
+  // Used by policy service to wait for all vulnerability processing to complete before evaluation
+  rpc GetScanQueueStatus(GetScanQueueStatusRequest) returns (GetScanQueueStatusResponse);
+
+  // Trigger deferred scan completion notification (called by security-scanning when agent finishes)
+  rpc NotifyScanComplete(NotifyScanCompleteRequest) returns (NotifyScanCompleteResponse);
+
+  // Every container of a scan is closed (called by security-scanning).
+  // analysis-reporting evaluates the end of the scan once more, the
+  // failed scanners out of the count, and when its results are final sends
+  // the scan-complete notifications, creates the issues and recomputes the
+  // cyber-risk, once per scan. UNAVAILABLE when it could not evaluate it: the
+  // caller retries, the evaluation is idempotent.
+  rpc NotifyScanEnded(NotifyScanEndedRequest) returns (NotifyScanEndedResponse);
+
+  // Get license summary for SCA packages in a project
+  rpc GetProjectLicenseSummary(GetProjectLicenseSummaryRequest) returns (GetProjectLicenseSummaryResponse);
+
+  // Get packages that use a specific license
+  rpc GetPackagesByLicense(GetPackagesByLicenseRequest) returns (GetPackagesByLicenseResponse);
+
+  // Get all license classifications for an organization (defaults + overrides)
+  rpc GetLicenseClassifications(GetLicenseClassificationsRequest) returns (GetLicenseClassificationsResponse);
+
+  // Update license classification overrides for an organization
+  rpc UpdateLicenseClassifications(UpdateLicenseClassificationsRequest) returns (UpdateLicenseClassificationsResponse);
+
+  // Reset all license classification overrides for an organization
+  rpc ResetLicenseClassifications(ResetLicenseClassificationsRequest) returns (ResetLicenseClassificationsResponse);
+
+  // Delete a single custom license override for an organization
+  rpc DeleteLicenseOverride(DeleteLicenseOverrideRequest) returns (DeleteLicenseOverrideResponse);
+
+  // Manually assign a license SPDX ID to a specific package
+  rpc AssignPackageLicense(AssignPackageLicenseRequest) returns (AssignPackageLicenseResponse);
+
+  // Toggle ignore status for a package in license analysis
+  rpc SetPackageLicenseIgnored(SetPackageLicenseIgnoredRequest) returns (SetPackageLicenseIgnoredResponse);
+
+  // Notify that a project's security context was updated, triggering CVSS env recalculation
+  rpc NotifySecurityContextUpdated(NotifySecurityContextUpdatedRequest) returns (NotifySecurityContextUpdatedResponse);
+
+  // Get priority decomposition showing how algorithmic priority was computed for a detection
+  rpc GetPriorityDecomposition(GetPriorityDecompositionRequest) returns (GetPriorityDecompositionResponse);
+
+  // Get top N vulnerabilities across all types, ranked by composite priority score
+  rpc GetTopVulnerabilities(GetTopVulnerabilitiesRequest) returns (GetTopVulnerabilitiesResponse);
+
+  rpc RevealSecret (RevealSecretRequest) returns (RevealSecretResponse);
+  rpc RotateSecret (RotateSecretRequest) returns (RotateSecretResponse);
+
+  // Enqueue an asynchronous recomputation of a project's CyberRisk score.
+  rpc RecomputeCyberRisk(RecomputeCyberRiskRequest) returns (RecomputeCyberRiskResponse);
+  // Enqueue a CyberRisk backfill recompute for a batch of projects in one
+  // round-trip (the gateway authorizes each project before calling this).
+  rpc BackfillCyberRisk(BackfillCyberRiskRequest) returns (BackfillCyberRiskResponse);
+}
+
+
+service VulnerabilityService {
+  rpc GetVulnerabilityNames(GetVulnNamesRequest) returns (GetVulnNamesResponse);
+}
+
+message RevealSecretRequest {
+  string project_id = 1;
+  string vulnerability_id = 2;
+  string user_id = 3;
+}
+
+message RevealSecretResponse {
+  string secret = 1;
+  string revealed_at = 2; // ISO 8601
+}
+
+message RotateSecretRequest {
+  string project_id = 1;
+  string vulnerability_id = 2;
+  string user_id = 3;
+}
+
+message RotateSecretResponse {
+  string state = 1; // new state — "resolved" on success
+}
+
+message RecomputeCyberRiskRequest {
+  string project_id = 1;
+  // "manual" for admin single-project, "backfill" for the bulk post-deploy path,
+  // "reference_branch_update" when global-management changes a project's
+  // (branch-scoped) reference branch. Unknown values default to "manual".
+  string trigger = 2;
+}
+
+message RecomputeCyberRiskResponse {
+  bool enqueued = 1;
+}
+
+message BackfillCyberRiskRequest {
+  repeated string project_ids = 1;
+}
+
+message BackfillCyberRiskResponse {
+  // Number of projects for which a backfill recompute was enqueued.
+  int32 enqueued = 1;
+}

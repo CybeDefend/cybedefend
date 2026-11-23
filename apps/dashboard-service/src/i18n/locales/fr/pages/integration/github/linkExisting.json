@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "linkExisting": {
+          "title": "Lier un projet existant",
+          "subtitle": "Liez vos dépôts GitHub à des projets déjà créés.",
+          "quickAssociation": "Association rapide",
+          "quickDescription": "Associez facilement vos dépôts GitHub à vos projets définis.",
+          "pageTitle": "Lier un projet existant",
+          "pageSubtitle": "Sélectionnez un projet puis choisissez un dépôt à y lier.",
+          "noProjects": "Aucun projet disponible à lier.",
+          "alreadyLinked": "Déjà lié",
+          "notLinked": "Non lié",
+          "noReposToLink": "Aucun dépôt disponible à lier.",
+          "successfullyLinked": "Dépôt lié avec succès !",
+          "linkError": "Erreur lors de la liaison du dépôt",
+          "linkedToOtherProvider": "Lié à {{provider}}"
+        }
+      }
+    }
+  }
+}

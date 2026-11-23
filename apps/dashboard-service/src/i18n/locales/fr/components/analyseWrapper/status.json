@@ -1,0 +1,23 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "status": {
+        "labels": {
+          "to_verify": "À vérifier",
+          "not_exploitable": "Non exploitable",
+          "resolved": "Résolue",
+          "confirmed": "Confirmée",
+          "proposed_not_exploitable": "Proposé non exploitable",
+          "ignored": "Ignorée",
+          "failed": "Échec",
+          "completed": "Terminée",
+          "waiting_for_file": "En attente du fichier",
+          "completed_degraded": "Terminée (dégradée)",
+          "running": "En cours",
+          "queued": "En file d'attente",
+          "cancelled": "Annulé"
+        }
+      }
+    }
+  }
+}

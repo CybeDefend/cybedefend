@@ -1,0 +1,7 @@
+{
+  "components": {
+    "organizationRoleRefusal": {
+      "ROLE_NOT_AVAILABLE": "This role is not available in this edition."
+    }
+  }
+}

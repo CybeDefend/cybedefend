@@ -1,0 +1,25 @@
+{
+  "components": {
+    "kit": {
+      "loading": "Loading",
+      "close": "Close",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyCommand": "Copy the command",
+      "previous": "Previous page",
+      "next": "Next page",
+      "pageOf": "Page {{page}} of {{total}}",
+      "pagination": "Pagination",
+      "commandEmpty": "No results.",
+      "commandNavigate": "to navigate",
+      "commandOpen": "to open",
+      "commandClose": "to close",
+      "beats": {
+        "did": "Did",
+        "served": "Served",
+        "stopped": "Stopped",
+        "live": "Working"
+      }
+    }
+  }
+}

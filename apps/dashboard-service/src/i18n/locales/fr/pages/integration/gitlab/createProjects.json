@@ -1,0 +1,34 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "createProjects": {
+          "title": "Importer depuis GitLab",
+          "subtitle": "Créez de nouveaux projets à partir de vos dépôts GitLab",
+          "bulkCreation": "Création en masse",
+          "bulkDescription": "Sélectionnez plusieurs dépôts pour créer des projets par lot",
+          "pageTitle": "Créer des Projets depuis GitLab",
+          "pageSubtitle": "Sélectionnez les dépôts que vous voulez importer comme nouveaux projets",
+          "team": "Équipe",
+          "selectTeamError": "Veuillez sélectionner une équipe",
+          "noSelectedRepos": "Veuillez sélectionner au moins un dépôt",
+          "noRepos": "Aucun dépôt disponible à importer",
+          "createButton": "Créer les projets sélectionnés",
+          "failedToCreate": "Échec de la création du projet",
+          "failedToCreateMultiple": "Échec de la création des projets",
+          "projectName": "Nom du projet",
+          "projectNamePlaceholder": "Entrez le nom du projet",
+          "searchPlaceholder": "Rechercher des dépôts...",
+          "noMatchingRepos": "Aucun projet correspondant trouvé",
+          "availableRepos": "disponibles",
+          "alreadyLinked": "déjà liés",
+          "showLinked": "Afficher les liés",
+          "linked": "Lié",
+          "alreadyLinkedToProject": "Déjà lié à un projet",
+          "totalRepos": "projets au total",
+          "available": "disponibles"
+        }
+      }
+    }
+  }
+}

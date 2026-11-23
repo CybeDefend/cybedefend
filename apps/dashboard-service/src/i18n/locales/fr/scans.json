@@ -1,0 +1,8 @@
+{
+  "scans": {
+    "failedFor": "Échec du démarrage de l'analyse pour :",
+    "scanStarted": "Scan démarré avec succès",
+    "credentialIdRequired": "Un identifiant de connexion est requis pour analyser un registre privé.",
+    "unsupportedRegistry": "Type de registre non pris en charge."
+  }
+}

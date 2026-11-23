@@ -1,0 +1,12 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "fastScanMode": {
+          "title": "Fast Scan Mode",
+          "description": "The scan tool will use fewer different scanners to scan the application which reduces scan time and potentially the number of results."
+        }
+      }
+    }
+  }
+}

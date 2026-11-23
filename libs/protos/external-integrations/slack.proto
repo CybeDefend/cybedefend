@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package cybedefend.external_integrations;
+
+// ========== Slack OAuth Installation ==========
+
+message SlackCallbackInstallRequest {
+  string organization_id = 1;
+  string user_id = 2;
+  string code = 3;        // OAuth2 authorization code from Slack
+  string redirect_uri = 4;
+}
+
+message SlackCallbackInstallResponse {
+  string return_uri = 1;
+}
+
+message GetSlackInstallationForOrgaRequest {
+  string organization_id = 1;
+}
+
+message GetSlackInstallationForOrgaResponse {
+  // false => this organization has no Slack installation. Absence is a normal
+  // answer to a presence probe, not an error: the gateway's integrations
+  // overview asks all four providers on every page load. Signalling it with a
+  // NOT_FOUND would turn every span of the call chain into an error span and
+  // inflate the error rate. Mirrors is_configured on
+  // GetProjectChannelResponse below.
+  // NOTE: a transport/server failure is still a gRPC error — callers must not
+  // read is_configured=false as "reachable and empty".
+  bool is_configured = 8;
+  string id = 1;
+  string team_id = 2;            // Slack workspace ID
+  string team_name = 3;          // Slack workspace name
+  string organization_id = 4;
+  string installed_by_user_id = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message DisconnectSlackRequest {
+  string organization_id = 1;
+}
+
+message SlackGenericResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ========== Channel Management ==========
+
+message ListSlackChannelsRequest {
+  string organization_id = 1;
+}
+
+message SlackChannelDto {
+  string channel_id = 1;
+  string name = 2;
+  bool is_private = 3;
+}
+
+message ListSlackChannelsResponse {
+  repeated SlackChannelDto channels = 1;
+}
+
+// ========== Per-Project Channel Mapping ==========
+
+message SetProjectSlackChannelRequest {
+  string organization_id = 1;
+  string project_id = 2;
+  string channel_id = 3;
+  string channel_name = 4;
+}
+
+message SetProjectSlackChannelResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RemoveProjectSlackChannelRequest {
+  string organization_id = 1;
+  string project_id = 2;
+}
+
+message GetProjectSlackChannelRequest {
+  string project_id = 1;
+}
+
+message GetProjectSlackChannelResponse {
+  string channel_id = 1;
+  string channel_name = 2;
+  bool is_configured = 3;
+}
+
+// ========== Internal Notification Dispatch ==========
+
+message SendSlackNotificationRequest {
+  string project_id = 1;
+  // Notification type: "zero_day_alert", "weekly_report", "monthly_report", "scan_complete"
+  string notification_type = 2;
+  // JSON-serialized notification payload
+  string payload_json = 3;
+}
+
+message SendSlackNotificationResponse {
+  bool success = 1;
+  string message = 2;
+}

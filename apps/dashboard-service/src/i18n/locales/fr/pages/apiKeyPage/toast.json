@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "apiKeyPage": {
+      "toast": {
+        "createSuccess": "Clé API créée avec succès",
+        "createError": "Échec de la création de la Clé API",
+        "copiedSuccess": "Clé copiée dans le presse-papiers !",
+        "copiedError": "Échec de la copie de la clé dans le presse-papiers !",
+        "regenerateSuccess": "Clé API régénérée avec succès",
+        "regenerateError": "Échec de la régénération de la Clé API",
+        "deleteSuccess": "Clé API supprimée avec succès",
+        "deleteError": "Échec de la suppression de la Clé API"
+      }
+    }
+  }
+}

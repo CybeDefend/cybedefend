@@ -1,0 +1,13 @@
+{
+  "components": {
+    "resultsScaTemplate": {
+      "vulnerabilities": "Vulnérabilités",
+      "packages": "Paquets",
+      "licenses": "Licences",
+      "includeDevAndTest": "Inclure les dépendances de développement et de test",
+      "reachabilityIgnoredBanner": "{{count}} vulnérabilité(s) automatiquement ignorée(s) car leurs paquets ne sont pas utilisés dans l'application (analyse de reachability).",
+      "reachabilityShowIgnored": "Afficher",
+      "reachabilityHideIgnored": "Masquer"
+    }
+  }
+}

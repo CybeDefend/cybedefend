@@ -1,0 +1,15 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "integration": {
+          "finalizing": "Finalizing your GitHub integration, please wait...",
+          "failedToFinalize": "Failed to finalize GitHub integration",
+          "success": "GitHub integration completed successfully!",
+          "error": "Failed to complete GitHub integration",
+          "missingState": "This GitHub installation was not started from the dashboard. Restart it from the dashboard's integration settings."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "dast": {
+          "title": "Test de sécurité dynamique des applications (DAST)",
+          "description": "Analyse qui examine une application de l'extérieur sans accéder au code source de l'application."
+        }
+      }
+    }
+  }
+}

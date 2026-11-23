@@ -1,0 +1,31 @@
+{
+  "components": {
+    "mobileTour": {
+      "progress": "{{current}} sur {{total}}",
+      "next": "Suivant",
+      "back": "Retour",
+      "skip": "Passer",
+      "start": "C'est parti",
+      "saveFailed": "Impossible d'enregistrer. Réessayez.",
+      "slides": {
+        "scan": {
+          "title": "Analysez votre code",
+          "body": "Importez un dépôt GitHub ou GitLab, ou ajoutez un projet à la main, puis lancez votre première analyse.",
+          "importBody": "Importez un dépôt GitHub ou GitLab, ou ajoutez un projet à la main, puis importez vos premiers résultats."
+        },
+        "cybe": {
+          "title": "Cybe fait le tri",
+          "body": "Notre agent IA écarte les faux positifs, explique chaque faille et propose un correctif."
+        },
+        "posture": {
+          "title": "Suivez votre posture",
+          "body": "Une vue d'ensemble de l'organisation : sévérités, projets à risque et tendances dans le temps."
+        },
+        "tools": {
+          "title": "Branchez vos outils",
+          "body": "Reliez GitHub ou GitLab à vos projets, et suivez les alertes dans Jira ou Slack."
+        }
+      }
+    }
+  }
+}

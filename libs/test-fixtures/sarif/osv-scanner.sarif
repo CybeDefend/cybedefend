@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "osv-scanner",
+          "version": "2.7.0",
+          "informationUri": "https://github.com/google/osv-scanner",
+          "rules": [
+            {
+              "id": "CVE-2022-24713",
+              "deprecatedIds": [
+                "RUSTSEC-2022-0013",
+                "GHSA-m5pq-gvj9-9vr8"
+              ],
+              "shortDescription": {
+                "text": "CVE-2022-24713: Regular expression denial of service in regex"
+              },
+              "help": {
+                "markdown": "### CVE-2022-24713\n\nRegular expression denial of service in the regex crate.\n\n### Fixed Versions\n\n| Package Name | Package Version | Fixed Version |\n| --- | --- | --- |\n| regex | 1.5.1 | 1.5.5 |"
+              },
+              "properties": {
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "CVE-2023-45133",
+              "deprecatedIds": [
+                "GHSA-67hx-6x53-jw92"
+              ],
+              "shortDescription": {
+                "text": "CVE-2023-45133: Babel path traversal in @babel/traverse"
+              },
+              "help": {
+                "markdown": "### CVE-2023-45133\n\n@babel/traverse before 7.23.2 allows path traversal when compiling crafted code.\n\n### Fixed Versions\n\n| Package Name | Package Version | Fixed Version |\n| --- | --- | --- |\n| @babel/traverse | 7.22.5 | 7.23.2 |"
+              },
+              "properties": {
+                "security-severity": "9.3"
+              }
+            },
+            {
+              "id": "GO-2024-2687",
+              "deprecatedIds": [
+                "CVE-2023-45288",
+                "GHSA-4v7x-pqxf-cx7m"
+              ],
+              "shortDescription": {
+                "text": "GO-2024-2687: HTTP/2 CONTINUATION flood in golang.org/x/net"
+              },
+              "help": {
+                "markdown": "### GO-2024-2687\n\ngolang.org/x/net before 0.23.0 is vulnerable to an HTTP/2 CONTINUATION flood.\n\n### Fixed Versions\n\n| Package Name | Package Version | Fixed Version |\n| --- | --- | --- |\n| golang.org/x/net | 0.17.0 | 0.23.0 |"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2022-24713",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Package 'regex@1.5.1' is vulnerable to 'CVE-2022-24713' (also known as 'RUSTSEC-2022-0013', 'GHSA-m5pq-gvj9-9vr8')."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.lock"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-45133",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "Package '@babel/traverse@7.22.5' is vulnerable to 'CVE-2023-45133' (also known as 'GHSA-67hx-6x53-jw92')."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "GO-2024-2687",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Package 'golang.org/x/net@0.17.0' is vulnerable to 'GO-2024-2687' (also known as 'CVE-2023-45288', 'GHSA-4v7x-pqxf-cx7m')."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

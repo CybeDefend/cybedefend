@@ -1,0 +1,9 @@
+{
+  "components": {
+    "projectOverview": {
+      "severity": {
+        "title": "Vulnerabilities by severity"
+      }
+    }
+  }
+}

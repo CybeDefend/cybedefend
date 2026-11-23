@@ -1,0 +1,10 @@
+{
+  "components": {
+    "analysisSubTable": {
+      "analysisType": "Type d'Analyse",
+      "lastScan": "Dernier scan",
+      "lastSourceScan": "Dernier scan source",
+      "issues": "Problèmes"
+    }
+  }
+}

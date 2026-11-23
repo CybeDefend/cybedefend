@@ -1,0 +1,35 @@
+{
+  "components": {
+    "backgroundTasks": {
+      "title": "Background tasks",
+      "pill": "{{count}} task(s), {{percent}}%",
+      "types": {
+        "vuln_batch_update": "Updating vulnerabilities",
+        "autofix": "AutoFix",
+        "sca_autofix": "SCA AutoFix",
+        "report_generation": "Generating report",
+        "scan": "Security scan",
+        "default": "Background task"
+      },
+      "summary": {
+        "updated": "{{count}} updated",
+        "failed": "{{count}} failed"
+      },
+      "scan": {
+        "completed": "Scan completed",
+        "degraded": "Scan completed with warnings",
+        "cancelled": "Scan cancelled",
+        "failed": "Scan failed"
+      },
+      "failed": "Failed",
+      "collapse": "Collapse tasks panel",
+      "expand": "Expand tasks panel",
+      "close": "Close tasks panel",
+      "dismiss": "Dismiss task",
+      "started": "Update started",
+      "viewPr": "View PR",
+      "viewReport": "View report",
+      "reportStarted": "Report generation started. Track it in the tasks panel"
+    }
+  }
+}

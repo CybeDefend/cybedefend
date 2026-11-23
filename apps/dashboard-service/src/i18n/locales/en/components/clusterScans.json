@@ -1,0 +1,7 @@
+{
+  "components": {
+    "clusterScans": {
+      "hint": "This instance imports results only. To run scans here, connect a Kubernetes cluster: see « Run scans on a Kubernetes cluster » in deploy/community/README.md."
+    }
+  }
+}

@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in the Community Edition does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        A security vulnerability is never reported here: see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag (for example v1.2.0) or the commit you run.
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      description: How you run the Community Edition.
+      options:
+        - Docker Compose (deploy/community)
+        - Images run another way (Kubernetes, another orchestrator)
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        The relevant log lines of the services involved. Remove every secret
+        first: passwords, tokens, keys, cookies, connection strings and the
+        values of your .env file.
+      render: shell

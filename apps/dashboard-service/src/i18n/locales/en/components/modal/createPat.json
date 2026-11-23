@@ -1,0 +1,22 @@
+{
+    "components": {
+        "modal": {
+            "createPat": {
+                "title": "Create Personal Access Token",
+                "nameLabel": "Token Name",
+                "namePlaceholder": "e.g. ci-pipeline, my-script",
+                "expirationLabel": "Expiration",
+                "selectExpiration": "Select expiration",
+                "days7": "7 days",
+                "days30": "30 days",
+                "months3": "3 months",
+                "months6": "6 months",
+                "year1": "1 year",
+                "never": "Never",
+                "errors": {
+                    "nameRequired": "Token name is required"
+                }
+            }
+        }
+    }
+}

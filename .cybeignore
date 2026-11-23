@@ -1,0 +1,40 @@
+# .cybeignore: paths CybeDefend's SAST, IaC and secret scanners skip.
+#
+# Syntax: the same as .gitignore (comments, `dir/`, `*.ext`, `**/`, `!negation`).
+# Scope: SAST, IaC and the secret pass share this filter. SCA and container
+# scans do not read it.
+#
+# An entry here also stops secret detection on that path, now and in later
+# commits. To silence one finding instead, prefer a line-level directive:
+# `cybedefend-ignore[CD-SAST-<NNNN>]` silences that rule on that line only.
+# Never silence a real credential: rotate it.
+#
+# Add an entry only with a comment saying why its findings are not real.
+
+# ============================================
+# TEST CODE
+# ============================================
+# Findings in tests are fixtures: placeholder keys such as 'super-secret',
+# documentation example keys, regexes over message names. No test file is
+# bundled into a shipped image, and the module under test sits beside it and
+# stays scanned.
+#
+# Cost: these globs also silence secret detection across the test suite, which
+# is where a real key pasted by mistake would land. Add a negation below rather
+# than narrowing a glob when a test must stay under secret detection.
+**/*.spec.ts
+**/*.e2e-spec.ts
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.tsx
+**/*.test.mjs
+
+# Shared test fixtures read by the specs above: known-answer vectors (HKDF test
+# keys), sample SARIF and SBOM reports, compose files built for tests. Their
+# keys and findings are inputs to tests, never deployed.
+libs/test-fixtures/
+
+# Exception: keep this spec scanned. It tests secret redaction with literals in
+# real credential shapes; keeping it under secret detection means a real key
+# pasted there by mistake is still reported.
+!apps/analysis-reporting-service/src/core/utils/redact-secrets.spec.ts

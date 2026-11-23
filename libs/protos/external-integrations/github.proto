@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package cybedefend.external_integrations;
+
+message GetInstallationForOrgaRequest {
+  string organization_id = 1;
+}
+
+message GetInstallationForOrgaResponse {
+  string id = 1;
+  int64 installation_id = 2;
+  string user_id = 3;
+  string organization_id = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+message LinkRepositoryRequest {
+  string organization_id = 1;
+  string project_id = 2;
+  string repository_id = 3;
+  string scan_branch = 4; // Optional: branch to scan (empty = use default)
+  // Space the link is made from: "appsec" or empty starts the full scan;
+  // "vibedefend" (closed extension) starts a graph-only scan.
+  optional string product = 5;
+}
+
+message UnlinkRepositoryRequest {
+  string repository_id = 1;
+  string project_id = 2;
+  string organization_id = 3;
+}
+
+message LinkRepositoryResponse {
+  string name = 1;
+  string full_name = 2;
+  string id = 3;
+  int64 github_id = 4;
+  bool private = 5;
+  string project_id = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string default_branch = 9; // Repository default branch
+  string scan_branch = 10; // User-selected branch for scanning
+}
+
+message DeleteProjectRequest {
+  string project_id = 1;
+}
+
+message WebhookEventRequest {
+  string body_json = 1;
+  string event = 2;
+  string action = 3;
+  string signature = 4;
+}
+
+message WebhookResponse {
+  bool success = 1;
+}
+
+message StartScanRequest {
+  string project_id = 1;
+  string repository_id = 2;
+  string branch = 3; // Optional: branch to scan (empty = use configured or default)
+  // "vibedefend" (closed extension): a graph-only scan; "appsec" or empty:
+  // the full scan.
+  optional string product = 4;
+}
+
+message StartScanResponse {
+  bool success = 1;
+  string message = 2;
+  string scanId = 3;
+  repeated string detectedLanguages = 4;
+}
+
+message GenericResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message CallbackInstallRequest {
+  int64 installation_id = 1;
+  string organization_id = 2;
+  string user_id = 3;
+  string code = 4;
+}
+
+message CallbackInstallResponse {
+  string return_uri = 1;
+}
+
+message GetRepositoriesRequest {
+  string organization_id = 1;
+}
+
+message RepositoryDto {
+  string name = 1;
+  string full_name = 2;
+  string id = 3;
+  int64 github_id = 4;
+  bool private = 5;
+  string project_id = 6;
+  string default_branch = 7; // Repository default branch
+  string scan_branch = 8; // User-selected branch for scanning
+}
+
+message RepositoryInstallationDto {
+  repeated RepositoryDto repository = 1;
+  int64 installation_id = 2;
+}
+
+message GetRepositoriesResponse {
+  repeated RepositoryInstallationDto repositories = 1;
+  string organization_id = 2;
+}
+
+// Branch management
+message GetBranchesRequest {
+  string organization_id = 1;
+  string repository_id = 2;
+}
+
+message BranchDto {
+  string name = 1;
+  bool is_default = 2;
+  bool is_protected = 3;
+}
+
+message GetBranchesResponse {
+  repeated BranchDto branches = 1;
+}
+
+message PaginatedBranchDto {
+  string name = 1;
+  bool is_default = 2;
+  bool is_protected = 3;
+  bool archived = 4;
+}
+
+message GetRepositoryBranchesPaginatedRequest {
+  string organization_id = 1;
+  string project_id = 2;          // repo resolved from projectId server-side
+  string search = 3;
+  int32 page = 4;                 // 1-based
+  int32 page_size = 5;
+  bool include_archived = 6;
+  repeated string archived_names = 7;
+}
+
+message GetRepositoryBranchesPaginatedResponse {
+  repeated PaginatedBranchDto branches = 1;
+  int32 total = 2;
+  string default_branch = 3;
+  string scan_branch = 4;
+}
+
+// Check if a project has a linked GitHub repository
+message GetProjectLinkStatusRequest {
+  string project_id = 1;
+}
+
+message GetProjectLinkStatusResponse {
+  bool is_linked = 1;
+  string repository_id = 2;
+  string repository_name = 3;
+  string repository_full_name = 4;
+}
+
+// Batch request for checking link status of multiple projects at once
+message GetBatchProjectLinkStatusRequest {
+  repeated string project_ids = 1;
+}
+
+message ProjectLinkStatusEntry {
+  string project_id = 1;
+  bool is_linked = 2;
+  string repository_id = 3;
+  string repository_name = 4;
+  string repository_full_name = 5;
+}
+
+message GetBatchProjectLinkStatusResponse {
+  repeated ProjectLinkStatusEntry statuses = 1;
+}
+
+// Access token retrieval (for internal service use - git clone, API calls)
+message GetGithubAccessTokenForProjectRequest {
+  string project_id = 1;
+}
+
+message GetGithubAccessTokenForProjectResponse {
+  // Installation access token for GitHub App
+  string access_token = 1;
+  // Repository clone URL (https format)
+  string clone_url = 2;
+  // Repository full name (owner/repo)
+  string repository_full_name = 3;
+  // Default branch name
+  string default_branch = 4;
+}

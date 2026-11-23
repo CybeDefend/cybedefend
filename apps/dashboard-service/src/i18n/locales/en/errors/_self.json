@@ -1,0 +1,33 @@
+{
+  "errors": {
+    "fetchImages": "Failed to fetch images.",
+    "reports": {
+      "timeout": "Report generation timed out",
+      "failed": "Report generation failed",
+      "generateFailed": "Failed to generate report",
+      "downloadFailed": "Failed to download report",
+      "owaspFailed": "Failed to generate OWASP report",
+      "cweFailed": "Failed to generate CWE report",
+      "orgFailed": "Failed to generate organization report",
+      "teamFailed": "Failed to generate team report",
+      "batchFailed": "Failed to generate batch report"
+    },
+    "generic": {
+      "loadFailed": "Failed to load policy",
+      "loadingFailed": "Failed to load data",
+      "operationFailed": "The operation failed. Please try again."
+    },
+    "validation": {
+      "required": "This field is required"
+    },
+    "api": {
+      "badRequest": "The request was refused. Check the fields and try again.",
+      "notAllowed": "You are not allowed to do this.",
+      "notFound": "This item no longer exists or could not be found.",
+      "conflict": "This conflicts with an existing item.",
+      "tooManyRequests": "Too many requests. Wait a moment and try again.",
+      "unavailable": "The server could not be reached. Try again in a moment.",
+      "generic": "Something went wrong. Please try again."
+    }
+  }
+}

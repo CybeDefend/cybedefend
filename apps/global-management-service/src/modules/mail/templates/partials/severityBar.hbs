@@ -1,0 +1,18 @@
+<table
+  role='presentation'
+  cellpadding='0'
+  cellspacing='0'
+  width='100%'
+  style='margin:12px 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+>
+  <tr>
+    {{#each items}}
+      <td
+        style='padding:4px 6px;text-align:center;background:{{color}};color:#fff;font-weight:600;border-right:2px solid #fff;'
+      >
+        {{label}}<br />
+        <span style='font-size:14px;'>{{value}}</span>
+      </td>
+    {{/each}}
+  </tr>
+</table>

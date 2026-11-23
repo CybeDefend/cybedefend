@@ -1,0 +1,17 @@
+{
+  "components": {
+    "issueDrawer": {
+      "ariaLabel": "Aperçu rapide de la vulnérabilité",
+      "close": "Fermer",
+      "previous": "Vulnérabilité précédente",
+      "next": "Vulnérabilité suivante",
+      "openFullPage": "Ouvrir la page complète",
+      "resize": "Redimensionner le panneau",
+      "fullscreen": "Plein écran",
+      "exitFullscreen": "Quitter le plein écran",
+      "description": "Description",
+      "remediation": "Comment corriger",
+      "loadError": "Impossible de charger cette vulnérabilité. Elle a peut-être été supprimée."
+    }
+  }
+}

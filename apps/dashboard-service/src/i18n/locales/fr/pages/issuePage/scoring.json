@@ -1,0 +1,390 @@
+{
+  "pages": {
+    "issuePage": {
+      "scoring": {
+        "tabTitle": "Scoring & exploitabilité",
+        "cvss": {
+          "title": "CVSS",
+          "base": "Base",
+          "environmental": "Env.",
+          "historicLabel": "3.1 historique",
+          "iaLabel": "4.0 IA",
+          "score": "Score CVSS 4.0",
+          "scoreV3": "Score CVSS 3.1",
+          "scoreV4": "Score CVSS 4.0",
+          "legacyLabel": "CVSS v3",
+          "iaAnalysis": "Analyse IA",
+          "delta": "+{{value}} env.",
+          "envSameAsBase": "= base",
+          "narrative": {
+            "intro": "Score {{score}} ({{severityLabel}}) :",
+            "severity": {
+              "critical": "critique",
+              "high": "élevé",
+              "medium": "moyen",
+              "low": "faible",
+              "none": "informatif"
+            },
+            "attacker": {
+              "network": "un attaquant depuis internet",
+              "adjacent": "un attaquant sur le même réseau local",
+              "local": "un attaquant local sur la machine",
+              "physical": "un attaquant avec un accès physique à la machine"
+            },
+            "auth": {
+              "none": "sans aucune authentification",
+              "low": "avec des identifiants à faibles privilèges",
+              "high": "avec des identifiants à privilèges élevés"
+            },
+            "interaction": {
+              "none": "et sans interaction utilisateur",
+              "passive": "et avec une interaction utilisateur minime (passive)",
+              "active": "et avec une interaction utilisateur active (par exemple un clic sur un lien)"
+            },
+            "complexity": {
+              "low": "via un chemin d'attaque simple",
+              "high": "via un chemin d'attaque complexe nécessitant des conditions spécifiques"
+            },
+            "actionVerb": "peut exploiter cette faille",
+            "impact": {
+              "fullCia": "pour compromettre totalement la confidentialité, l'intégrité et la disponibilité de votre système",
+              "ci": "pour compromettre la confidentialité et l'intégrité de vos données",
+              "ca": "pour compromettre la confidentialité et la disponibilité de votre système",
+              "ia": "pour compromettre l'intégrité et la disponibilité de votre système",
+              "c": "pour compromettre la confidentialité de vos données",
+              "i": "pour altérer l'intégrité de vos données",
+              "a": "pour perturber la disponibilité de votre système",
+              "low": "avec un impact limité sur la confidentialité, l'intégrité ou la disponibilité",
+              "none": "sans impact direct sur la confidentialité, l'intégrité ou la disponibilité"
+            },
+            "subsequent": ", et l'impact peut s'étendre à des systèmes en aval.",
+            "env": {
+              "intro": "Votre contexte projet ajuste le score à {{envScore}} :",
+              "increased": "{{drivers}} amplifient l'impact réel dans cet environnement.",
+              "decreased": "{{drivers}} réduisent l'impact réel dans cet environnement.",
+              "unchangedNoText": "aucun changement",
+              "driverSeparator": ", ",
+              "driverLastSeparator": " et "
+            },
+            "drivers": {
+              "CR": {
+                "L": "une exigence de confidentialité faible",
+                "M": "une exigence de confidentialité moyenne",
+                "H": "une exigence de confidentialité élevée"
+              },
+              "IR": {
+                "L": "une exigence d'intégrité faible",
+                "M": "une exigence d'intégrité moyenne",
+                "H": "une exigence d'intégrité élevée"
+              },
+              "AR": {
+                "L": "une exigence de disponibilité faible",
+                "M": "une exigence de disponibilité moyenne",
+                "H": "une exigence de disponibilité élevée"
+              },
+              "MAV": {
+                "N": "une exposition réseau plus large",
+                "A": "une exposition au réseau adjacent",
+                "L": "une exposition uniquement locale",
+                "P": "une exposition uniquement physique"
+              },
+              "MAC": {
+                "L": "une complexité d'attaque réduite",
+                "H": "une complexité d'attaque accrue"
+              },
+              "MAT": {
+                "N": "aucune contrainte d'attaque particulière",
+                "P": "des contraintes d'attaque supplémentaires"
+              },
+              "MPR": {
+                "N": "aucun privilège requis",
+                "L": "un privilège faible requis",
+                "H": "un privilège élevé requis"
+              },
+              "MUI": {
+                "N": "aucune interaction utilisateur nécessaire",
+                "P": "une interaction utilisateur minime",
+                "A": "une interaction utilisateur active"
+              },
+              "MVC": {
+                "N": "aucun impact sur la confidentialité",
+                "L": "un impact limité sur la confidentialité",
+                "H": "un impact élevé sur la confidentialité"
+              },
+              "MVI": {
+                "N": "aucun impact sur l'intégrité",
+                "L": "un impact limité sur l'intégrité",
+                "H": "un impact élevé sur l'intégrité"
+              },
+              "MVA": {
+                "N": "aucun impact sur la disponibilité",
+                "L": "un impact limité sur la disponibilité",
+                "H": "un impact élevé sur la disponibilité"
+              },
+              "MSC": {
+                "N": "aucun impact en aval sur la confidentialité",
+                "L": "un impact en aval limité sur la confidentialité",
+                "H": "un impact en aval élevé sur la confidentialité"
+              },
+              "MSI": {
+                "N": "aucun impact en aval sur l'intégrité",
+                "L": "un impact en aval limité sur l'intégrité",
+                "H": "un impact en aval élevé sur l'intégrité",
+                "S": "un impact critique pour la sûreté en aval (intégrité)"
+              },
+              "MSA": {
+                "N": "aucun impact en aval sur la disponibilité",
+                "L": "un impact en aval limité sur la disponibilité",
+                "H": "un impact en aval élevé sur la disponibilité",
+                "S": "un impact critique pour la sûreté en aval (disponibilité)"
+              }
+            }
+          },
+          "decode": {
+            "toggleShow": "Détails techniques",
+            "toggleHide": "Masquer les détails techniques",
+            "rawVectorTitle": "Vecteur brut",
+            "baseVector": "Vecteur base",
+            "environmentalVector": "Vecteur environnemental",
+            "driversTitle": "Facteurs environnementaux",
+            "sameAsBaseVector": "Pas de modifications environnementales, identique au vecteur Base",
+            "groups": {
+              "exploitability": "Exploitabilité",
+              "vulnerable": "Impact sur le système vulnérable",
+              "subsequent": "Impact sur les systèmes en aval",
+              "requirements": "Exigences de sécurité",
+              "modified": "Métriques de base modifiées"
+            },
+            "metrics": {
+              "AV": {
+                "label": "Vecteur d'attaque",
+                "values": {
+                  "N": "Réseau",
+                  "A": "Adjacent",
+                  "L": "Local",
+                  "P": "Physique"
+                }
+              },
+              "AC": {
+                "label": "Complexité d'attaque",
+                "values": {
+                  "L": "Faible",
+                  "H": "Élevée"
+                }
+              },
+              "AT": {
+                "label": "Prérequis d'attaque",
+                "values": {
+                  "N": "Aucun",
+                  "P": "Présents"
+                }
+              },
+              "PR": {
+                "label": "Privilèges requis",
+                "values": {
+                  "N": "Aucun",
+                  "L": "Faibles",
+                  "H": "Élevés"
+                }
+              },
+              "UI": {
+                "label": "Interaction utilisateur",
+                "values": {
+                  "N": "Aucune",
+                  "P": "Passive",
+                  "A": "Active"
+                }
+              },
+              "VC": {
+                "label": "Confidentialité",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "VI": {
+                "label": "Intégrité",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "VA": {
+                "label": "Disponibilité",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "SC": {
+                "label": "Confidentialité",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "SI": {
+                "label": "Intégrité",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "SA": {
+                "label": "Disponibilité",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "CR": {
+                "label": "Exigence de confidentialité",
+                "values": {
+                  "H": "Élevée",
+                  "M": "Moyenne",
+                  "L": "Faible"
+                }
+              },
+              "IR": {
+                "label": "Exigence d'intégrité",
+                "values": {
+                  "H": "Élevée",
+                  "M": "Moyenne",
+                  "L": "Faible"
+                }
+              },
+              "AR": {
+                "label": "Exigence de disponibilité",
+                "values": {
+                  "H": "Élevée",
+                  "M": "Moyenne",
+                  "L": "Faible"
+                }
+              },
+              "MAV": {
+                "label": "Vecteur d'attaque modifié",
+                "values": {
+                  "N": "Réseau",
+                  "A": "Adjacent",
+                  "L": "Local",
+                  "P": "Physique"
+                }
+              },
+              "MAC": {
+                "label": "Complexité d'attaque modifiée",
+                "values": {
+                  "L": "Faible",
+                  "H": "Élevée"
+                }
+              },
+              "MAT": {
+                "label": "Prérequis d'attaque modifiés",
+                "values": {
+                  "N": "Aucun",
+                  "P": "Présents"
+                }
+              },
+              "MPR": {
+                "label": "Privilèges requis modifiés",
+                "values": {
+                  "N": "Aucun",
+                  "L": "Faibles",
+                  "H": "Élevés"
+                }
+              },
+              "MUI": {
+                "label": "Interaction utilisateur modifiée",
+                "values": {
+                  "N": "Aucune",
+                  "P": "Passive",
+                  "A": "Active"
+                }
+              },
+              "MVC": {
+                "label": "Confidentialité modifiée",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "MVI": {
+                "label": "Intégrité modifiée",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "MVA": {
+                "label": "Disponibilité modifiée",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "MSC": {
+                "label": "Confidentialité en aval modifiée",
+                "values": {
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "MSI": {
+                "label": "Intégrité en aval modifiée",
+                "values": {
+                  "S": "Sûreté",
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              },
+              "MSA": {
+                "label": "Disponibilité en aval modifiée",
+                "values": {
+                  "S": "Sûreté",
+                  "H": "Élevée",
+                  "L": "Faible",
+                  "N": "Aucune"
+                }
+              }
+            }
+          }
+        },
+        "exploitability": {
+          "title": "Exploitabilité",
+          "score": "Score",
+          "static": "Statique"
+        },
+        "justification": {
+          "title": "Justification",
+          "titleVerdict": "Verdict (VP / FP)",
+          "titleScore": "Pourquoi ce score d'exploitabilité ?"
+        },
+        "decomposition": {
+          "title": "Pourquoi cette priorité ?",
+          "cvssEnv": "CVSS env.",
+          "exploitability": "Exploitabilité",
+          "context": "Contexte",
+          "priority": {
+            "criticalUrgent": "Critique urgent",
+            "urgent": "Urgent",
+            "normal": "Normal",
+            "low": "Faible",
+            "veryLow": "Très faible"
+          }
+        },
+        "unavailable": "Indisponible",
+        "unavailableShort": "N/D"
+      }
+    }
+  }
+}

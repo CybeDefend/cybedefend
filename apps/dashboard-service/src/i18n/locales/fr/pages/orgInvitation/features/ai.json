@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "features": {
+        "ai": {
+          "title": "Précision pilotée par l'IA",
+          "description": "Utilisez l'IA avancée pour réduire les faux positifs, prioriser les risques et automatiser les pratiques de codage sécurisé."
+        }
+      }
+    }
+  }
+}

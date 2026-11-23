@@ -1,0 +1,96 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "pipeline": {
+        "title": "Avancement du scan",
+        "headline": {
+          "waitingForFile": "En attente du code source",
+          "queued": "En file : position {{position}} dans la file de votre organisation",
+          "queuedNoPosition": "En file, en attente d'un créneau libre",
+          "starting": "Démarrage des scanners",
+          "scanners": "Scanners en cours, {{done}}/{{total}} terminés",
+          "aiIngesting": "Scanners terminés, indexation du code pour l'IA",
+          "aiWaitingForScanners": "Scanners terminés, préparation de l'analyse IA",
+          "aiQueued": "Scanners terminés, en attente d'un créneau IA (≈ position {{position}})",
+          "aiQueuedNoPosition": "Scanners terminés, en attente d'un créneau IA",
+          "aiAnalyzing": "Scanners terminés, analyse IA {{processed}}/{{total}}",
+          "aiAnalyzingNoProgress": "Scanners terminés, analyse IA en cours",
+          "scannersDone": "Scanners terminés, finalisation du scan",
+          "finished": "Scan terminé"
+        },
+        "banner": {
+          "slotReleased": "Les résultats des scanners sont prêts. L'analyse IA continue en arrière-plan et ce scan ne bloque plus les suivants.",
+          "scannersDone": "Les résultats des scanners sont prêts. L'analyse IA continue en arrière-plan.",
+          "resultsSaving": "Les scanners ont terminé. Leurs résultats sont en cours d'enregistrement ; le scan se termine une fois tous les résultats enregistrés."
+        },
+        "queue": {
+          "position": "Position {{position}} dans la file de votre organisation",
+          "org_limit": "Un autre scan occupe le créneau de votre organisation.",
+          "platform_limit": "La plateforme est à pleine capacité.",
+          "starting": "Démarrage imminent."
+        },
+        "lane": {
+          "scanners": "Scanners",
+          "ai": "Analyse IA de Cybe",
+          "scannersProgress": "{{done}}/{{total}} terminés",
+          "scannersProgressWithFailures": "{{done}}/{{total}} terminés, {{failed}} en échec"
+        },
+        "scanner": {
+          "sast": "SAST",
+          "sca": "SCA",
+          "iac": "IaC",
+          "secret": "Secrets",
+          "container": "Conteneur",
+          "cicd": "CI/CD",
+          "aibom": "AI-BOM",
+          "other": "Autre scanner"
+        },
+        "scannerState": {
+          "waiting": "en attente",
+          "running": "en cours",
+          "done": "terminé",
+          "failed": "en échec"
+        },
+        "step": {
+          "ingesting": "Indexation du code",
+          "waiting_for_scanners": "En attente des résultats des scanners",
+          "queued_for_ai": "En attente d'un créneau IA",
+          "analyzing": "Analyse IA",
+          "outcome": "Résultat"
+        },
+        "stage": {
+          "ingesting": "Indexation du code",
+          "waiting_for_scanners": "En attente des résultats des scanners",
+          "queued_for_ai": "En attente d'un créneau IA (≈ position {{position}})",
+          "analyzing": "Analyse IA {{processed}}/{{total}}",
+          "done": "Analyse IA terminée",
+          "skipped": "Analyse IA sautée",
+          "interrupted": "Analyse IA interrompue",
+          "failed": "Analyse IA en échec"
+        },
+        "reason": {
+          "nothing_to_analyze": "Aucun résultat SAST ou IaC à analyser.",
+          "skipped_by_agent": "Cybe n'a pas analysé ce scan, par exemple parce que l'Analyse Cybe est désactivée pour le projet.",
+          "disabled_for_project": "L'amélioration des résultats par l'IA est désactivée pour ce projet.",
+          "quota_exhausted": "Le quota d'analyses de votre organisation est atteint.",
+          "parse_timeout": "L'indexation du code a dépassé le temps imparti.",
+          "parse_failed": "L'indexation du code a échoué.",
+          "ingestion_stalled": "L'indexation du code n'a jamais signalé sa fin.",
+          "ai_queue_timeout": "Aucun créneau IA ne s'est libéré dans le délai d'attente.",
+          "analysis_timeout": "L'analyse a dépassé sa durée maximale.",
+          "scan_time_limit": "Le scan a atteint sa durée maximale.",
+          "analysis_failed": "L'analyse a rencontré une erreur.",
+          "service_unavailable": "Le service d'analyse IA était injoignable.",
+          "scanner_timeout": "Un scanner a dépassé sa durée maximale.",
+          "unknown": "Aucun détail supplémentaire n'est disponible."
+        },
+        "time": {
+          "elapsedJustNow": "vient de commencer",
+          "elapsedMinutes": "depuis {{minutes}} min",
+          "elapsedHours": "depuis {{hours}} h {{minutes}} min",
+          "limitAt": "limite à {{time}}"
+        }
+      }
+    }
+  }
+}

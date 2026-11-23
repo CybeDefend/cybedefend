@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package cybedefend.policy_management;
+
+/**
+ * Policy scope enumeration - defines at which level the policy applies
+ */
+enum PolicyScope {
+  POLICY_SCOPE_UNSPECIFIED = 0;
+  POLICY_SCOPE_ORGANIZATION = 1;
+  POLICY_SCOPE_TEAM = 2;
+  POLICY_SCOPE_PROJECT = 3;
+}
+
+/**
+ * Violation severity levels
+ */
+enum ViolationSeverity {
+  VIOLATION_SEVERITY_UNSPECIFIED = 0;
+  VIOLATION_SEVERITY_LOW = 1;
+  VIOLATION_SEVERITY_MEDIUM = 2;
+  VIOLATION_SEVERITY_HIGH = 3;
+  VIOLATION_SEVERITY_CRITICAL = 4;
+}
+
+/**
+ * Action taken when a violation is detected
+ */
+enum ViolationAction {
+  VIOLATION_ACTION_UNSPECIFIED = 0;
+  VIOLATION_ACTION_WARN = 1;
+  VIOLATION_ACTION_BLOCK = 2;
+}
+
+/**
+ * Evaluation status for async processing
+ */
+enum EvaluationStatus {
+  EVALUATION_STATUS_UNSPECIFIED = 0;
+  EVALUATION_STATUS_PENDING = 1;
+  EVALUATION_STATUS_IN_PROGRESS = 2;
+  EVALUATION_STATUS_COMPLETED = 3;
+  EVALUATION_STATUS_FAILED = 4;
+  EVALUATION_STATUS_NOT_STARTED = 5; // No evaluation has been triggered yet
+}
+
+/**
+ * Rule type enumeration for structured rule definitions
+ */
+enum RuleType {
+  RULE_TYPE_UNSPECIFIED = 0;
+  RULE_TYPE_SEVERITY = 1;
+  RULE_TYPE_CVSS_SCORE = 2;
+  RULE_TYPE_CWE_CHECK = 3;
+  RULE_TYPE_OWASP_CATEGORY = 4;
+  RULE_TYPE_SCANNER_TYPE = 5;
+  RULE_TYPE_VULNERABILITY_AGE_DAYS = 6;
+  RULE_TYPE_IS_NEW_VULNERABILITY = 7;
+  RULE_TYPE_COMPOSITE_AND = 8;
+  RULE_TYPE_COMPOSITE_OR = 9;
+  RULE_TYPE_LICENSE_CHECK = 10;
+  RULE_TYPE_LICENSE_NAME_CHECK = 11;
+}
+
+/**
+ * Rule operator enumeration
+ */
+enum RuleOperator {
+  RULE_OPERATOR_UNSPECIFIED = 0;
+  RULE_OPERATOR_EQUALS = 1;
+  RULE_OPERATOR_NOT_EQUALS = 2;
+  RULE_OPERATOR_GREATER_THAN = 3;
+  RULE_OPERATOR_GREATER_THAN_OR_EQUAL = 4;
+  RULE_OPERATOR_LESS_THAN = 5;
+  RULE_OPERATOR_LESS_THAN_OR_EQUAL = 6;
+  RULE_OPERATOR_IN = 7;
+  RULE_OPERATOR_NOT_IN = 8;
+}
+
+/**
+ * Scanner type enumeration
+ */
+enum ScannerType {
+  SCANNER_TYPE_UNSPECIFIED = 0;
+  SCANNER_TYPE_SAST = 1;
+  SCANNER_TYPE_SCA = 2;
+  SCANNER_TYPE_IAC = 3;
+  SCANNER_TYPE_CONTAINER = 4;
+  SCANNER_TYPE_SECRET = 5;
+  SCANNER_TYPE_CICD = 6;
+}
+
+/**
+ * Core policy rule definition
+ */
+message PolicyRule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_enabled = 4;
+  ViolationAction action = 5;
+  RuleType type = 6;
+  RuleOperator operator = 7;
+  string value_json = 8; // JSON-encoded value (supports various types)
+  repeated PolicyRule criteria = 9; // For composite rules (AND/OR)
+}
+
+/**
+ * Exclusion pattern for policy rules
+ */
+message PolicyExclusion {
+  string id = 1;
+  string pattern = 2; // Glob pattern (e.g., "tests/**", "**/*.test.js")
+  string reason = 3;
+  string expiration_date = 4; // ISO 8601 format, optional
+  repeated string cwe_ids = 5; // Specific CWE IDs to exclude
+  repeated string owasp_categories = 6; // OWASP categories to exclude
+}
+
+/**
+ * Complete policy configuration
+ */
+message PolicyConfig {
+  repeated PolicyRule rules = 1;
+  repeated PolicyExclusion exclusions = 2;
+}
+
+/**
+ * Security policy entity
+ */
+message SecurityPolicy {
+  string id = 1;
+  PolicyScope scope = 2;
+  string organization_id = 3; // Organization the policy belongs to
+  repeated string project_ids = 4; // For PROJECT scope: targeted project UUIDs
+  repeated string team_ids = 5; // For TEAM scope: targeted team UUIDs
+  string name = 6;
+  string description = 7;
+  int32 priority = 8; // Lower = higher priority
+  string config_json = 9; // Full PolicyConfig as JSON
+  bool is_enabled = 10;
+  int64 created_at = 11; // Unix timestamp
+  int64 updated_at = 12; // Unix timestamp
+  string created_by = 13; // User UUID
+  string updated_by = 14; // User UUID
+}
+
+/**
+ * Policy violation record
+ */
+message ViolationUserProfile {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string avatar_url = 5;
+}
+
+message PolicyViolation {
+  string id = 1;
+  string policy_id = 2;
+  string project_id = 3;
+  string scan_id = 4;
+  string organization_id = 5;
+  string rule_id = 6;
+  string rule_name = 7;
+  ViolationAction action_taken = 8;
+  string violation_details_json = 9; // Snapshot of why the violation occurred
+  int32 affected_vulnerabilities_count = 14;
+  int64 created_at = 15;
+  int64 updated_at = 16;
+}
+
+/**
+ * Violation summary for a single rule
+ */
+message ViolationSummary {
+  string policy_id = 1;
+  string rule_id = 2;
+  string rule_name = 3;
+  ViolationAction action = 5;
+  string details_json = 6;
+  repeated string affected_vulnerability_ids = 7;
+}
+
+/**
+ * Compliance result for a scan evaluation
+ */
+message ComplianceResult {
+  string project_id = 1;
+  string scan_id = 2;
+  bool compliant = 3;
+  ViolationAction action = 4;
+  int32 violation_count = 5;
+  repeated ViolationSummary violations = 6;
+  int64 evaluated_at = 7;
+  int32 breaking_rules_count = 8;
+  int32 blocking_violations_count = 9;
+  int32 warning_violations_count = 10;
+}

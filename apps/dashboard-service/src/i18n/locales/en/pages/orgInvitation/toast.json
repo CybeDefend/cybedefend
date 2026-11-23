@@ -1,0 +1,9 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "toast": {
+        "acceptError": "Unable to accept the invitation. Please try again or contact support."
+      }
+    }
+  }
+}

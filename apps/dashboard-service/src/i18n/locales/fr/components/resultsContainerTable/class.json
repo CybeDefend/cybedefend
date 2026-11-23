@@ -1,0 +1,11 @@
+{
+  "components": {
+    "resultsContainerTable": {
+      "class": {
+        "type": "Type",
+        "os": "OS package",
+        "lang": "Langage du paquet"
+      }
+    }
+  }
+}

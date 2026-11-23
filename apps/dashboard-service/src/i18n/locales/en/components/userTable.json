@@ -1,0 +1,17 @@
+{
+  "components": {
+    "userTable": {
+      "searchPlaceholder": "Search members",
+      "managePendingInvitations": "Manage Pending Invitations",
+      "addMember": "+ Add Member",
+      "manage": "Manage",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "noUsersFound": "No Users Found",
+      "noUsersDescription": "We couldn't find any users.",
+      "showing": "Showing {{count}} of {{total}} members",
+      "singleUserError": "There is only one user in the organization. You cannot modify their role."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "components": {
+    "linearRefusals": {
+      "LINEAR_NOT_CONNECTED": "Linear is not connected to this organization. Connect it from the integrations page first.",
+      "LINEAR_NEEDS_RECONNECT": "The connection with Linear has expired or was removed. Reconnect your Linear workspace from the integrations page.",
+      "LINEAR_WORKSPACE_TAKEN": "This Linear workspace is already connected to another organization. Disconnect it there first, or use a different workspace.",
+      "LINEAR_NO_TEAM": "No Linear team is set for this project. Choose a team in the project's issue settings.",
+      "LINEAR_TEAM_NOT_FOUND": "This Linear team no longer exists or is not accessible. Choose another team in the project's issue settings.",
+      "LINEAR_ISSUE_NOT_FOUND": "This Linear ticket could not be found. Check the identifier or the link, then try again."
+    }
+  }
+}

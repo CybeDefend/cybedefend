@@ -1,0 +1,15 @@
+{
+  "components": {
+    "projectOverview": {
+      "state": {
+        "descriptions": {
+          "resolved": "Resolved vulnerabilities",
+          "toVerify": "Waiting for verification",
+          "confirmed": "Confirmed vulnerabilities",
+          "notExploitable": "Not exploitable",
+          "proposedNotExploitable": "Proposed as not exploitable"
+        }
+      }
+    }
+  }
+}

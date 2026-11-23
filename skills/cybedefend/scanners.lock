@@ -1,0 +1,78 @@
+# The tools of /cybedefend, pinned. scan.mjs reads this file.
+#
+# One tool per line, seven fields separated by "|":
+#   name     the tool, and the name of its file in .cybedefend/out/
+#   type     the import type (sast, sca, iac, secret, cicd, container),
+#            "sbom" for a file sent with the sca import of the same run, or
+#            "context" for a file the agent reads and the dashboard never gets
+#   tier     core: the six scanners of the CybeDefend scanner images (the
+#                  instance's cluster runs five of them, all but trivy-image)
+#            deep: more tools, run by default when the repository has what
+#                  they read (scan.mjs --depth quick leaves them out)
+#            context: maps and call graphs for the audit and the fixes
+#   when     which repositories the tool fits, markers separated by ",", any
+#            one is enough: always, image (only with --image), ext:py (a file
+#            with that extension), name:go.mod (a file with that name in any
+#            folder), dir:.github/workflows (a folder from the root),
+#            path:config/routes.rb (that exact file)
+#   network  "none" (the default for code scanners) or "bridge" (a tool that
+#            downloads its own database or the project's modules)
+#   image    the pinned image, run with Docker; "uvx:<spec>" for a Python
+#            tool that uv runs pinned in a throwaway environment (nothing is
+#            installed; its binary on the PATH when uv is missing); or "-" when
+#            the tool has no official image (it then runs only from its binary)
+#   command  what runs. {src} is the repository (read only), {out} the
+#            output folder, {cache} the tools' cache, {image} the image a
+#            container scan targets. The word that starts with {out}/ is the
+#            tool's file; a last word "-" means the file comes on standard output.
+#
+# One SCA tool per branch: an sca import is the whole dependency picture of
+# the branch, so a second SCA tool would undo the first. Trivy fs stays the
+# only one. Several tools of the same type are fine for sast, iac, secret and
+# cicd: the dashboard keeps each tool's findings apart (finalization per tool
+# and per type, analysis-reporting-service, results-import.processor.ts).
+#
+# Core versions: Opengrep 1.33.1, Trivy 0.76.1, Gitleaks 8.30.1, zizmor 1.31.1
+# (the versions of the CybeDefend scanner images). The
+# tag 1.0.0 is the default of CYBEDEFEND_SCANNER_IMAGE_TAG in the Community
+# Edition, so a local scan runs the same tools as a cluster scan.
+# The core commands call each tool's own binary in the CybeDefend images, with
+# the entrypoint replaced (scan.mjs); Opengrep reads the rules bundled in its
+# image, /opt/cybedefend-scanners/rules/opengrep.
+#
+# Deep and context versions, read at the source: Bandit 1.9.4
+# (PyPI), gosec 2.30.0 (Go proxy; its newest image on Docker Hub is 2.24.6),
+# Brakeman 8.1.0 (Docker Hub), Checkov 3.4.3 (PyPI and Docker Hub), poutine
+# 1.1.6 (Go proxy and ghcr.io), OWASP Noir 1.5.0 (ghcr.io), govulncheck 1.9.0
+# (Go proxy). Commands checked with the binaries on test repositories.
+
+# ─── core ────────────────────────────────────────────────────────────────────
+opengrep|sast|core|always|none|ghcr.io/cybedefend/cybedefend-scanners/opengrep:1.0.0|opengrep scan --config /opt/cybedefend-scanners/rules/opengrep --sarif --output {out}/opengrep.sarif --quiet {src}
+trivy-fs|sca|core|always|bridge|ghcr.io/cybedefend/cybedefend-scanners/trivy-fs:1.0.0|trivy fs --scanners vuln --cache-dir {cache}/trivy --format sarif --output {out}/trivy-fs.sarif --quiet {src}
+trivy-fs-sbom|sbom|core|always|bridge|ghcr.io/cybedefend/cybedefend-scanners/trivy-fs:1.0.0|trivy fs --cache-dir {cache}/trivy --format cyclonedx --output {out}/trivy-fs-sbom.cdx.json --quiet {src}
+trivy-config|iac|core|always|none|ghcr.io/cybedefend/cybedefend-scanners/trivy-config:1.0.0|trivy config --cache-dir {cache}/trivy --skip-check-update --format sarif --output {out}/trivy-config.sarif --quiet {src}
+gitleaks|secret|core|always|none|ghcr.io/cybedefend/cybedefend-scanners/gitleaks:1.0.0|gitleaks dir {src} --redact --no-banner --exit-code 0 --report-format sarif --report-path {out}/gitleaks.sarif
+zizmor|cicd|core|dir:.github/workflows|none|ghcr.io/cybedefend/cybedefend-scanners/zizmor:1.0.0|zizmor --offline --no-exit-codes --format sarif {src} -
+trivy-image|container|core|image|bridge|ghcr.io/cybedefend/cybedefend-scanners/trivy-image:1.0.0|trivy image --cache-dir {cache}/trivy --format sarif --quiet {image} -
+
+# ─── deep: by stack ──────────────────────────────────────────────────────────
+# Python. B101 (assert) is left out: it fires on every test file.
+bandit|sast|deep|ext:py|bridge|uvx:bandit[sarif]==1.9.4|bandit -r {src} -s B101 -f sarif -o {out}/bandit.sarif -q --exit-zero
+# Go, with type information: it loads the packages, so it needs the modules.
+# No -quiet: with it gosec writes no file at all when it finds nothing, and a
+# clean run would read as a failed one (seen after a fix).
+gosec|sast|deep|name:go.mod|bridge|securego/gosec:2.24.6|gosec -fmt sarif -out {out}/gosec.sarif -no-fail ./...
+# Ruby on Rails.
+brakeman|sast|deep|path:config/routes.rb|none|presidentbeef/brakeman:v8.1.0|brakeman --format sarif --output {out}/brakeman.sarif --no-exit-on-warn --no-exit-on-error --quiet --no-pager {src}
+# Terraform, CloudFormation, Kubernetes, Helm, Dockerfile, ARM, Bicep, Serverless.
+checkov|iac|deep|ext:tf,name:Dockerfile,dir:k8s,dir:helm,dir:charts,ext:bicep,name:serverless.yml|none|bridgecrew/checkov:3.4.3|checkov -d {src} --framework terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless --skip-download --soft-fail --quiet --compact -o sarif --output-file-path {out}/checkov
+# CI/CD pipelines beyond GitHub Actions too (GitLab CI, Azure Pipelines, Tekton).
+poutine|cicd|deep|dir:.github/workflows,name:.gitlab-ci.yml,name:azure-pipelines.yml,dir:.tekton|none|ghcr.io/boostsecurityio/poutine:1.1.6|poutine analyze_local {src} --format sarif --quiet --disable-version-check -
+
+# ─── context: read by the audit and the fixes, never sent ────────────────────
+# The attack surface: every endpoint Noir can see, its method and its
+# parameters, with its hints for a reviewer (--ai-context: guards, sinks,
+# callees; -T: parameters named like an object id, a URL, a file).
+noir|context|context|always|none|ghcr.io/owasp-noir/noir:1.5.0|noir scan -b {src} -f json -o {out}/noir.json --ai-context -T --no-log --no-color
+# Which vulnerable Go dependencies the code really calls.
+govulncheck|context|context|name:go.mod|bridge|-|govulncheck -format sarif ./... -

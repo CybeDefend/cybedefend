@@ -1,0 +1,105 @@
+{
+  "pages": {
+    "communityAuth": {
+      "product": "Open Source",
+      "brand": "CybeDefend Open Source",
+      "loading": "Chargement…",
+      "fields": {
+        "email": "Adresse e-mail",
+        "password": "Mot de passe",
+        "newPassword": "Nouveau mot de passe",
+        "name": "Votre nom",
+        "organizationName": "Nom de l'organisation",
+        "setupToken": "Jeton d'installation"
+      },
+      "passwordHint": "De 12 à 128 caractères.",
+      "passwordLength": "Le mot de passe doit compter de 12 à 128 caractères.",
+      "backToLogin": "Retour à la connexion",
+      "login": {
+        "title": "Connexion",
+        "subtitle": "Connectez-vous avec votre adresse e-mail et votre mot de passe.",
+        "submit": "Se connecter",
+        "submitting": "Connexion…",
+        "forgotPassword": "Mot de passe oublié ?",
+        "noAccount": "Pas encore de compte ?",
+        "signUp": "Créer un compte",
+        "signoutIncomplete": "La déconnexion ne s'est pas terminée sur le serveur. Fermez ce navigateur pour mettre fin à la session, ou reconnectez-vous puis déconnectez-vous à nouveau."
+      },
+      "setup": {
+        "title": "Installer cette instance",
+        "subtitle": "Créez le compte administrateur et la première organisation.",
+        "setupTokenHint": "La valeur de CYBEDEFEND_SETUP_TOKEN sur le serveur.",
+        "submit": "Créer l'administrateur",
+        "submitting": "Installation…"
+      },
+      "signup": {
+        "title": "Créer un compte",
+        "subtitle": "Créez votre compte sur cette instance.",
+        "submit": "Créer le compte",
+        "submitting": "Création…",
+        "haveAccount": "Vous avez déjà un compte ?",
+        "signIn": "Se connecter"
+      },
+      "forgot": {
+        "title": "Réinitialiser votre mot de passe",
+        "subtitle": "Saisissez votre adresse e-mail. Si un compte l'utilise, un lien de réinitialisation lui est envoyé.",
+        "submit": "Envoyer le lien",
+        "submitting": "Envoi…",
+        "sent": "Si un compte utilise cette adresse, un lien de réinitialisation lui a été envoyé. Le lien est valable 30 minutes.",
+        "byAdministrator": "Cette instance n'envoie aucun e-mail. Demandez à un administrateur de réinitialiser votre mot de passe avec la commande auth:reset-password."
+      },
+      "reset": {
+        "title": "Choisir un nouveau mot de passe",
+        "subtitle": "Saisissez le mot de passe avec lequel vous vous connecterez.",
+        "submit": "Changer le mot de passe",
+        "submitting": "Modification…",
+        "done": "Votre mot de passe a été changé. Connectez-vous avec le nouveau.",
+        "signIn": "Se connecter",
+        "requestNew": "Demander un nouveau lien"
+      },
+      "invitation": {
+        "title": "Rejoindre l'organisation",
+        "subtitle": "Créez votre compte pour accepter cette invitation.",
+        "submit": "Créer le compte et rejoindre",
+        "submitting": "Inscription…",
+        "signIn": "Se connecter, puis revenir à cette invitation",
+        "signedInSubtitle": "Vous êtes invité à rejoindre une organisation sur cette instance."
+      },
+      "refusals": {
+        "INVALID_CREDENTIALS": "L'adresse e-mail ou le mot de passe est incorrect.",
+        "RATE_LIMITED": "Trop de tentatives. Patientez quelques minutes, puis réessayez.",
+        "REFRESH_RACE": "Votre session était renouvelée dans un autre onglet. Réessayez.",
+        "REFRESH_INVALID": "Votre session a pris fin. Reconnectez-vous.",
+        "SETUP_TOKEN_INVALID": "Le jeton d'installation est incorrect.",
+        "SETUP_CLOSED": "Cette instance est déjà installée. Connectez-vous.",
+        "SETUP_REQUIRED": "Cette instance n'est pas encore installée. Son administrateur doit d'abord terminer l'installation.",
+        "SIGNUP_DISABLED": "L'inscription est fermée sur cette instance. Demandez une invitation à un administrateur.",
+        "ACCOUNT_EXISTS": "Un compte existe déjà pour cette adresse e-mail. Connectez-vous plutôt.",
+        "PASSWORD_POLICY": "Le mot de passe doit compter de 12 à 128 caractères.",
+        "CURRENT_PASSWORD_INVALID": "Le mot de passe actuel est incorrect.",
+        "RESET_TOKEN_INVALID": "Ce lien de réinitialisation est invalide, expiré ou déjà utilisé. Demandez-en un nouveau.",
+        "INVITATION_INVALID": "Ce lien d'invitation est invalide, expiré ou déjà utilisé. Demandez-en un nouveau.",
+        "PAT_INVALID": "Ce jeton d'accès personnel est invalide.",
+        "PAT_NOT_FOUND": "Ce jeton d'accès personnel n'existe plus.",
+        "PAT_NAME_INVALID": "Donnez au jeton un nom de 1 à 100 caractères.",
+        "PAT_EXPIRY_INVALID": "La date d'expiration doit être dans le futur.",
+        "PAT_NAME_TAKEN": "Un jeton porte déjà ce nom.",
+        "PAT_LIMIT_REACHED": "Vous avez atteint le nombre maximal de jetons. Révoquez-en un d'abord.",
+        "PAT_NOT_ALLOWED": "Cette action demande une session connectée, pas un jeton d'accès personnel.",
+        "PAT_FORBIDDEN_FOR_PAT_MANAGEMENT": "La gestion des jetons demande une session ouverte, pas un jeton d'accès personnel.",
+        "AUTH_UNAVAILABLE": "Le service de connexion est injoignable. Réessayez dans un instant.",
+        "AUTH_ERROR": "Une erreur s'est produite sur le serveur. Réessayez.",
+        "GENERIC": "La demande n'a pas pu aboutir. Vérifiez les champs et réessayez."
+      },
+      "changePassword": {
+        "title": "Mot de passe",
+        "subtitle": "Changer votre mot de passe déconnecte vos autres sessions.",
+        "current": "Mot de passe actuel",
+        "submit": "Changer le mot de passe",
+        "submitting": "Changement…",
+        "done": "Votre mot de passe a été changé. Vos autres sessions ont été déconnectées.",
+        "currentRequired": "Saisissez votre mot de passe actuel."
+      }
+    }
+  }
+}

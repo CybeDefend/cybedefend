@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "homeTemplate": {
+      "globalStatistics": "Statistiques globales",
+      "statisticsDescription": "Ce bloc montre les vulnérabilités agrégées, les nouveaux problèmes et les problèmes résolus sur tous les projets.",
+      "criticalRiskProjects": "Projets à risque critique",
+      "inLast7Days": "dans les 7 derniers jours",
+      "solvedIssues": "Problèmes résolus",
+      "newIssues": "Nouveaux problèmes",
+      "agentTriage": "Triage agent",
+      "agentFalsePositives": "Faux positifs détectés",
+      "description": "Vue d’ensemble de votre posture de sécurité et de vos analyses",
+      "title": "Tableau de bord"
+    }
+  }
+}

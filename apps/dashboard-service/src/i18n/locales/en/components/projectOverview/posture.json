@@ -1,0 +1,92 @@
+{
+  "components": {
+    "projectOverview": {
+      "posture": {
+        "bands": {
+          "now": "Posture now",
+          "trend": "Trend",
+          "next": "What to do next"
+        },
+        "headline": {
+          "open_one": "open finding",
+          "open_other": "open findings",
+          "priority_one": "critical or high",
+          "priority_other": "critical or high",
+          "resolved_one": "resolved so far",
+          "resolved_other": "resolved so far"
+        },
+        "meta": {
+          "allBranches": "All branches",
+          "scanners_one": "{{count}} scanner with findings",
+          "scanners_other": "{{count}} scanners with findings",
+          "team": "Team {{name}}",
+          "teamInline": "team {{name}}"
+        },
+        "severity": {
+          "title": "Open findings by severity",
+          "meta_one": "{{value}} open finding",
+          "meta_other": "{{value}} open findings",
+          "other": "Unrated",
+          "priority": "Critical or high",
+          "priorityMeta": "of open findings, to fix first"
+        },
+        "scanners": {
+          "title": "Where they are",
+          "meta": "Open findings by scanner",
+          "empty": "No open finding.",
+          "centre_one": "open",
+          "centre_other": "open",
+          "sast": "SAST",
+          "iac": "IaC",
+          "sca": "SCA",
+          "secret": "Secrets",
+          "cicd": "CI/CD",
+          "container": "Container"
+        },
+        "states": {
+          "title": "By state",
+          "meta_one": "{{value}} finding, open or closed",
+          "meta_other": "{{value}} findings, open and closed",
+          "empty": "No finding yet.",
+          "toVerify": "To verify",
+          "confirmed": "Confirmed",
+          "proposedNotExploitable": "Proposed not exploitable",
+          "notExploitable": "Not exploitable",
+          "resolved": "Resolved",
+          "ignored": "Ignored",
+          "closed": "Closed",
+          "closedMeta": "resolved or not exploitable"
+        },
+        "trend": {
+          "title": "Open findings over time",
+          "projectMeta": "By discovery date, findings still open today",
+          "organizationMeta": "Net open balance, day by day",
+          "open": "open",
+          "priority": "critical or high",
+          "inPeriod": "over the period",
+          "vsPrevious": "vs previous period",
+          "timeframe": "Period",
+          "empty": "Not enough history yet."
+        },
+        "nextSteps": {
+          "title": "Next step",
+          "then": "Then",
+          "open": "Open the list",
+          "nothing": "Nothing urgent: no open finding is waiting for you.",
+          "fixCritical_one": "critical finding to fix first",
+          "fixCritical_other": "critical findings to fix first",
+          "fixHigh_one": "high-severity finding to fix first",
+          "fixHigh_other": "high-severity findings to fix first",
+          "triage_one": "finding waiting for triage",
+          "triage_other": "findings waiting for triage",
+          "fixConfirmed_one": "confirmed finding waiting for a fix",
+          "fixConfirmed_other": "confirmed findings waiting for a fix",
+          "review_one": "finding proposed as not exploitable to review",
+          "review_other": "findings proposed as not exploitable to review",
+          "meta": "From the counts above"
+        },
+        "unavailable": "Unavailable"
+      }
+    }
+  }
+}

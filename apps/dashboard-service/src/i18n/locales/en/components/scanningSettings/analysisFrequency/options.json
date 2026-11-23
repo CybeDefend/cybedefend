@@ -1,0 +1,13 @@
+{
+  "components": {
+    "scanningSettings": {
+      "analysisFrequency": {
+        "options": {
+          "daily": "Daily Analysis",
+          "weekly": "Weekly Analysis",
+          "never": "Never"
+        }
+      }
+    }
+  }
+}

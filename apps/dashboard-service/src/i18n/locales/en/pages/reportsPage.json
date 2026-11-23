@@ -1,0 +1,219 @@
+{
+  "pages": {
+    "reportsPage": {
+      "title": "Security Reports",
+      "description": "Generate aggregated security reports for your organization, teams, or custom project selections.",
+      "generateButton": "Generate Report",
+      "helpText": "Report will be downloaded automatically",
+      "scopes": {
+        "organizationShort": "All projects in your organization",
+        "teamShort": "Projects from a specific team",
+        "customShort": "Select specific projects"
+      },
+      "standards": {
+        "owaspDesc": "Web application security risks",
+        "cweDesc": "Common software weaknesses",
+        "licenseDesc": "Open source license compliance",
+        "aiActDesc": "AI component compliance (Regulation 2024/1689)"
+      },
+      "detailLevels": {
+        "detailedDesc": "Full vulnerability details",
+        "summaryDesc": "High-level overview"
+      },
+      "stats": {
+        "totalProjects": "Total Projects",
+        "totalTeams": "Teams",
+        "standard": "Standard"
+      },
+      "standardInfo": {
+        "owasp": {
+          "title": "About OWASP Top 10",
+          "description": "The OWASP Top 10 is a standard awareness document representing a broad consensus about the most critical security risks to web applications. It helps developers and security teams prioritize and address common vulnerabilities like injection attacks, broken authentication, and sensitive data exposure."
+        },
+        "cwe": {
+          "title": "About CWE Top 25",
+          "description": "The CWE Top 25 Most Dangerous Software Weaknesses is a list compiled by MITRE that identifies the most widespread and critical weaknesses in software. It provides a common language for describing security flaws and helps organizations focus on eliminating root causes of vulnerabilities."
+        },
+        "license": {
+          "title": "About License Report",
+          "description": "The License Report provides visibility into the open source licenses used across your projects. It helps identify licensing compliance risks by categorizing packages as Permissive, Weak Copyleft, Strong Copyleft, or Unknown."
+        },
+        "learnMore": "Learn more"
+      },
+      "features": {
+        "compliance": "Compliance Ready",
+        "complianceDesc": "OWASP Top 10 & CWE Top 25 standards",
+        "formats": "Multiple Formats",
+        "formatsDesc": "Export as PDF, HTML, or JSON",
+        "scope": "Flexible Scope",
+        "scopeDesc": "Organization, team, or custom selection"
+      },
+      "configuration": {
+        "globalSettings": "Apply to all reports",
+        "title": "Report configuration",
+        "reportType": "Report Type",
+        "format": "Format",
+        "detailedReport": "Report Detail Level",
+        "selectReportType": "Select report type",
+        "selectFormat": "Select format",
+        "detailed": "Detailed",
+        "summary": "Summary",
+        "branchFilter": "Branch Filter"
+      },
+      "reportTypes": {
+        "owasp": "OWASP Top 10",
+        "cwe": "CWE Top 25",
+        "license": "Licenses",
+        "aiAct": "EU AI Act"
+      },
+      "branchFilter": {
+        "all": "All Branches",
+        "allDesc": "Include vulnerabilities from all branches",
+        "reference": "Reference Branch Only",
+        "referenceDesc": "Only include the reference branch of each project",
+        "selected": "Selected Branches",
+        "selectedDesc": "Only include specific branches you choose"
+      },
+      "branchSelector": {
+        "loading": "Loading branches...",
+        "searchPlaceholder": "Search projects...",
+        "noProjects": "No projects available.",
+        "selectedCount": "{{count}} branch(es) selected",
+        "clearAll": "Clear all",
+        "noTeam": "No Team",
+        "noBranches": "No branches",
+        "selectAll": "Select all",
+        "noneSelected": "No branches selected. Expand projects above and select branches."
+      },
+      "organizationReport": {
+        "title": "Organization report",
+        "description": "Generate a consolidated report for all projects in {{organization}}",
+        "includes": "What's included:",
+        "includesDesc": "All projects across all teams in your organization will be analyzed and consolidated into a single comprehensive report.",
+        "generateButton": "Generate Organization Report"
+      },
+      "teamReport": {
+        "title": "Team report",
+        "description": "Generate a consolidated report for all projects in a specific team",
+        "includes": "What's included:",
+        "includesDesc": "All projects belonging to the selected team will be aggregated into a unified security report.",
+        "selectTeam": "Select Team",
+        "selectTeamPlaceholder": "Choose a team",
+        "viewProjectsButton": "View projects",
+        "generateButton": "Generate Team Report",
+        "errorTitle": "Failed to load teams",
+        "noTeamsTitle": "No Teams Available",
+        "noTeamsMessage": "Your organization doesn't have any teams yet.",
+        "noDescription": "No description",
+        "viewProjects": "View team projects",
+        "projectsModalTitle": "Team Projects",
+        "noProjectsInTeam": "This team doesn't have any projects yet.",
+        "createdAt": "Created on {{date}}"
+      },
+      "batchReport": {
+        "title": "Custom report",
+        "description": "Generate a consolidated report for a custom selection of projects",
+        "includes": "What's included:",
+        "includesDesc": "Choose specific projects from across your organization to create a tailored security report.",
+        "selectedCount": "{{count}} of {{total}} projects selected",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All",
+        "generateButton": "Generate Custom Report",
+        "errorTitle": "Failed to load projects",
+        "noProjectsTitle": "No Projects Available",
+        "noProjectsMessage": "Your organization doesn't have any projects yet."
+      },
+      "generating": {
+        "started": "Report generation started. It will download when ready.",
+        "message": "Generating your report… this can take a few minutes for large scopes."
+      },
+      "errors": {
+        "noOrganization": "No organization selected",
+        "noTeamSelected": "Please select a team",
+        "noProjectsSelected": "Please select at least one project",
+        "generateFailed": "Failed to generate report",
+        "generateTimeout": "Report generation timed out. Please try again."
+      },
+      "error": {
+        "title": "Error generating report"
+      },
+      "tabs": {
+        "generate": "Generate",
+        "stored": "Stored reports"
+      },
+      "storedReports": {
+        "unavailable": "Unavailable",
+        "openButton": "Stored reports {{count}}",
+        "openButtonLabel": "Stored reports",
+        "drawerTitle": "Stored reports",
+        "close": "Close",
+        "expand": "Enlarge",
+        "collapse": "Reduce",
+        "resize": "Resize panel",
+        "viewTypeReports_one": "View {{count}} stored {{type}} report",
+        "viewTypeReports_other": "View {{count}} stored {{type}} reports",
+        "metadata": {
+          "title": "Report details",
+          "type": "Type",
+          "format": "Format",
+          "scope": "Scope",
+          "scopeOrganization": "Organization",
+          "scopeTeam": "Team",
+          "scopeProject": "Project",
+          "scopeBatch": "Custom selection",
+          "organization": "Organization",
+          "branch": "Branch",
+          "generated": "Generated",
+          "expires": "Expires",
+          "status": "Status",
+          "id": "Report ID"
+        },
+        "quota": {
+          "used": "{{used}} / {{limit}} stored reports in the organization",
+          "retention": "Kept for {{days}} days",
+          "full": "Report storage quota reached. Delete a report or upgrade your plan."
+        },
+        "table": {
+          "name": "Name",
+          "type": "Type",
+          "format": "Format",
+          "created": "Generated",
+          "expires": "Expires",
+          "actions": "Actions"
+        },
+        "download": "Download",
+        "downloadFailed": "Download failed. This report is no longer available (it may have expired or been deleted). You can remove it from the list.",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this report? This frees one storage slot and cannot be undone.",
+        "expiresIn_one": "{{count}} day left",
+        "expiresIn_other": "{{count}} days left",
+        "neverExpires": "No expiry",
+        "notFound": "The report you opened from this link is no longer available (deleted or expired). Your current stored reports are listed below.",
+        "status": {
+          "queued": "Generating…",
+          "ready": "Ready",
+          "failed": "Failed"
+        },
+        "empty": {
+          "title": "No stored reports",
+          "description": "Reports you generate will appear here to download or delete."
+        }
+      },
+      "wizard": {
+        "back": "Back",
+        "continue": "Continue",
+        "projects": "project(s)",
+        "reviewDesc": "Review your report configuration before generating.",
+        "reviewTitle": "Review & generate",
+        "step1": "Select scope",
+        "step2": "Configure",
+        "step3": "Generate",
+        "summaryBranches": "Branches",
+        "summaryDetail": "Detail",
+        "summaryFormat": "Format",
+        "summaryScope": "Scope",
+        "summaryType": "Standard"
+      }
+    }
+  }
+}

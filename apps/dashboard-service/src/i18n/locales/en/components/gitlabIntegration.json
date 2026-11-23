@@ -1,0 +1,23 @@
+{
+  "components": {
+    "gitlabIntegration": {
+      "title": "GitLab Integration",
+      "connected": "Connected",
+      "reconnectRequired": "Reconnection required",
+      "installedByYou": "Connected by you",
+      "installedByAnother": "Connected by another member",
+      "connectedDescription": "GitLab is connected to your organization. Projects linked to a GitLab repository are scanned on every push.",
+      "reconnectRequiredDescription": "GitLab no longer accepts this connection: the CybeDefend application was probably revoked on GitLab. Reconnect GitLab to resume scans of linked repositories.",
+      "reconnect": "Reconnect",
+      "disconnect": "Disconnect",
+      "disconnectConfirmTitle": "Disconnect GitLab?",
+      "disconnectConfirmLinks": "Projects linked to a GitLab repository will no longer be linked to it.",
+      "disconnectConfirmPushScans": "Automatic scans on push will stop.",
+      "disconnectConfirmHistoryKept": "Scan history and vulnerabilities are kept.",
+      "disconnectConfirm": "Disconnect GitLab",
+      "disconnectSuccess": "GitLab disconnected",
+      "disconnectError": "GitLab could not be disconnected. Try again.",
+      "manageRequiresAdmin": "Only an organization administrator or manager can reconnect or disconnect GitLab."
+    }
+  }
+}

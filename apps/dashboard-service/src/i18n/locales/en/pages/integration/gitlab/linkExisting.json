@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "linkExisting": {
+          "title": "Link to GitLab",
+          "subtitle": "Associate your existing projects with GitLab repositories",
+          "pageTitle": "Link Existing Projects",
+          "pageSubtitle": "Select a project to link with a GitLab repository",
+          "successfullyLinked": "Repository linked successfully!",
+          "linkError": "Error linking repository",
+          "noReposToLink": "No available repositories to link",
+          "noProjects": "No projects available",
+          "alreadyLinked": "Already linked",
+          "notLinked": "Not linked",
+          "quickAssociation": "Quick Association",
+          "quickDescription": "Link your existing projects to GitLab repositories",
+          "linkedToOtherProvider": "Linked to {{provider}}"
+        }
+      }
+    }
+  }
+}

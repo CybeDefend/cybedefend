@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "notFound": {
+      "actions": {
+        "needHelp": {
+          "title": "Need Help?",
+          "description": "Contact our support team",
+          "button": "Contact Support"
+        }
+      }
+    }
+  }
+}

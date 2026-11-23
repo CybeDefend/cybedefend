@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package cybedefend.policy_management;
+
+import "policy-management/data_purge.proto";
+import "policy-management/policy.proto";
+import "policy-management/evaluation.proto";
+import "policy-management/violation.proto";
+
+// ============================================================================
+// Policy CRUD Service
+// ============================================================================
+
+service PolicyService {
+  rpc CreatePolicy(CreatePolicyRequest) returns (PolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (PolicyResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (PolicyResponse);
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  rpc TogglePolicy(TogglePolicyRequest) returns (TogglePolicyResponse);
+  rpc GetEffectivePolicy(GetEffectivePolicyRequest) returns (EffectivePolicyResponse);
+  rpc ValidatePolicy(ValidatePolicyRequest) returns (ValidatePolicyResponse);
+  rpc ExportPolicyYaml(ExportPolicyYamlRequest) returns (ExportPolicyYamlResponse);
+
+  // Org-wide count/delete used by billing-service plan transitions
+  rpc CountPoliciesForOrg(CountPoliciesForOrgRequest) returns (CountPoliciesForOrgResponse);
+  rpc DeleteAllPoliciesForOrg(DeleteAllPoliciesForOrgRequest) returns (DeleteAllPoliciesForOrgResponse);
+}
+
+// ============================================================================
+// Policy Evaluation Service
+// ============================================================================
+
+service PolicyEvaluationService {
+  rpc TriggerEvaluation(TriggerEvaluationRequest) returns (TriggerEvaluationResponse);
+  rpc TriggerOsvBasedEvaluation(TriggerOsvBasedEvaluationRequest) returns (TriggerOsvBasedEvaluationResponse);
+  rpc GetEvaluationStatus(GetEvaluationStatusRequest) returns (GetEvaluationStatusResponse);
+  rpc GetEvaluationStatusByScanId(GetEvaluationStatusByScanIdRequest) returns (GetEvaluationStatusByScanIdResponse);
+  rpc GetComplianceResult(GetComplianceResultRequest) returns (GetComplianceResultResponse);
+  rpc GetComplianceHistory(GetComplianceHistoryRequest) returns (GetComplianceHistoryResponse);
+  rpc DryRunEvaluation(DryRunEvaluationRequest) returns (DryRunEvaluationResponse);
+}
+
+// ============================================================================
+// Policy Violation Service
+// ============================================================================
+
+service PolicyViolationService {
+  rpc GetScanViolations(GetScanViolationsRequest) returns (GetScanViolationsResponse);
+  rpc GetProjectViolations(GetProjectViolationsRequest) returns (GetProjectViolationsResponse);
+  rpc GetViolationStats(GetViolationStatsRequest) returns (GetViolationStatsResponse);
+  rpc GetOrganizationComplianceOverview(GetOrganizationComplianceOverviewRequest) returns (GetOrganizationComplianceOverviewResponse);
+}

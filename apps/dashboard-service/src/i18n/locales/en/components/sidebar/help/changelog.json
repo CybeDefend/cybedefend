@@ -1,0 +1,12 @@
+{
+  "components": {
+    "sidebar": {
+      "help": {
+        "changelog": {
+          "title": "Changelog",
+          "description": "Latest updates & features"
+        }
+      }
+    }
+  }
+}

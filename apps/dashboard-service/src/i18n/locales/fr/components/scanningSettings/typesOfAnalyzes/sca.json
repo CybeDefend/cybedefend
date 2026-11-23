@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "sca": {
+          "title": "Analyse de la composition logicielle (SCA)",
+          "description": "Analyse les composants logiciels open source présents dans une application et identifie les vulnérabilités dans ces composants et bibliothèques."
+        }
+      }
+    }
+  }
+}

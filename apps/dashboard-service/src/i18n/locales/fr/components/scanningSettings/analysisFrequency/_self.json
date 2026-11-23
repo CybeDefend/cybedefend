@@ -1,0 +1,10 @@
+{
+  "components": {
+    "scanningSettings": {
+      "analysisFrequency": {
+        "title": "Fréquence d'Analyse",
+        "description": "Vous pouvez sélectionner la fréquence d'analyse. C'est très utile pour l'analyse SCA."
+      }
+    }
+  }
+}

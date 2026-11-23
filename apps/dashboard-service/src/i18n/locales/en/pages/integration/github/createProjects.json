@@ -1,0 +1,34 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "createProjects": {
+          "title": "Add GitHub Projects",
+          "subtitle": "Create multiple new projects from your GitHub repositories at once.",
+          "bulkCreation": "Bulk Creation",
+          "bulkDescription": "Quickly set up multiple projects from selected repos.",
+          "pageTitle": "Create Projects from GitHub",
+          "pageSubtitle": "Select a team and choose which repositories to create projects from.",
+          "team": "Team",
+          "noRepos": "No available repositories to create projects from.",
+          "createButton": "Create Projects",
+          "selectTeamError": "Please select a team first.",
+          "noSelectedRepos": "No selected repositories to create projects from. Please select at least one.",
+          "failedToCreate": "Failed to create/link project",
+          "failedToCreateMultiple": "Failed to create and link projects",
+          "projectName": "Project Name",
+          "projectNamePlaceholder": "Enter project name...",
+          "searchPlaceholder": "Search repositories...",
+          "noMatchingRepos": "No matching repositories found",
+          "availableRepos": "available",
+          "alreadyLinked": "already linked",
+          "showLinked": "Show linked",
+          "linked": "Linked",
+          "alreadyLinkedToProject": "Already linked to a project",
+          "totalRepos": "repositories total",
+          "available": "available"
+        }
+      }
+    }
+  }
+}

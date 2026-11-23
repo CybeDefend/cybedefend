@@ -1,0 +1,10 @@
+{
+  "components": {
+    "sidebar": {
+      "onboarding": {
+        "title": "Ici, vous pouvez naviguer dans l'application et changer d'organisation.",
+        "subtitle": "Il y a aussi un bouton pour le mode sombre !"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "components": {
+    "sidebar": {
+      "help": {
+        "edition": {
+          "openSource": "Open Source"
+        }
+      }
+    }
+  }
+}

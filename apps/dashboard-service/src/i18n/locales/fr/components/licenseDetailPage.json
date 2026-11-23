@@ -1,0 +1,48 @@
+{
+    "components": {
+        "licenseDetailPage": {
+            "backToLicenses": "Retour aux licences",
+            "description": "Description",
+            "viewFullText": "Voir le texte complet de la licence",
+            "legalRisks": "Risques juridiques",
+            "obligations": "Obligations",
+            "recommendations": "Recommandations",
+            "noObligations": "Aucune obligation, utilisation libre",
+            "noLegalRisks": "Aucun risque juridique significatif identifié.",
+            "unknownLegalRisks": "Impossible de déterminer les risques juridiques. La licence n'a pas pu être identifiée. Une vérification manuelle est nécessaire.",
+            "unknownObligations": "Impossible de déterminer les obligations. La licence n'a pas pu être identifiée. Veuillez d'abord identifier la licence.",
+            "packagesUsing": "Paquets utilisant {{license}} ({{count}})",
+            "packageName": "Nom du paquet",
+            "version": "Version",
+            "ecosystem": "Écosystème",
+            "dependency": "Dépendance",
+            "otherLicenses": "Autres licences",
+            "assignLicense": "Attribuer une licence",
+            "assign": "Attribuer",
+            "assigning": "Attribution...",
+            "assignSuccess": "Licence attribuée avec succès",
+            "assignError": "Erreur lors de l'attribution de la licence",
+            "actions": "Actions",
+            "ignore": "Ignorer",
+            "unignore": "Restaurer",
+            "ignoreSuccess": "Paquet ignoré de l'analyse des licences",
+            "unignoreSuccess": "Paquet restauré dans l'analyse des licences",
+            "ignoreError": "Erreur lors de la mise à jour du statut",
+            "selectLicense": "Sélectionner une licence",
+            "searchLicense": "Rechercher une licence...",
+            "transitive": "Transitive",
+            "direct": "Directe",
+            "risk": {
+                "NONE": "Aucun",
+                "MEDIUM": "Moyen",
+                "HIGH": "Élevé",
+                "UNKNOWN": "Inconnu"
+            },
+            "unknownRecommendations": [
+                "Identifiez manuellement la licence en vérifiant le code source ou le dépôt du projet.",
+                "Une fois identifiée, attribuez la licence correcte via le tableau ci-dessous.",
+                "Contactez le mainteneur du paquet si la licence est ambiguë ou absente."
+            ]
+        }
+    }
+}

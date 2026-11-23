@@ -1,0 +1,725 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+message IssueCountResponse {
+  int32 critical = 1;
+  int32 high = 2;
+  int32 medium = 3;
+  int32 low = 4;
+}
+
+message AnalysisTypeResponse {
+  string type = 1;
+  string lastScan = 2;
+  string source = 3;
+  IssueCountResponse issuesCount = 4;
+}
+
+message MainStatisticsResponse {
+  int32 criticalRiskProjects = 11;
+  int32 criticalRiskProjectsInLast7Days = 12;
+  int32 highRiskProjects = 1;
+  int32 highRiskProjectsInLast7Days = 2;
+  int32 solvedIssues = 3;
+  int32 solvedIssuesInLast7Days = 4;
+  int32 newIssues = 5;
+  int32 newIssuesInLast7Days = 6;
+  int32 criticalIssues = 7;
+  int32 highIssues = 8;
+  int32 mediumIssues = 9;
+  int32 lowIssues = 10;
+  // --- AI analysis KPIs ---
+  int32 agentAnalysesCount      = 13;
+  int32 agentAutofixCount       = 14;
+  int32 agentTriageCount        = 15;
+  int32 agentFalsePositiveCount = 16;
+}
+
+// Org-wide home-page KPI cards. Decoupled from the paginated project list so
+// GET /organization/:id/projects returns fast; computed over EVERY project the
+// caller can access in the org (not just the current page).
+message GetOrganizationMainStatisticsRequest {
+  string organizationId = 1;
+  string userId = 2;
+}
+
+// System-scope (no user filter): every project in the organization. Used by
+// analysis-reporting's org-statistics recompute worker.
+message GetOrganizationProjectIdsRequest {
+  string organizationId = 1;
+}
+
+message OrganizationProjectIdsResponse {
+  repeated string projectIds = 1;
+}
+
+// USER-scoped projection: the (id, name) of every project the caller may read
+// in the organization. Same principal filter as GetAllFromOrganization, but a
+// single SELECT — no pagination ceiling, and none of that RPC's four-way
+// fan-out (scan status, branch ingestion, batch vulnerability counts back into
+// analysis-reporting, integration link status). The GRC findings export needs
+// the readable set on EVERY page; re-running the dashboard's home-page loader
+// per page of 50 findings turns a nightly pull into org-wide load.
+message GetReadableProjectsRequest {
+  string organizationId = 1;
+  string userId = 2;
+}
+
+message ReadableProjectSummary {
+  string projectId = 1;
+  string name = 2;
+  // The project's configured reference branch, empty when unset. Carried here
+  // rather than fetched per project because the GRC export has to scope every
+  // one of its six UNION branches to it: resolving it through ProjectService.Get
+  // would be one gRPC round-trip per project PER PAGE, and it is a plain column
+  // on `project`, so the readable-projects query already had it in hand.
+  string referenceBranch = 3;
+  // The name of the project's team, and whether the closed extension is on
+  // for the project. Both are on the rows the query already joins: reading
+  // them per project would be one ProjectService.Get per row.
+  string teamName = 4;
+  // The id of that team: two teams of an organisation may share a name, and
+  // a list keys its teams by id. The organization overview also
+  // groups and filters its projects by team: the id is on the team row the
+  // query already joins, so the overview no longer needs the home-page loader
+  // (GetAllFromOrganization and its fan-out) to learn it.
+  string teamId = 6;
+  reserved 5;
+  reserved "vibedefendEnabled";
+}
+
+message ReadableProjectsResponse {
+  repeated ReadableProjectSummary projects = 1;
+}
+
+message ProjectAllInformationsResponse {
+  string projectId = 1;
+  string teamId = 2;
+  string teamName = 3;
+  string name = 4;
+  string createdAt = 5;
+  string updatedAt = 6;
+  // Replaced legacy `string riskLevel = 7;` and `double riskScore = 17;`
+  // with the CybeRisk score — an unbounded sum of per-vuln CVSS-based points,
+  // branch-scoped and persisted (recomputed asynchronously). Listings expose the
+  // integer score + categorical level only; the full breakdown is on
+  // /results/overview. Uses NEW field numbers 21/22 (legacy 7/17 stay reserved);
+  // the released field 20 keeps its existing isJiraLinked meaning to preserve
+  // wire compatibility.
+  reserved 7;
+  reserved "riskLevel";
+  reserved 17;
+  reserved "riskScore";
+  int32 cyberRiskScore = 21; // unbounded (sum of points), not capped at 100
+  string cyberRiskLevel = 22; // critical | high | medium | low | none
+  IssueCountResponse issuesCount = 8;
+  repeated AnalysisTypeResponse analyses = 9;
+  string ingestionProjectId = 10; // Deprecated: use parsedBranches instead
+  // Source of the last scan (manual, cli, github, gitlab)
+  string lastScanSourceType = 12;
+  // Indicates if the project currently has an active scan in progress
+  bool isScanning = 13;
+  // List of branches that have been successfully parsed for AI features
+  repeated BranchIngestionInfo parsedBranches = 14;
+  // Indicates if the project is linked to a GitHub repository
+  bool isGithubLinked = 15;
+  // Indicates if the project is linked to a GitLab repository
+  bool isGitlabLinked = 16;
+  // True when the organization has a Jira installation (org-scoped, same
+  // value for every project under the same org). Lets the dashboard skip
+  // GET /organization/:orgId/jira/installation on page loads.
+  bool isJiraLinked = 20;
+  // Date of the last scan (ISO 8601 format)
+  string lastScan = 18;
+  // Reference branch for statistics filtering. Only vulnerabilities from this branch are counted.
+  optional string referenceBranch = 19;
+  // True when the organization has a Linear installation (org-scoped,
+  // same value for every project under the same org, like isJiraLinked).
+  bool isLinearLinked = 23;
+  reserved 11;
+  reserved "securityChampionEnabled";
+}
+
+message PaginatedProjectsAllInformationsResponse {
+  repeated ProjectAllInformationsResponse projects = 1;
+  int32 totalProjects = 2;
+  int32 totalPages = 3;
+  MainStatisticsResponse mainStatistics = 4;
+}
+
+message ProjectInformationsResponse {
+  string projectId = 1;
+  string teamId = 2;
+  string teamName = 3;
+  string name = 4;
+  string createdAt = 5;
+  string updatedAt = 6;
+  string applicationType = 7;
+  string analysisFrequency = 8;
+  bool emailAlertEnabled = 9;
+  bool monthlyReportEnabled = 10;
+  bool weeklyReportEnabled = 11;
+  bool sastEnabled = 12;
+  bool dastEnabled = 13;
+  bool scaEnabled = 14;
+  bool containerEnabled = 15;
+  bool apiEnabled = 16;
+  bool iacEnabled = 17;
+  bool sastFastScanEnabled = 18;
+  // Default minimum severity for diff scans (info/low/medium/high/critical).
+  string diffScanMinSeverity = 66;
+  repeated string sastSeverities = 19;
+  repeated string scaSeverities = 20;
+  repeated string iacSeverities = 21;
+  repeated string containerSeverities = 22;
+  string incidentCreationOption = 23;
+  bool scaTransitiveDependenciesEnabled = 27;
+  bool scaDevelopmentDependenciesEnabled = 28;
+  string organizationId = 29;
+  string organizationName = 30;
+  // Active SAST agent vulnerability category names (internal identifiers like sql_injection)
+  repeated string agentCategoriesSast = 32;
+  // Active IAC agent vulnerability category names (internal identifiers like volume_mounts)
+  repeated string agentCategoriesIac = 33;
+  // Active CICD agent vulnerability category names (single category: cicd_security)
+  repeated string agentCategoriesCicd = 58;
+  // Source of the last scan (manual, cli, github, gitlab)
+  string lastScanSourceType = 34;
+  // List of branches that have been successfully parsed for AI features
+  repeated BranchIngestionInfo parsedBranches = 35;
+  // Enable GitHub issue creation for detected vulnerabilities
+  bool githubIssueEnabled = 36;
+  // Enable GitLab issue creation for detected vulnerabilities
+  bool gitlabIssueEnabled = 37;
+  // Issue creation mode: per_vulnerability, per_vulnerability_type, per_file
+  string issueCreationMode = 38;
+  // Indicates if the project is linked to a GitHub repository
+  bool isGithubLinked = 39;
+  // Indicates if the project is linked to a GitLab repository
+  bool isGitlabLinked = 40;
+  // List of branches for which issues should be created. Empty means all branches.
+  repeated string issueCreationBranches = 41;
+  // Replaced legacy `double riskScore = 42;` and `string riskLevel = 43;`
+  // with the CybeRisk score — an unbounded sum of per-vuln CVSS-based points,
+  // branch-scoped and persisted. Detail endpoints serve the full breakdown via
+  // analysis-reporting's CyberRiskScore message; this surface only exposes the
+  // integer score + categorical level. Uses NEW field numbers 62/63 (legacy
+  // 42/43 stay reserved); the released fields 60/61 keep their isJiraLinked /
+  // aibomEnabled meaning to preserve wire compatibility.
+  reserved 42;
+  reserved "riskScore";
+  reserved 43;
+  reserved "riskLevel";
+  int32 cyberRiskScore = 62; // unbounded (sum of points), not capped at 100
+  string cyberRiskLevel = 63; // critical | high | medium | low | none
+  // Reference branch for statistics filtering. Only vulnerabilities from this branch are counted.
+  optional string referenceBranch = 44;
+  // The linked repository's git default branch (resolved from
+  // external-integrations). Empty when the project has no git integration.
+  // analysis-reporting uses it to scope the cyberisk score to the real default
+  // branch when no referenceBranch is configured (instead of main/master).
+  optional string defaultBranch = 64;
+  // Enable reachability-based priority adjustment for SCA vulnerabilities
+  bool scaReachabilityPriorityEnabled = 45;
+  // Enable reachability-based status change (unused = ignored) for SCA vulnerabilities
+  bool scaReachabilityStatusEnabled = 46;
+  // Notification severity threshold filter (e.g. ["critical","high"])
+  repeated string notifSeverityThreshold = 47;
+  // Notification scanner type filter (e.g. ["sast","sca","iac","container"])
+  repeated string notifScannerTypes = 48;
+  // Enable zero-day email notifications
+  bool zeroDayEmailEnabled = 49;
+  // Enable zero-day Slack notifications
+  bool zeroDaySlackEnabled = 50;
+  // Zero-day severity threshold filter (e.g. ["critical","high"])
+  repeated string zeroDaySeverityThreshold = 51;
+  // Enable weekly report Slack notifications
+  bool weeklyReportSlackEnabled = 52;
+  // Enable monthly report Slack notifications
+  bool monthlyReportSlackEnabled = 53;
+  // Enable scan-complete email notifications
+  bool scanCompleteEmailEnabled = 54;
+  // Enable scan-complete Slack notifications
+  bool scanCompleteSlackEnabled = 55;
+  // Enable secret detection scanning (Gitleaks)
+  bool secretEnabled = 56;
+  // Allowed severity levels for secret detection scanning
+  repeated string secretSeverities = 57;
+  // Project security context for CVSS 4.0 environmental scoring
+  ProjectSecurityContext securityContext = 59;
+  // True when the organization has a Jira installation (org-scoped, same
+  // value for every project under the same org). Lets the dashboard skip
+  // GET /organization/:orgId/jira/installation on page loads.
+  bool isJiraLinked = 60;
+  // Distinct programming languages detected in the project (from
+  // analysis-reporting). Empty until a scan has produced findings. The gateway
+  // derives codeGraphSupported from it.
+  repeated string detectedLanguages = 65;
+  // Trigger an automatic scan on every commit pushed to the monitored branch of
+  // the linked GitHub/GitLab repository. Default true; only meaningful for a
+  // project linked to a VCS repository.
+  //
+  // Declared `optional` on purpose: a plain proto3 bool decodes to `false` when
+  // the field is absent, so a consumer running ahead of global-management would
+  // read "disabled" for every project and silently stop scanning. Explicit
+  // presence lets the consumer tell "absent" from "off" and fail open.
+  optional bool scanOnCommitEnabled = 68;
+  // The repository the project is linked to (GitHub preferred, then GitLab),
+  // from external-integrations; absent when it has none. The dashboard reads
+  // that repository's branches with it instead of listing every repository of
+  // the organization to find it.
+  ProjectLinkedRepository linkedRepository = 69;
+  // True when the organization has a Linear installation (org-scoped,
+  // same value for every project under the same org, like isJiraLinked).
+  bool isLinearLinked = 71;
+  reserved 24, 25, 26, 31, 61, 67, 70;
+  reserved "aiMergeRequestEnabled", "improvingResultsEnabled", "sortsVulnerabilitiesEnabled", "securityChampionEnabled", "aibomEnabled", "vibedefend_enabled", "appsecEnabled";
+}
+
+message ProjectLinkedRepository {
+  // "github" or "gitlab".
+  string provider = 1;
+  // The stored repository id, as the repository branches routes take it.
+  string repositoryId = 2;
+}
+
+message PaginatedProjectsResponse {
+  repeated ProjectInformationsResponse projects = 1;
+  int32 totalProjects = 2;
+  int32 totalPages = 3;
+}
+
+message ProjectCreateRequest {
+  string name = 1;
+  string teamId = 2;
+  string creatorId = 3;
+  // Enable GitHub issue creation for detected vulnerabilities
+  optional bool githubIssueEnabled = 8;
+  // Enable GitLab issue creation for detected vulnerabilities
+  optional bool gitlabIssueEnabled = 9;
+  // Issue creation mode: per_vulnerability, per_vulnerability_type, per_file
+  optional string issueCreationMode = 10;
+  // List of branches for which issues should be created. Empty means all branches.
+  repeated string issueCreationBranches = 11;
+  // Optional security context to apply at creation time (2-step wizard).
+  // When omitted, conservative defaults are applied (isCustomized=false).
+  optional CreateProjectSecurityContextInput securityContext = 12;
+  // Space the project is created from: "appsec" | "vibedefend". "appsec" marks
+  // it as an AppSec project at once (appsec_enabled_at) and checks the AppSec
+  // project limit; "vibedefend" (or absent, for old callers) does neither.
+  optional string product = 13;
+  reserved 4, 5, 6, 7;
+  reserved "aiMergeRequestEnabled", "improvingResultsEnabled", "sortsVulnerabilitiesEnabled", "securityChampionEnabled";
+}
+
+// Marks a project as an AppSec project the first time AppSec analyses it
+// Checks the AppSec project limit
+// against the organisation's AppSec projects only. Idempotent.
+message MarkProjectAppsecRequest {
+  string projectId = 1;
+}
+
+message MarkProjectAppsecResponse {
+  // True when the project is (now or already) an AppSec project.
+  bool appsec = 1;
+  bool alreadyAppsec = 2;
+  // True when marking was refused because the AppSec project limit is reached.
+  bool limitReached = 3;
+  int32 projectLimit = 4;
+  int32 appsecProjectCount = 5;
+}
+
+message ProjectDeleteRequest {
+  string projectId = 1;
+}
+
+message ProjectDeleteResponse {
+  string message = 1;
+}
+
+message ProjectGetAllRequest {
+  string teamId = 1;
+  int32 pageNumber = 2;
+  int32 pageSizeNumber = 3;
+  string searchQuery = 4;
+  string userId = 5;
+}
+
+// Request to count projects in an organization (efficient single COUNT query)
+message CountProjectsInOrganizationRequest {
+  string organizationId = 1;
+  // Scopes the count to what this user may see. Required unless org_wide.
+  string userId = 2;
+  // Count EVERY project in the organization, ignoring per-user visibility.
+  // For internal capacity checks (plan limits) that have no user context: a
+  // user-scoped count would under-report and let a downgrade through — an org
+  // already over its project limit passes the check if the caller happens to
+  // see fewer projects than it holds. Callers must opt in explicitly rather
+  // than relying on an empty userId, so a forgotten userId keeps failing
+  // loudly instead of silently returning a different number.
+  bool orgWide = 3;
+}
+
+// Response with total project count
+message CountProjectsInOrganizationResponse {
+  int32 totalProjects = 1;
+}
+
+// Denormalized CybeRisk score push (analysis-reporting -> global-management).
+// Used only to keep the SQL sort key on `project` in sync; the authoritative
+// score stays in analysis-reporting.
+message ProjectCyberRiskScoreInput {
+  string project_id = 1;
+  int32 score = 2;
+}
+
+message SetProjectCyberRiskScoresRequest {
+  repeated ProjectCyberRiskScoreInput items = 1;
+}
+
+message SetProjectCyberRiskScoresResponse {
+  int32 updated = 1;
+}
+
+message ProjectGetRequest {
+  string projectId = 1;
+  // Opt-outs for internal callers that read only the project's
+  // own settings. Each defaults to false, so the full read (the project page)
+  // is unchanged, and a global-management that predates them ignores them and
+  // answers the full read: callers may ship before it.
+  //
+  // Skips analysis-reporting: cyberRiskScore / cyberRiskLevel read 0 / "none"
+  // and detectedLanguages is empty.
+  optional bool skip_vulnerability_stats = 2;
+  // Skips external-integrations: isGithubLinked / isGitlabLinked /
+  // isJiraLinked read false, defaultBranch and linkedRepository are absent.
+  // Keep it false to read defaultBranch.
+  optional bool skip_integration_status = 3;
+  // Skips the security context read: securityContext is absent.
+  optional bool skip_security_context = 4;
+}
+
+message ProjectUpdateRequest {
+  string projectId = 1;
+  optional string name = 2;
+  optional string teamId = 3;
+  optional string applicationType = 4;
+  optional string analysisFrequency = 5;
+  optional bool emailAlertEnabled = 6;
+  optional bool monthlyReportEnabled = 7;
+  optional bool weeklyReportEnabled = 8;
+  optional bool sastEnabled = 9;
+  optional bool dastEnabled = 10;
+  optional bool scaEnabled = 11;
+  optional bool containerEnabled = 12;
+  optional bool apiEnabled = 13;
+  optional bool iacEnabled = 14;
+  optional bool sastFastScanEnabled = 15;
+  // Default minimum severity for diff scans (info/low/medium/high/critical).
+  optional string diffScanMinSeverity = 50;
+  repeated string sastSeverities = 16;
+  repeated string iacSeverities = 17;
+  repeated string scaSeverities = 18;
+  repeated string containerSeverities = 19;
+  optional string incidentCreationOption = 20;
+  optional bool scaTransitiveDependenciesEnabled = 24;
+  optional bool scaDevelopmentDependenciesEnabled = 25;
+  // Full replacement list of active SAST agent vulnerability category names. If provided must be >=1 and all valid.
+  repeated string agentCategoriesSast = 27;
+  // Full replacement list of active IAC agent vulnerability category names. If provided must be >=1 and all valid.
+  repeated string agentCategoriesIac = 28;
+  // Full replacement list of active CICD agent vulnerability category names. If provided must be >=1 and all valid.
+  repeated string agentCategoriesCicd = 48;
+  // Source type of the last scan (manual, cli, github, gitlab)
+  optional string lastScanSourceType = 29;
+  // Enable GitHub issue creation for detected vulnerabilities
+  optional bool githubIssueEnabled = 30;
+  // Enable GitLab issue creation for detected vulnerabilities
+  optional bool gitlabIssueEnabled = 31;
+  // Issue creation mode: per_vulnerability, per_vulnerability_type, per_file
+  optional string issueCreationMode = 32;
+  // List of branches for which issues should be created. Empty means all branches.
+  repeated string issueCreationBranches = 33;
+  // Reference branch for statistics filtering. Only vulnerabilities from this branch are counted.
+  optional string referenceBranch = 34;
+  // Enable reachability-based priority adjustment for SCA vulnerabilities
+  optional bool scaReachabilityPriorityEnabled = 35;
+  // Enable reachability-based status change (unused = ignored) for SCA vulnerabilities
+  optional bool scaReachabilityStatusEnabled = 36;
+  // Notification severity threshold filter
+  repeated string notifSeverityThreshold = 37;
+  // Notification scanner type filter
+  repeated string notifScannerTypes = 38;
+  // Enable zero-day email notifications
+  optional bool zeroDayEmailEnabled = 39;
+  // Enable zero-day Slack notifications
+  optional bool zeroDaySlackEnabled = 40;
+  // Zero-day severity threshold filter
+  repeated string zeroDaySeverityThreshold = 41;
+  // Enable weekly report Slack notifications
+  optional bool weeklyReportSlackEnabled = 42;
+  // Enable monthly report Slack notifications
+  optional bool monthlyReportSlackEnabled = 43;
+  // Enable scan-complete email notifications
+  optional bool scanCompleteEmailEnabled = 44;
+  // Enable scan-complete Slack notifications
+  optional bool scanCompleteSlackEnabled = 45;
+  // Enable secret detection scanning (Gitleaks)
+  optional bool secretEnabled = 46;
+  // Allowed severity levels for secret detection scanning
+  repeated string secretSeverities = 47;
+  // Trigger an automatic scan on every commit pushed to the monitored branch of
+  // the linked GitHub/GitLab repository.
+  optional bool scanOnCommitEnabled = 52;
+  reserved 21, 22, 23, 26, 49, 51;
+  reserved "aiMergeRequestEnabled", "improvingResultsEnabled", "sortsVulnerabilitiesEnabled", "securityChampionEnabled", "aibomEnabled", "vibedefend_enabled";
+}
+
+message ProjectUpdateResponse {
+  bool success = 1;
+  string message = 2;
+  ProjectInformationsResponse projectInformations = 3;
+}
+
+message ProjectAddTeamRequest {
+  string project_id      = 1;
+  string team_id         = 2;
+  string organization_id = 3;
+}
+
+message ProjectAddTeamResponse {
+  string message = 1;
+}
+
+message ProjectRemoveTeamRequest {
+  string project_id      = 1;
+  string team_id         = 2;
+  string organization_id = 3;
+}
+
+// Global listing request (internal cron usage) without scoping by team/organization plus optional flag filters
+message ProjectGetAllGlobalRequest {
+  int32 pageNumber = 1;
+  int32 pageSizeNumber = 2;
+  bool weekly = 3; // filter only projects with weeklyReportEnabled
+  bool monthly = 4; // filter only projects with monthlyReportEnabled
+  bool emailAlert = 5; // filter only projects with emailAlertEnabled
+  bool weeklySlack = 6; // filter only projects with weeklyReportSlackEnabled
+  bool monthlySlack = 7; // filter only projects with monthlyReportSlackEnabled
+  bool zeroDayEmail = 8; // filter only projects with zeroDayEmailEnabled
+  bool zeroDaySlack = 9; // filter only projects with zeroDaySlackEnabled
+  bool scanCompleteEmail = 10; // filter only projects with scanCompleteEmailEnabled
+  bool scanCompleteSlack = 11; // filter only projects with scanCompleteSlackEnabled
+}
+
+// ========== Branch Ingestion Management ==========
+
+// Status of branch ingestion in Potpie
+enum BranchIngestionStatus {
+  BRANCH_INGESTION_STATUS_UNSPECIFIED = 0;
+  BRANCH_INGESTION_STATUS_PARSING = 1;
+  BRANCH_INGESTION_STATUS_PARSED = 2;
+  BRANCH_INGESTION_STATUS_FAILED = 3;
+}
+
+// Represents a single branch ingestion record
+message BranchIngestionInfo {
+  string id = 1;
+  string projectId = 2;
+  string branch = 3;
+  // Field 4 reserved (was potpieProjectId - no longer needed, Potpie manages its own internal IDs)
+  string lastParsedScanId = 4;
+  string lastParsedAt = 5; // ISO8601 timestamp
+  BranchIngestionStatus status = 6;
+  string createdAt = 7;
+  string updatedAt = 8;
+}
+
+// Request to get all parsed branches for a project
+message GetProjectBranchesRequest {
+  string projectId = 1;
+}
+
+message GetProjectBranchesResponse {
+  repeated BranchIngestionInfo branches = 1;
+}
+
+// Request to delete all branch ingestion records for a project (called on project deletion)
+message DeleteProjectBranchesRequest {
+  string projectId = 1;
+}
+
+message DeleteProjectBranchesResponse {
+  bool success = 1;
+  int32 deletedCount = 2;
+}
+
+// ========== Branch Archiving ==========
+
+// Request to archive a branch (hide it from selectors by default)
+message ArchiveBranchRequest {
+  string projectId = 1;
+  string branchName = 2;
+}
+
+message ArchiveBranchResponse {
+  bool success = 1;
+}
+
+// Request to unarchive a branch (make it visible again)
+message UnarchiveBranchRequest {
+  string projectId = 1;
+  string branchName = 2;
+}
+
+message UnarchiveBranchResponse {
+  bool success = 1;
+}
+
+// Request to get all archived branches for a project
+message GetArchivedBranchesRequest {
+  string projectId = 1;
+}
+
+message GetArchivedBranchesResponse {
+  repeated string branches = 1;
+}
+
+// ============================================================================
+// Bulk validation for policy management
+// ============================================================================
+
+// Request to validate that multiple projects belong to an organization
+message ValidateProjectsInOrganizationRequest {
+  repeated string projectIds = 1;
+  string organizationId = 2;
+}
+
+// Response for project validation - returns which projects are valid/invalid/not found
+message ValidateProjectsInOrganizationResponse {
+  bool valid = 1; // true if all projects are valid
+  repeated string notFoundIds = 2; // projects that don't exist
+  repeated string invalidIds = 3; // projects that exist but don't belong to the org
+}
+
+// ============================================================================
+// Project Security Context — CVSS 4.0 environmental scoring
+// ============================================================================
+
+enum ProjectEnvironmentEnum {
+  PROJECT_ENVIRONMENT_UNSPECIFIED = 0;
+  PROJECT_ENVIRONMENT_PRODUCTION = 1;
+  PROJECT_ENVIRONMENT_STAGING = 2;
+  PROJECT_ENVIRONMENT_DEVELOPMENT = 3;
+}
+
+enum InternetExposureEnum {
+  INTERNET_EXPOSURE_UNSPECIFIED = 0;
+  INTERNET_EXPOSURE_PUBLIC = 1;
+  INTERNET_EXPOSURE_INTERNAL = 2;
+  INTERNET_EXPOSURE_AIRGAPPED = 3;
+}
+
+enum DeploymentTypeEnum {
+  DEPLOYMENT_TYPE_UNSPECIFIED = 0;
+  DEPLOYMENT_TYPE_SAAS = 1;
+  DEPLOYMENT_TYPE_ONPREM = 2;
+  DEPLOYMENT_TYPE_EMBEDDED = 3;
+  DEPLOYMENT_TYPE_MOBILE = 4;
+}
+
+enum DataClassificationEnum {
+  DATA_CLASSIFICATION_UNSPECIFIED = 0;
+  DATA_CLASSIFICATION_PUBLIC = 1;
+  DATA_CLASSIFICATION_INTERNAL = 2;
+  DATA_CLASSIFICATION_CONFIDENTIAL = 3;
+  DATA_CLASSIFICATION_REGULATED = 4;
+}
+
+enum BusinessCriticalityEnum {
+  BUSINESS_CRITICALITY_UNSPECIFIED = 0;
+  BUSINESS_CRITICALITY_LOW = 1;
+  BUSINESS_CRITICALITY_MEDIUM = 2;
+  BUSINESS_CRITICALITY_HIGH = 3;
+  BUSINESS_CRITICALITY_MISSION_CRITICAL = 4;
+}
+
+enum UserBaseSizeEnum {
+  USER_BASE_SIZE_UNSPECIFIED = 0;
+  USER_BASE_SIZE_SMALL = 1;
+  USER_BASE_SIZE_MEDIUM = 2;
+  USER_BASE_SIZE_LARGE = 3;
+}
+
+enum NetworkSegmentationEnum {
+  NETWORK_SEGMENTATION_UNSPECIFIED = 0;
+  NETWORK_SEGMENTATION_FLAT = 1;
+  NETWORK_SEGMENTATION_SEGMENTED = 2;
+  NETWORK_SEGMENTATION_MICROSEGMENTED = 3;
+}
+
+message ProjectSecurityContext {
+  string id = 1;
+  string projectId = 2;
+  ProjectEnvironmentEnum environment = 3;
+  InternetExposureEnum internetExposure = 4;
+  DeploymentTypeEnum deploymentType = 5;
+  DataClassificationEnum dataClassification = 6;
+  bool handlesPii = 7;
+  bool handlesPaymentData = 8;
+  BusinessCriticalityEnum businessCriticality = 9;
+  UserBaseSizeEnum userBaseSize = 10;
+  repeated string complianceFrameworks = 11;
+  bool safetyCritical = 12;
+  NetworkSegmentationEnum networkSegmentation = 13;
+  bool isCustomized = 14;
+  string createdAt = 15;
+  string updatedAt = 16;
+}
+
+message GetProjectSecurityContextRequest {
+  string projectId = 1;
+}
+
+message GetProjectSecurityContextResponse {
+  ProjectSecurityContext securityContext = 1;
+}
+
+message UpdateProjectSecurityContextRequest {
+  string projectId = 1;
+  optional ProjectEnvironmentEnum environment = 2;
+  optional InternetExposureEnum internetExposure = 3;
+  optional DeploymentTypeEnum deploymentType = 4;
+  optional DataClassificationEnum dataClassification = 5;
+  optional bool handlesPii = 6;
+  optional bool handlesPaymentData = 7;
+  optional BusinessCriticalityEnum businessCriticality = 8;
+  optional UserBaseSizeEnum userBaseSize = 9;
+  repeated string complianceFrameworks = 10;
+  optional bool safetyCritical = 11;
+  optional NetworkSegmentationEnum networkSegmentation = 12;
+}
+
+// Security context input at project creation time.
+// Mirrors UpdateProjectSecurityContextRequest minus projectId (the project
+// does not yet exist when this is sent).
+message CreateProjectSecurityContextInput {
+  optional ProjectEnvironmentEnum environment = 1;
+  optional InternetExposureEnum internetExposure = 2;
+  optional DeploymentTypeEnum deploymentType = 3;
+  optional DataClassificationEnum dataClassification = 4;
+  optional bool handlesPii = 5;
+  optional bool handlesPaymentData = 6;
+  optional BusinessCriticalityEnum businessCriticality = 7;
+  optional UserBaseSizeEnum userBaseSize = 8;
+  repeated string complianceFrameworks = 9;
+  optional bool safetyCritical = 10;
+  optional NetworkSegmentationEnum networkSegmentation = 11;
+}
+
+message UpdateProjectSecurityContextResponse {
+  bool success = 1;
+  string message = 2;
+  ProjectSecurityContext securityContext = 3;
+}

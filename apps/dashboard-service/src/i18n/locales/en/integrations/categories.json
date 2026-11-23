@@ -1,0 +1,15 @@
+{
+  "integrations": {
+    "categories": {
+      "code_repository": "Code Repository",
+      "ide_plugins": "IDE Plugins",
+      "container_registries": "Container Registries",
+      "agent_ai": "Agents AI Integrations",
+      "continuous_integration": "Continuous Integration",
+      "issue_tracking": "Issue Tracking",
+      "notifications": "Notifications",
+      "compliance": "Compliance",
+      "container_orchestrators": "Container Orchestrators"
+    }
+  }
+}

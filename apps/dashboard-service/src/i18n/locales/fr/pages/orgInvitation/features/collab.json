@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "features": {
+        "collab": {
+          "title": "Collaboration simplifiée",
+          "description": "Donnez à votre équipe les moyens d'agir avec des informations sur les vulnérabilités en temps réel et des outils de remédiation automatisés dans les pipelines CI/CD."
+        }
+      }
+    }
+  }
+}

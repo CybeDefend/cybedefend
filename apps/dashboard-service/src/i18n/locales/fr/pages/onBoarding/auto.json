@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "onBoarding": {
+      "auto": {
+        "creating": "Création de votre espace…",
+        "hint": "Vous y serez conduit dès qu'il sera prêt.",
+        "fallbackName": "Mon organisation",
+        "failed": "Nous n'avons pas pu créer votre espace automatiquement. Vérifiez son nom et créez-le ci-dessous."
+      }
+    }
+  }
+}

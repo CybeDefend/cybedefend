@@ -1,0 +1,250 @@
+syntax = "proto3";
+
+package cybedefend.external_integrations;
+
+import "external-integrations/data_purge.proto";
+import "secret-rotation/secret_rotation.proto";
+import "external-integrations/github.proto";
+import "external-integrations/gitlab.proto";
+import "external-integrations/issue.proto";
+import "external-integrations/slack.proto";
+import "external-integrations/jira.proto";
+import "external-integrations/linear.proto";
+
+service ExternalIntegrationsSecretRotation {
+  rpc NotifyRotation(cybedefend.secretrotation.RotationRequest) returns (cybedefend.secretrotation.RotationResponse);
+}
+
+service GithubService {
+  rpc GetInstallationForOrga (GetInstallationForOrgaRequest) returns (GetInstallationForOrgaResponse);
+  rpc StartScanForLastCommit (StartScanRequest) returns (StartScanResponse);
+  rpc LinkProjectToRepository (LinkRepositoryRequest) returns (LinkRepositoryResponse);
+  rpc UnlinkProjectFromRepository (UnlinkRepositoryRequest) returns (LinkRepositoryResponse);
+  rpc DeleteProject (DeleteProjectRequest) returns (LinkRepositoryResponse);
+  rpc CallbackInstall (CallbackInstallRequest) returns (CallbackInstallResponse);
+  rpc GetRepositories (GetRepositoriesRequest) returns (GetRepositoriesResponse);
+  rpc GetBranches (GetBranchesRequest) returns (GetBranchesResponse);
+  // Paginated + searchable branch listing (provider-agnostic unified endpoint).
+  rpc GetRepositoryBranchesPaginated (GetRepositoryBranchesPaginatedRequest) returns (GetRepositoryBranchesPaginatedResponse);
+  rpc HandleWebhook (WebhookEventRequest) returns (WebhookResponse);
+  rpc GetProjectLinkStatus (GetProjectLinkStatusRequest) returns (GetProjectLinkStatusResponse);
+  // Batch version for checking link status of multiple projects at once
+  rpc GetBatchProjectLinkStatus (GetBatchProjectLinkStatusRequest) returns (GetBatchProjectLinkStatusResponse);
+  // Returns a valid installation access token for the GitHub repository linked to a given project.
+  // For internal service usage to perform authenticated git operations.
+  rpc GetAccessTokenForProject (GetGithubAccessTokenForProjectRequest) returns (GetGithubAccessTokenForProjectResponse);
+}
+
+service GitlabService {
+  rpc GetInstallationForOrga (GetGitlabInstallationForOrgaRequest) returns (GetGitlabInstallationForOrgaResponse);
+  rpc StartScanForLastCommit (StartGitlabScanRequest) returns (StartGitlabScanResponse);
+  rpc LinkProjectToRepository (LinkGitlabRepositoryRequest) returns (GitlabLinkRepositoryResponse);
+  rpc UnlinkProjectFromRepository (UnlinkGitlabRepositoryRequest) returns (GitlabLinkRepositoryResponse);
+  rpc DeleteProject (DeleteGitlabProjectRequest) returns (GitlabLinkRepositoryResponse);
+  rpc CallbackInstall (GitlabCallbackInstallRequest) returns (GitlabCallbackInstallResponse);
+  rpc GetRepositories (GetGitlabRepositoriesRequest) returns (GetGitlabRepositoriesResponse);
+  rpc GetBranches (GetGitlabBranchesRequest) returns (GetGitlabBranchesResponse);
+  rpc GetGitlabRepositoryBranchesPaginated (GetGitlabRepositoryBranchesPaginatedRequest) returns (GetGitlabRepositoryBranchesPaginatedResponse);
+  // Returns a valid OAuth access token for the GitLab repository linked to a given project.
+  // For internal agent usage to perform authenticated git operations and API calls.
+  rpc GetAccessTokenForProject (GetGitlabAccessTokenForProjectRequest) returns (GetGitlabAccessTokenForProjectResponse);
+  rpc HandleWebhook (GitlabWebhookEventRequest) returns (GitlabWebhookResponse);
+  rpc GetProjectLinkStatus (GetGitlabProjectLinkStatusRequest) returns (GetGitlabProjectLinkStatusResponse);
+  // Batch version for checking link status of multiple projects at once
+  rpc GetBatchProjectLinkStatus (GetBatchGitlabProjectLinkStatusRequest) returns (GetBatchGitlabProjectLinkStatusResponse);
+  // Removes the organization's GitLab connection (webhooks and token
+  // released on GitLab best effort, then the rows, cascading to repository
+  // links and branches). Idempotent.
+  rpc Disconnect (DisconnectGitlabRequest) returns (DisconnectGitlabResponse);
+}
+
+service SlackService {
+  rpc CallbackInstall (SlackCallbackInstallRequest) returns (SlackCallbackInstallResponse);
+  rpc GetInstallationForOrga (GetSlackInstallationForOrgaRequest) returns (GetSlackInstallationForOrgaResponse);
+  rpc Disconnect (DisconnectSlackRequest) returns (SlackGenericResponse);
+  rpc ListChannels (ListSlackChannelsRequest) returns (ListSlackChannelsResponse);
+  rpc SetProjectChannel (SetProjectSlackChannelRequest) returns (SetProjectSlackChannelResponse);
+  rpc RemoveProjectChannel (RemoveProjectSlackChannelRequest) returns (SlackGenericResponse);
+  rpc GetProjectChannel (GetProjectSlackChannelRequest) returns (GetProjectSlackChannelResponse);
+  // Internal RPC: called by analysis-reporting-service to send notifications via Slack
+  rpc SendNotification (SendSlackNotificationRequest) returns (SendSlackNotificationResponse);
+}
+
+service JiraService {
+  rpc GenerateOAuthUrl (GenerateJiraOAuthUrlRequest) returns (GenerateJiraOAuthUrlResponse);
+  rpc CallbackInstall (JiraCallbackInstallRequest) returns (JiraCallbackInstallResponse);
+  rpc GetInstallationForOrga (GetJiraInstallationForOrgaRequest) returns (GetJiraInstallationForOrgaResponse);
+  rpc Disconnect (DisconnectJiraRequest) returns (JiraGenericResponse);
+  rpc ListJiraProjects (ListJiraProjectsRequest) returns (ListJiraProjectsResponse);
+  rpc SetProjectJiraConfig (SetProjectJiraConfigRequest) returns (SetProjectJiraConfigResponse);
+  rpc GetProjectJiraConfig (GetProjectJiraConfigRequest) returns (GetProjectJiraConfigResponse);
+  rpc RemoveProjectJiraConfig (RemoveProjectJiraConfigRequest) returns (JiraGenericResponse);
+  rpc HandleWebhook (JiraWebhookEventRequest) returns (JiraWebhookResponse);
+}
+
+// Linear, organization-scoped like Jira (one workspace per
+// organization). Refusals are the closed list documented in linear.proto.
+service LinearService {
+  rpc GenerateOAuthUrl (GenerateLinearOAuthUrlRequest) returns (GenerateLinearOAuthUrlResponse);
+  rpc CallbackInstall (LinearCallbackInstallRequest) returns (LinearCallbackInstallResponse);
+  rpc GetInstallationForOrga (GetLinearInstallationForOrgaRequest) returns (GetLinearInstallationForOrgaResponse);
+  rpc Disconnect (DisconnectLinearRequest) returns (LinearGenericResponse);
+  rpc ListTeams (ListLinearTeamsRequest) returns (ListLinearTeamsResponse);
+  rpc GetTeamOptions (GetLinearTeamOptionsRequest) returns (GetLinearTeamOptionsResponse);
+  rpc SetProjectLinearConfig (SetProjectLinearConfigRequest) returns (LinearGenericResponse);
+  rpc GetProjectLinearConfig (GetProjectLinearConfigRequest) returns (GetProjectLinearConfigResponse);
+  rpc RemoveProjectLinearConfig (RemoveProjectLinearConfigRequest) returns (LinearGenericResponse);
+  rpc HandleWebhook (LinearWebhookEventRequest) returns (LinearWebhookResponse);
+}
+
+// ============================================================================
+// ProjectIntegrationStatusService
+// ============================================================================
+// Aggregates GitHub / GitLab / Jira / Linear link status into a single RPC so
+// callers (mainly global-management when assembling the project payload) do
+// not need to fan out to GithubService.GetProjectLinkStatus + GitlabService.*
+// + a Jira / Linear installation lookup. is_jira_linked / is_linear_linked
+// reflect whether the organization has a Jira / Linear installation — both are
+// org-scoped, so the value is identical for every project in that
+// organization.
+service ProjectIntegrationStatusService {
+  rpc GetProjectIntegrationLinkStatus (GetProjectIntegrationLinkStatusRequest)
+    returns (GetProjectIntegrationLinkStatusResponse);
+  rpc GetBatchProjectIntegrationLinkStatus (GetBatchProjectIntegrationLinkStatusRequest)
+    returns (GetBatchProjectIntegrationLinkStatusResponse);
+  // Resolves which CybeDefend project(s) are linked to a given git repository.
+  // Used by the CLI / MCP link flow to auto-detect the CybeDefend
+  // project from the local git remote (provider + owner/repo slug).
+  rpc ResolveProjectsByRepository (ResolveProjectsByRepositoryRequest)
+    returns (ResolveProjectsByRepositoryResponse);
+  // The branch a container scan is stored on. On a project linked to
+  // GitHub or GitLab, a requested branch must exist in that repository
+  // (INVALID_ARGUMENT otherwise, UNAVAILABLE when the provider cannot be
+  // asked); with none requested, the reference branch when it exists there,
+  // else the repository's default branch. On a project linked to no
+  // repository, the requested branch as is, else the reference branch, else
+  // "main".
+  rpc ResolveScanBranch (ResolveScanBranchRequest)
+    returns (ResolveScanBranchResponse);
+}
+
+message ResolveScanBranchRequest {
+  string project_id = 1;
+  // As the caller sent it; "" when absent.
+  string branch = 2;
+  // The project's reference branch, "" when none is set.
+  string reference_branch = 3;
+}
+
+message ResolveScanBranchResponse {
+  string branch = 1;
+}
+
+message GetProjectIntegrationLinkStatusRequest {
+  string project_id = 1;
+  // Required to resolve Jira installation (org-scoped).
+  string organization_id = 2;
+}
+
+message GetProjectIntegrationLinkStatusResponse {
+  bool is_github_linked = 1;
+  bool is_gitlab_linked = 2;
+  // True when the organization has any Jira installation.
+  bool is_jira_linked = 3;
+  // The linked repository's git default branch (GitHub preferred, then
+  // GitLab), or "" when the project has no git integration. Consumed by
+  // global-management to expose Project.default_branch so analysis-reporting can
+  // scope the cyberisk score to the real default branch.
+  string default_branch = 4;
+  // The linked repository, with the same GitHub-then-GitLab precedence as
+  // default_branch; absent when the project has no git integration. Lets the
+  // dashboard read that repository's branches without listing every
+  // repository of the organization to find it.
+  LinkedRepository linked_repository = 5;
+  // True when the organization has a Linear installation (org-scoped,
+  // same value for every project in the organization, like is_jira_linked).
+  bool is_linear_linked = 6;
+}
+
+message LinkedRepository {
+  // "github" or "gitlab".
+  string provider = 1;
+  // github_repositories.id / gitlab_repositories.id: the id the repository
+  // branches routes take.
+  string repository_id = 2;
+}
+
+message GetBatchProjectIntegrationLinkStatusRequest {
+  string organization_id = 1;
+  repeated string project_ids = 2;
+}
+
+message ProjectIntegrationLinkStatusEntry {
+  string project_id = 1;
+  bool is_github_linked = 2;
+  bool is_gitlab_linked = 3;
+  // The linked repository's git default branch, with the same GitHub-then-GitLab
+  // precedence as GetProjectIntegrationLinkStatusResponse.default_branch; "" when
+  // none is linked. Lets the project list count each project on its default branch.
+  string default_branch = 4;
+}
+
+message GetBatchProjectIntegrationLinkStatusResponse {
+  repeated ProjectIntegrationLinkStatusEntry statuses = 1;
+  // Jira is org-scoped: same value for every project in the batch.
+  bool is_jira_linked = 2;
+  // Linear is org-scoped too: same value for every project in the batch.
+  bool is_linear_linked = 3;
+}
+
+message ResolveProjectsByRepositoryRequest {
+  string provider = 1; // "github" | "gitlab"
+  string slug = 2;     // "owner/repo" or "group/sub/proj"
+  string host = 3;     // optional, "" when absent
+}
+
+message RepositoryProjectMatch {
+  string project_id = 1;
+  string organization_id = 2;
+  string provider = 3;
+  string repository_full_name = 4;
+}
+
+message ResolveProjectsByRepositoryResponse {
+  repeated RepositoryProjectMatch matches = 1;
+}
+
+// ============================================================================
+// IntegrationsAdminService
+// ============================================================================
+// Org-wide count and delete RPCs used by billing-service plan transitions.
+// Supported integration types ("type" values):
+//   - "jira"
+//   - "linear"               ("linear" -> LinearIntegration, the Linear workspace installation)
+//   - "github_issues"        (GitHub OAuth integration that powers issues)
+//   - "gitlab_issues"        (GitLab OAuth integration that powers issues)
+//   - "slack"
+//   - "container_registry"   (aggregate across all registry token tables)
+service IntegrationsAdminService {
+  rpc CountIntegrationsForOrg(CountIntegrationsForOrgRequest) returns (CountIntegrationsForOrgResponse);
+  rpc DeleteIntegrationsForOrg(DeleteIntegrationsForOrgRequest) returns (DeleteIntegrationsForOrgResponse);
+}
+
+message CountIntegrationsForOrgRequest {
+  string organization_id = 1;
+  string type = 2;
+}
+
+message CountIntegrationsForOrgResponse {
+  uint32 count = 1;
+}
+
+message DeleteIntegrationsForOrgRequest {
+  string organization_id = 1;
+  repeated string types = 2;
+}
+
+message DeleteIntegrationsForOrgResponse {
+  // Map of integration type -> rows deleted for that type.
+  map<string, uint32> deleted_counts = 1;
+}

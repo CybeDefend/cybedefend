@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+message UserExistenceRequest {
+  string email = 1;
+}
+
+message UserExistenceResponse {
+  bool exists = 1;
+  string userId = 2;
+}
+
+message UserGetByEmailRequest {
+  string email = 1;
+}
+
+message UserInformationsResponse {
+  string id = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string email = 4;
+  string picture = 5;
+  optional string role = 6;
+}
+
+message UserGetByIdRequest {
+  string userId = 1;
+}
+
+// Several users at once, for the gateway's pages that name the user behind
+// each event (activity timelines, sessions): one query instead of one
+// GetById per person. At most 200 distinct ids per call (INVALID_ARGUMENT
+// above); blank and repeated ids are ignored.
+message UserGetByIdsRequest {
+  repeated string userIds = 1;
+}
+
+// What those pages show of a user, and nothing more: no role, no settings.
+message UserBrief {
+  string id = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string email = 4;
+  string picture = 5;
+}
+
+// The users found, in no particular order. An id the platform does not know
+// is simply absent, where GetById would answer NOT_FOUND.
+message UserGetByIdsResponse {
+  repeated UserBrief users = 1;
+}
+
+message UpdateUserProfileRequest {
+  optional bool notification = 1;
+  optional bool isOnboardingCompleted = 2;
+  string userId = 3;
+  string onboardingProgress = 4;
+  // Onboarding persona: solo_dev | tech_lead | security_pro | unspecified
+  optional string onboarding_persona = 5;
+  // Onboarding usage: vibecoding | team_security | compliance | unspecified
+  optional string onboarding_usage = 6;
+}
+
+message UserUpdateResponse {
+  string message = 1;
+  string userId = 2;
+}
+
+message UserCreateRequest {
+  string email = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string picture = 4;
+}
+
+message UserCreateResponse {
+  string message = 1;
+  string userId = 2;
+}
+
+message UserDeleteRequest {
+  string userId = 1;
+}
+
+message UserDeleteResponse {
+  string message = 1;
+}
+
+message Team {
+  string id = 1;
+  string name = 2;
+  string myRole = 3;
+}
+
+message Organization {
+  string id = 1;
+  string name = 2;
+  string country = 3;
+  string industry = 4;
+  bool isActive = 5;
+  repeated Team myTeams = 6;
+  string myRole = 7;
+  // Products of the organisation, as the entitlement provider reports them.
+  // Always both products; status "inactive" when never activated.
+  repeated OrganizationProductState products = 9;
+  // The products the current user holds in this organisation (per-member
+  // products), "appsec" | "vibedefend". Read it with myProductsKnown: empty
+  // with myProductsKnown true is « no product », never otherwise.
+  repeated string myProducts = 10;
+  // true when global-management computed myProducts; false/absent (an older
+  // global-management) means unknown.
+  bool myProductsKnown = 11;
+  // The organisation's per-member products switch (organization.member_products).
+  // Absent (an older global-management or gateway) means unknown. Off, every
+  // member holds both products and takes an AppSec seat.
+  optional bool memberProducts = 12;
+  reserved 8;
+  reserved "subscription";
+}
+
+message OrganizationProductState {
+  string product = 1; // "appsec" | "vibedefend"
+  string status = 2;  // "active" | "deactivated" | "inactive"
+  reserved 3;
+  reserved "trial_used";
+}
+
+message GetUserProfileRequest {
+  string userId = 1;
+}
+
+// Flat per-project entry surfaced alongside the user profile so the
+// dashboard can populate Redux once at session start and re-use the
+// list everywhere (global-chat scope, project pickers, etc.) without
+// re-querying global-management on each page change.
+//
+// Names are display strings — every authorisation decision is still
+// re-checked against Permify at the boundary that needs it.
+message MyAccessibleProject {
+  string projectId = 1;
+  string projectName = 2;
+  string organizationId = 3;
+  string organizationName = 4;
+}
+
+message GetUserProfileResponse {
+  string id = 1;
+  string firstName = 2;
+  string email = 3;
+  string lastName = 4;
+  string picture = 5;
+  bool notification = 6;
+  bool isOnboardingCompleted = 7;
+  string createdAt = 8;
+  string updatedAt = 9;
+  repeated Organization myOrganizations = 10;
+  string onboardingProgress = 11;
+  // Cross-organisation listing of the projects the user can see by
+  // membership (creator/admin on the project's org OR member of one of
+  // the owning teams). Added to GetUserProfileResponse rather than as
+  // its own RPC so the dashboard already gets it on the existing
+  // ``GET /profile`` round-trip — no extra request per page.
+  // At most 500 projects, ordered by organization name then project name: a
+  // user who can see more gets the first 500.
+  repeated MyAccessibleProject myAccessibleProjects = 12;
+  // Onboarding persona: solo_dev | tech_lead | security_pro | unspecified
+  string onboarding_persona = 13;
+  // Onboarding usage: vibecoding | team_security | compliance | unspecified
+  string onboarding_usage = 14;
+}
+
+// ─── Personal Access Tokens (Logto PAT) ───────────────────
+
+message PersonalAccessToken {
+  string name = 1;
+  string value = 2; // masked except on creation
+  int64 createdAt = 3; // epoch ms
+  int64 expiresAt = 4; // epoch ms, 0 = never
+}
+
+message ListPersonalAccessTokensRequest {
+  string userId = 1;
+}
+
+// Usage indicator returned alongside the token list so the dashboard can
+// disable the "Create" button at the cap without a second round-trip.
+message PersonalAccessTokenUsage {
+  uint32 current = 1; // active PAT count for the user
+  uint32 max     = 2; // hard cap (10 — see MAX_PATS_PER_USER server-side)
+}
+
+message ListPersonalAccessTokensResponse {
+  repeated PersonalAccessToken tokens = 1;
+  // SECURITY: the `tokens[*].value` field is intentionally always
+  // empty on this list response — the secret is only returned by
+  // CreatePersonalAccessTokenResponse, exactly once.
+  PersonalAccessTokenUsage usage = 2;
+}
+
+message CreatePersonalAccessTokenRequest {
+  string userId = 1;
+  string name = 2;
+  int64 expiresAt = 3; // epoch ms, 0 = never
+}
+
+message CreatePersonalAccessTokenResponse {
+  string name = 1;
+  string value = 2; // full token value (pat_...) — only returned once
+  int64 createdAt = 3;
+  int64 expiresAt = 4;
+}
+
+message DeletePersonalAccessTokenRequest {
+  string userId = 1;
+  string tokenName = 2;
+}
+
+message DeletePersonalAccessTokenResponse {
+  string message = 1;
+}
+
+message UpdatePersonalAccessTokenNameRequest {
+  string userId = 1;
+  string currentName = 2;
+  string newName = 3;
+}
+
+message UpdatePersonalAccessTokenNameResponse {
+  string name = 1;
+  string value = 2;
+  int64 createdAt = 3;
+  int64 expiresAt = 4;
+}
+
+// Org-wide PAT count + bulk delete (closed extension). PATs are stored in Logto
+// per-user, so the count/delete iterates org members and aggregates.
+message CountPatsForOrgRequest {
+  string organizationId = 1;
+}
+
+message CountPatsForOrgResponse {
+  uint32 count = 1;
+}
+
+message DeleteAllPatsForOrgRequest {
+  string organizationId = 1;
+}
+
+message DeleteAllPatsForOrgResponse {
+  uint32 deletedCount = 1;
+}

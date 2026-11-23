@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "tabs": {
+        "users": "Utilisateurs",
+        "projects": "Projets"
+      }
+    }
+  }
+}

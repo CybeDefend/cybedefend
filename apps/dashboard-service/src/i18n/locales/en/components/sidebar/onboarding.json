@@ -1,0 +1,10 @@
+{
+  "components": {
+    "sidebar": {
+      "onboarding": {
+        "title": "Here you can navigate through the application and change your organization.",
+        "subtitle": "There is also a dark mode toggle !"
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "components": {
+    "modal": {
+      "manageUser": {
+        "title": "Gérer l'Utilisateur",
+        "deleteUser": "Supprimer l'Utilisateur",
+        "selectRole": "Sélectionnez un rôle",
+        "validRoleError": "Veuillez sélectionner un rôle valide dans la liste avant de mettre à jour.",
+        "confirmDeleteUser": "Êtes-vous sûr de vouloir supprimer cet utilisateur de l'organisation ?"
+      }
+    }
+  }
+}

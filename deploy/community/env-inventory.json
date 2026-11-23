@@ -1,0 +1,1474 @@
+[
+  {
+    "variable": "ALLOWED_SCAN_IPS",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "internal",
+    "doc": "Addresses allowed to call the scan endpoints of external-integrations; the compose sets the internal subnet."
+  },
+  {
+    "variable": "API_KEY_RATE_LIMIT",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Requests per minute per API key (default 600)."
+  },
+  {
+    "variable": "APP_ENV",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Environment name shown by the gateway version endpoint (default development)."
+  },
+  {
+    "variable": "APP_PUBLIC_URL",
+    "services": [
+      "gateway",
+      "external-integrations"
+    ],
+    "class": "internal",
+    "doc": "Public address of the instance (CYBEDEFEND_PUBLIC_URL)."
+  },
+  {
+    "variable": "ASYNC_TASK_TTL_MS",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Lifetime of an asynchronous report task record."
+  },
+  {
+    "variable": "AUTH_AUDIENCE",
+    "services": [
+      "gateway"
+    ],
+    "class": "cloud-only",
+    "doc": "Audience override of the cloud token verifier; the Community Edition verifies its own tokens."
+  },
+  {
+    "variable": "AUTH_COOKIE_INSECURE_LOCALHOST",
+    "services": [
+      "gateway"
+    ],
+    "class": "optional",
+    "doc": "true drops the Secure flag of the refresh cookie; accepted only when APP_PUBLIC_URL is on localhost, 127.0.0.1 or host.docker.internal."
+  },
+  {
+    "variable": "AUTH_COOKIE_PATH",
+    "services": [
+      "gateway"
+    ],
+    "class": "internal",
+    "doc": "Path of the refresh cookie: /api/auth, since the bundled nginx serves the gateway under /api."
+  },
+  {
+    "variable": "AUTH_ISSUER",
+    "services": [
+      "gateway"
+    ],
+    "class": "cloud-only",
+    "doc": "Issuer override of the cloud token verifier."
+  },
+  {
+    "variable": "AUTH_JWKS_URL",
+    "services": [
+      "gateway"
+    ],
+    "class": "cloud-only",
+    "doc": "Key set override of the cloud token verifier."
+  },
+  {
+    "variable": "AUTH_RESET_REQUESTER_HMAC_KEY",
+    "services": [
+      "global-management"
+    ],
+    "class": "derived",
+    "doc": "Keys the HMAC that stores a password-reset requester's address. Derived from CYBEDEFEND_SECRET_KEY (HKDF, hex) by the init-secrets job; read from <KEY>_FILE."
+  },
+  {
+    "variable": "AUTH_SIGNING_KEY_ENCRYPTION_KEY",
+    "services": [
+      "global-management"
+    ],
+    "class": "derived",
+    "doc": "Encrypts the sign-in signing keys. Derived from CYBEDEFEND_SECRET_KEY (HKDF, base64) by the init-secrets job; read from <KEY>_FILE."
+  },
+  {
+    "variable": "AUTH_SIGNUP_MODE",
+    "services": [
+      "global-management"
+    ],
+    "class": "default",
+    "doc": "invite_only (default): an administrator invites each user; open: anyone who reaches the sign-up page."
+  },
+  {
+    "variable": "AWS_REGION",
+    "services": [
+      "file-management"
+    ],
+    "class": "internal",
+    "doc": "Region of the S3 storage (us-east-1)."
+  },
+  {
+    "variable": "CHAT_RATE_LIMIT",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Requests per minute of the chat routes (default 15)."
+  },
+  {
+    "variable": "CONTAINER_REGISTRY_ENCRYPTION_KEY",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "derived",
+    "doc": "Encrypts container registry and integration credentials. Derived from CYBEDEFEND_SECRET_KEY (HKDF, hex) by the init-secrets job; read from <KEY>_FILE."
+  },
+  {
+    "variable": "CONTAINER_SCANNER_NAMESPACE",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "CONTAINER_SCAN_EGRESS_POLICY",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "CRON_TASK",
+    "services": [
+      "analysis-reporting",
+      "external-integrations"
+    ],
+    "class": "internal",
+    "doc": "Which job a one-shot cron process runs; set per job by the scheduler (runtime/schedules/*.json)."
+  },
+  {
+    "variable": "CYBEDEFEND_API_RESOURCE",
+    "services": [
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "The gateway the MCP tools call with the caller's bearer: http://gateway:3000."
+  },
+  {
+    "variable": "CYBEDEFEND_EDITION",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "community in every container. Must be a real environment variable of the container: a value written only in a service .env file is ignored."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "true accepts a kubeconfig that does not verify the cluster's API server (insecure-skip-tls-verify: true, or an http:// server), with a warning at every start. For a test cluster only; unset, such a kubeconfig is refused."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "Name of a Secret in the scan namespace that the scanner pods pull their images with; unset, the pods pull without credentials."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_IMAGE_REGISTRY",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "Registry and path the scanner images (cybedefend-scanners/<adapter>) are pulled from, for a mirror; unset, the public CybeDefend registry."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_IMAGE_TAG",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "Tag of the scanner images; unset, the version this release is compatible with."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_KEEP_PODS",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "true keeps each finished scanner pod and its Secret in the cluster for debugging, until the scan's data is deleted."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_KUBECONFIG_FILE",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "Path, inside security-scanning, of a mounted kubeconfig file for the cluster that runs the scans; set with CYBEDEFEND_SCANNER_NAMESPACE, or neither for import-only."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_MAX_CONCURRENT",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "How many scans run on the cluster at once (1 to 50); the others wait in the queue."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_NAMESPACE",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "Kubernetes namespace the scanner pods and their Secrets are created in; set with CYBEDEFEND_SCANNER_KUBECONFIG_FILE, or neither for import-only."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_RESOURCES",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "JSON that overrides the CPU and memory requests and limits of a scanner's pods, per adapter (opengrep, zizmor, gitleaks, trivy-config, trivy-fs)."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_TRIVY_DB_REPOSITORY",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "OCI repository of your mirror of Trivy's vulnerability database (host[:port]/path[:tag], several separated by commas), handed to the SCA scanner pod (trivy-fs) as TRIVY_DB_REPOSITORY; unset, Trivy downloads its public database."
+  },
+  {
+    "variable": "CYBEDEFEND_SCANNER_TRIVY_JAVA_DB_REPOSITORY",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "OCI repository of your mirror of Trivy's Java database, handed to the SCA scanner pod (trivy-fs) as TRIVY_JAVA_DB_REPOSITORY; unset, Trivy downloads its public database when the project holds Java archives."
+  },
+  {
+    "variable": "CYBEDEFEND_SECRET_KEY",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "required",
+    "doc": "Master key of the instance (at least 32 random bytes, base64 or hex). Every encryption key is derived from it: never change it, back it up. The compose file mounts it, from the file secret-key (CYBEDEFEND_SECRET_KEY_PATH), into the init-secrets job only, as a secret (CYBEDEFEND_SECRET_KEY_FILE); that job hands each service the derived keys it reads as <KEY>_FILE. The variable itself, in .env, is the earlier way, still read with a warning."
+  },
+  {
+    "variable": "CYBEDEFEND_SETUP_TOKEN",
+    "services": [
+      "global-management"
+    ],
+    "class": "required",
+    "doc": "One-time token the first-run setup page asks for before it creates the first administrator (at least 16 characters)."
+  },
+  {
+    "variable": "CYBEDEFEND_TRUSTED_PROXIES",
+    "services": [
+      "dashboard"
+    ],
+    "class": "optional",
+    "doc": "The TLS proxies in front of the web interface and the MCP server (passed to it as TRUST_PROXY_CIDR) (comma-separated IPv4/IPv6 addresses or CIDRs, empty by default). The front's nginx trusts the X-Forwarded-For they append and hands the gateway that single client address; without it every user behind a proxy shares the proxy's address in the per-address rate limits. An invalid value stops the dashboard container at start."
+  },
+  {
+    "variable": "DB_DATABASE",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "The service database on the single PostgreSQL, created by postgres/init.sql."
+  },
+  {
+    "variable": "DB_HOST",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "postgres, the single PostgreSQL 18 of the stack."
+  },
+  {
+    "variable": "DB_PASSWORD",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "Password of the service's own role, read from DB_PASSWORD_FILE (derived from CYBEDEFEND_SECRET_KEY by the init-secrets job; never the superuser's password, derived as well)."
+  },
+  {
+    "variable": "DB_PORT",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "5432."
+  },
+  {
+    "variable": "DB_SSL_CA_CERT",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Read only when DB_SSL_ENABLED=true; the bundled PostgreSQL is reached without TLS."
+  },
+  {
+    "variable": "DB_SSL_CLIENT_CERT",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations"
+    ],
+    "class": "unused",
+    "doc": "Read only when DB_SSL_ENABLED=true."
+  },
+  {
+    "variable": "DB_SSL_CLIENT_KEY",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations"
+    ],
+    "class": "unused",
+    "doc": "Read only when DB_SSL_ENABLED=true."
+  },
+  {
+    "variable": "DB_SSL_ENABLED",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "false: the bundled PostgreSQL is reached on the internal network only."
+  },
+  {
+    "variable": "DB_TYPE",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations"
+    ],
+    "class": "internal",
+    "doc": "postgres. The Community Edition refuses mysql (and the default, mysql) with DB_TYPE_NOT_SUPPORTED."
+  },
+  {
+    "variable": "DB_USERNAME",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "The service's own role, named after its database and owner of that database only (set up by the postgres-roles job)."
+  },
+  {
+    "variable": "DIFF_SCAN_MAX_FILES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a diff scan: number of files."
+  },
+  {
+    "variable": "DIFF_SCAN_MAX_FILE_BYTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a diff scan: bytes per file."
+  },
+  {
+    "variable": "DIFF_SCAN_MAX_TOTAL_BYTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a diff scan: bytes in total."
+  },
+  {
+    "variable": "EMAIL_FROM",
+    "services": [
+      "global-management"
+    ],
+    "class": "optional",
+    "doc": "Sender of every e-mail. Required when EMAIL_HOST is set; no default in the Community Edition."
+  },
+  {
+    "variable": "EMAIL_HOST",
+    "services": [
+      "global-management"
+    ],
+    "class": "optional",
+    "doc": "SMTP server. Unset: the instance sends no e-mail."
+  },
+  {
+    "variable": "EMAIL_PASSWORD",
+    "services": [
+      "global-management"
+    ],
+    "class": "optional",
+    "doc": "SMTP password."
+  },
+  {
+    "variable": "EMAIL_PORT",
+    "services": [
+      "global-management"
+    ],
+    "class": "optional",
+    "doc": "SMTP port."
+  },
+  {
+    "variable": "EMAIL_SECURE",
+    "services": [
+      "global-management"
+    ],
+    "class": "optional",
+    "doc": "true for implicit TLS (port 465), false for STARTTLS (default true)."
+  },
+  {
+    "variable": "EMAIL_USER",
+    "services": [
+      "global-management"
+    ],
+    "class": "optional",
+    "doc": "SMTP user name."
+  },
+  {
+    "variable": "ENDOFLIFE_API_BASE_URL",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "cloud-only",
+    "doc": "Live OS end-of-life lookup; the Community Edition downloads no advisory feed."
+  },
+  {
+    "variable": "FILE_SCAN_MIN_FILE_AGE_SECONDS",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Age an uploaded object must reach before the file cron handles it."
+  },
+  {
+    "variable": "FILE_SCAN_MIN_FILE_SIZE_BYTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Smallest upload the file cron accepts."
+  },
+  {
+    "variable": "FILE_SCAN_PROCESSING_TIMEOUT_MINUTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Minutes before a file still processing is failed."
+  },
+  {
+    "variable": "FILE_SCAN_UPLOAD_TIMEOUT_MINUTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Minutes a scan waits for its archive before it fails with code 98 (default 30)."
+  },
+  {
+    "variable": "FINGERPRINT_BACKFILL_PAGE_SIZE",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "unused",
+    "doc": "Read only by the one-off script src/scripts/backfill-fingerprints.ts."
+  },
+  {
+    "variable": "FRONTEND_URL",
+    "services": [
+      "gateway",
+      "global-management",
+      "analysis-reporting",
+      "external-integrations",
+      "security-scanning",
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "Public address of the web interface (CYBEDEFEND_PUBLIC_URL), used in links and redirects; the MCP server requires it in production."
+  },
+  {
+    "variable": "FULL_SCAN_MAX_ARCHIVE_BYTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a full scan: compressed archive bytes (default 5 GiB). What is kept for the scanner pods is also held to the 2 GiB they download."
+  },
+  {
+    "variable": "FULL_SCAN_MAX_ENTRIES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a full scan: entries in the archive (default 200000, also the scanner pods' limit)."
+  },
+  {
+    "variable": "FULL_SCAN_MAX_ENTRY_BYTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a full scan: uncompressed bytes of any one entry (default 1 GiB)."
+  },
+  {
+    "variable": "FULL_SCAN_MAX_UNCOMPRESSED_BYTES",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Upload limit of a full scan: uncompressed bytes in total (default 5 GiB). What is kept for the scanner pods is also held to the 3 GiB they unpack."
+  },
+  {
+    "variable": "GATEWAY_URL",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "internal",
+    "doc": "Public address of the API (CYBEDEFEND_PUBLIC_URL + /api), used in webhook URLs."
+  },
+  {
+    "variable": "GCP_BUCKET_NAME",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud only; unused by the Community Edition."
+  },
+  {
+    "variable": "GCP_PROJECT_ID",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud only; unused by the Community Edition."
+  },
+  {
+    "variable": "GCR_NAME",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "GITHUB_APP_ID",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "GitHub App id. Unset: the GitHub integration is off."
+  },
+  {
+    "variable": "GITHUB_CLIENT_ID",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "OAuth client id of the GitHub App."
+  },
+  {
+    "variable": "GITHUB_CLIENT_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "OAuth client secret of the GitHub App."
+  },
+  {
+    "variable": "GITHUB_PRIVATE_KEY",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Private key (PEM) of the GitHub App, or GITHUB_PRIVATE_KEY_FILE with the path of a mounted file (github/private-key.pem, mounted at /run/cybedefend-github/private-key.pem)."
+  },
+  {
+    "variable": "GITHUB_WEBHOOK_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Secret GitHub signs the App webhooks with."
+  },
+  {
+    "variable": "GITLAB_API_URL",
+    "services": [
+      "gateway",
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "API of the GitLab instance (default https://gitlab.com/api/v4); the gateway builds the authorize URL on it."
+  },
+  {
+    "variable": "GITLAB_APPLICATION_ID",
+    "services": [
+      "gateway",
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Application id of the GitLab OAuth application. Unset: the GitLab integration is off."
+  },
+  {
+    "variable": "GITLAB_APPLICATION_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Secret of the GitLab OAuth application."
+  },
+  {
+    "variable": "GITLAB_ENCRYPTION_KEY",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "derived",
+    "doc": "Encrypts GitLab tokens. Derived from CYBEDEFEND_SECRET_KEY (HKDF, hex) by the init-secrets job; read from <KEY>_FILE."
+  },
+  {
+    "variable": "GITLAB_WEBHOOK_LEGACY_TOKEN_ACCEPTED",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "cloud-only",
+    "doc": "Accepts the OAuth application secret as the token of a GitLab hook registered before each hook got its own token, until the token migration task has run (default false). A Community installation registers every hook with its own token."
+  },
+  {
+    "variable": "GIT_COMMIT_HASH",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Commit the image was built from, set by the image build; shown by the version endpoint."
+  },
+  {
+    "variable": "GKE_CLUSTER",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "GKE_ZONE",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "GRPC_URL",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Address the gRPC server listens on (0.0.0.0:50051; policy-management 0.0.0.0:50060); the MCP server 0.0.0.0:50061."
+  },
+  {
+    "variable": "GRPC_URL_AGENT_SERVICE",
+    "services": [
+      "security-scanning",
+      "analysis-reporting"
+    ],
+    "class": "cloud-only",
+    "doc": "AI analysis service; not part of the Community Edition."
+  },
+  {
+    "variable": "GRPC_URL_ANALYSIS_REPORTING_SERVICE",
+    "services": [
+      "gateway",
+      "global-management",
+      "analysis-reporting"
+    ],
+    "class": "internal",
+    "doc": "analysis-reporting:50051 on the internal network."
+  },
+  {
+    "variable": "GRPC_URL_BILLING_SERVICE",
+    "services": [
+      "global-management",
+      "analysis-reporting",
+      "external-integrations"
+    ],
+    "class": "cloud-only",
+    "doc": "Billing service; not part of the Community Edition."
+  },
+  {
+    "variable": "GRPC_URL_EXTERNAL_INTEGRATIONS_SERVICE",
+    "services": [
+      "gateway",
+      "global-management"
+    ],
+    "class": "internal",
+    "doc": "external-integrations:50051 on the internal network."
+  },
+  {
+    "variable": "GRPC_URL_FILE_MANAGEMENT_SERVICE",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning"
+    ],
+    "class": "internal",
+    "doc": "file-management:50051 on the internal network."
+  },
+  {
+    "variable": "GRPC_URL_GLOBAL_MANAGEMENT_SERVICE",
+    "services": [
+      "gateway",
+      "security-scanning",
+      "analysis-reporting"
+    ],
+    "class": "internal",
+    "doc": "global-management:50051 on the internal network."
+  },
+  {
+    "variable": "GRPC_URL_POLICY_MANAGEMENT_SERVICE",
+    "services": [
+      "global-management"
+    ],
+    "class": "internal",
+    "doc": "policy-management:50060 on the internal network."
+  },
+  {
+    "variable": "GRPC_URL_SECURITY_SCANNING_SERVICE",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations"
+    ],
+    "class": "internal",
+    "doc": "security-scanning:50051 on the internal network."
+  },
+  {
+    "variable": "IP_RATE_LIMIT",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Requests per minute per client address (default 100)."
+  },
+  {
+    "variable": "JIRA_CLIENT_ID",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "OAuth client id of the Atlassian app. Unset: the Jira integration is off."
+  },
+  {
+    "variable": "JIRA_CLIENT_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "OAuth client secret of the Atlassian app."
+  },
+  {
+    "variable": "JWT_SECRET",
+    "services": [
+      "gateway"
+    ],
+    "class": "unused",
+    "doc": "Registered by the gateway JWT modules, which sign and verify nothing with it."
+  },
+  {
+    "variable": "KUBERNETES_ENV",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "KUBERNETES_LOCAL_CONTEXT",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "LINEAR_CLIENT_ID",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "OAuth client id of the Linear application. Unset: the Linear integration is off."
+  },
+  {
+    "variable": "LINEAR_CLIENT_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "OAuth client secret of the Linear application."
+  },
+  {
+    "variable": "LINEAR_WEBHOOK_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Signing secret of the Linear application's webhook; unset, every Linear webhook delivery is refused."
+  },
+  {
+    "variable": "LIVE_DB_TYPE",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations"
+    ],
+    "class": "unused",
+    "doc": "Engine of the live database specs (test harness only)."
+  },
+  {
+    "variable": "MAX_CONCURRENT_SCANS_PLATFORM",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "default",
+    "doc": "Scans running at once on the instance (default 25)."
+  },
+  {
+    "variable": "METRICS_PORT",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "default",
+    "doc": "Port of the internal queue metrics endpoint of the workers (default 9095)."
+  },
+  {
+    "variable": "NODE_ENV",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "production."
+  },
+  {
+    "variable": "OTEL_APP_ENV",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Environment name attached to exported traces and logs; unused while OTEL_DISABLED=true."
+  },
+  {
+    "variable": "OTEL_DISABLED",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "true: no trace, metric or log is exported. Set false with OTEL_EXPORTER_OTLP_ENDPOINT, in an override file, to send them to your own OTLP backend."
+  },
+  {
+    "variable": "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Your own OTLP endpoint; required only when OTEL_DISABLED=false."
+  },
+  {
+    "variable": "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "OTLP endpoint of the logs; unused while OTEL_DISABLED=true."
+  },
+  {
+    "variable": "OTEL_INGEST_TOKEN",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud only; unused by the Community Edition."
+  },
+  {
+    "variable": "OVERVIEW_BLOCK_CACHE_TTL_SECONDS",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Cache lifetime of the overview blocks."
+  },
+  {
+    "variable": "PERMIFY_ENDPOINT",
+    "services": [
+      "gateway",
+      "global-management"
+    ],
+    "class": "internal",
+    "doc": "permify:3478, the bundled Permify (gRPC)."
+  },
+  {
+    "variable": "PERMIFY_PRESHARED_KEY",
+    "services": [
+      "gateway",
+      "global-management"
+    ],
+    "class": "internal",
+    "doc": "The key every Permify call carries, read from PERMIFY_PRESHARED_KEY_FILE (derived from CYBEDEFEND_SECRET_KEY by the init-secrets job, written to the secrets volume of each Permify client only)."
+  },
+  {
+    "variable": "PERMIFY_PRESHARED_KEY_FILE",
+    "services": [
+      "gateway",
+      "global-management"
+    ],
+    "class": "internal",
+    "doc": "/run/cybedefend-secrets/permify-preshared-key, the Permify key the init-secrets job writes to the client's own secrets volume."
+  },
+  {
+    "variable": "PERMIFY_RPC_DEADLINE_MS",
+    "services": [
+      "gateway",
+      "global-management"
+    ],
+    "class": "default",
+    "doc": "Deadline of each Permify call (default 2 s)."
+  },
+  {
+    "variable": "PERMIFY_SCHEMA_VERSION",
+    "services": [
+      "gateway",
+      "global-management"
+    ],
+    "class": "internal",
+    "doc": "Version of the authorization schema, read from PERMIFY_SCHEMA_VERSION_FILE, written by the permify-schema job."
+  },
+  {
+    "variable": "POLICY_DB_DATABASE",
+    "services": [
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Read only by the TypeORM command-line data source; the service reads DB_DATABASE."
+  },
+  {
+    "variable": "POLICY_DB_HOST",
+    "services": [
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Read only by the TypeORM command-line data source; the service reads DB_HOST."
+  },
+  {
+    "variable": "POLICY_DB_PASSWORD",
+    "services": [
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Read only by the TypeORM command-line data source; the service reads DB_PASSWORD."
+  },
+  {
+    "variable": "POLICY_DB_PORT",
+    "services": [
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Read only by the TypeORM command-line data source; the service reads DB_PORT."
+  },
+  {
+    "variable": "POLICY_DB_SSL_ENABLED",
+    "services": [
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Declared by the schema; the service reads DB_SSL_ENABLED."
+  },
+  {
+    "variable": "POLICY_DB_USERNAME",
+    "services": [
+      "policy-management"
+    ],
+    "class": "unused",
+    "doc": "Read only by the TypeORM command-line data source; the service reads DB_USERNAME."
+  },
+  {
+    "variable": "PORT",
+    "services": [
+      "gateway",
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Port the gateway listens on (default 3000); the MCP server listens on 3010 in its container."
+  },
+  {
+    "variable": "PRIORITY_THRESHOLD_CRITICAL_URGENT",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Priority score threshold of critical-urgent."
+  },
+  {
+    "variable": "PRIORITY_THRESHOLD_LOW",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Priority score threshold of low."
+  },
+  {
+    "variable": "PRIORITY_THRESHOLD_NORMAL",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Priority score threshold of normal."
+  },
+  {
+    "variable": "PRIORITY_THRESHOLD_URGENT",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Priority score threshold of urgent."
+  },
+  {
+    "variable": "PRIORITY_WEIGHT_CONTEXT",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Weight of the project context in the priority score."
+  },
+  {
+    "variable": "PRIORITY_WEIGHT_CVSS4",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Weight of CVSS 4 in the priority score."
+  },
+  {
+    "variable": "PRIORITY_WEIGHT_EPSS",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Weight of EPSS in the priority score (no EPSS data in the Community Edition)."
+  },
+  {
+    "variable": "PRIORITY_WEIGHT_EXPLOIT",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Weight of a known exploit in the priority score."
+  },
+  {
+    "variable": "PROTO_BASE_PATH",
+    "services": [
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "file-management",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Directory of the .proto files the services load (the gateway reads it too); unset, a production start reads /app/protos, the image layout, which the compose images use."
+  },
+  {
+    "variable": "PUBLIC_URL",
+    "services": [
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "The MCP server's public address (CYBEDEFEND_MCP_PUBLIC_URL), named in its OAuth metadata."
+  },
+  {
+    "variable": "PUPPETEER_EXECUTABLE_PATH",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "Chromium used to render PDF reports, set by the image."
+  },
+  {
+    "variable": "QUEUE_METRICS_TOKEN",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "default",
+    "doc": "Bearer token of the internal queue metrics endpoint. Unset: the endpoint answers on the internal network without one."
+  },
+  {
+    "variable": "RATE_LIMIT_MAX",
+    "services": [
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Requests per window and client address on the MCP server (default 120)."
+  },
+  {
+    "variable": "RATE_LIMIT_REDIS_TIMEOUT_MS",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Timeout of a rate-limit Redis call."
+  },
+  {
+    "variable": "RATE_LIMIT_WINDOW",
+    "services": [
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Window of RATE_LIMIT_MAX on the MCP server (default 1 minute)."
+  },
+  {
+    "variable": "REALTIME_REDIS_URL",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "redis://redis:6379, the realtime event bus."
+  },
+  {
+    "variable": "REDIS_HOST",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "redis, the bundled Redis (queues)."
+  },
+  {
+    "variable": "REDIS_PASSWORD",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "default",
+    "doc": "Password Redis requires. Set by the services' start hook (runtime/redis-auth.cjs) from the value derived from CYBEDEFEND_SECRET_KEY, which it also puts into REDIS_URL and REALTIME_REDIS_URL; the operator never sets it."
+  },
+  {
+    "variable": "REDIS_PORT",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "policy-management"
+    ],
+    "class": "internal",
+    "doc": "6379."
+  },
+  {
+    "variable": "REDIS_URL",
+    "services": [
+      "gateway",
+      "global-management",
+      "security-scanning",
+      "analysis-reporting",
+      "external-integrations",
+      "policy-management",
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "redis://redis:6379, the bundled Redis (the MCP server keeps its sessions there)."
+  },
+  {
+    "variable": "REPO_SCAN_CONCURRENCY",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "default",
+    "doc": "Repository scans external-integrations starts at once."
+  },
+  {
+    "variable": "S3_ACCESS_KEY_ID",
+    "services": [
+      "file-management"
+    ],
+    "class": "internal",
+    "doc": "cybedefend, the access key of the bundled storage."
+  },
+  {
+    "variable": "S3_BUCKET_NAME",
+    "services": [
+      "security-scanning",
+      "file-management"
+    ],
+    "class": "internal",
+    "doc": "cybedefend, the bucket the storage-init job creates."
+  },
+  {
+    "variable": "S3_ENDPOINT",
+    "services": [
+      "security-scanning",
+      "file-management"
+    ],
+    "class": "internal",
+    "doc": "http://storage:9000, the bundled S3 storage on the internal network."
+  },
+  {
+    "variable": "S3_PUBLIC_ENDPOINT",
+    "services": [
+      "file-management",
+      "security-scanning"
+    ],
+    "class": "internal",
+    "doc": "The address browsers reach the storage on (CYBEDEFEND_STORAGE_PUBLIC_URL): download and upload URLs are signed for it."
+  },
+  {
+    "variable": "S3_SECRET_ACCESS_KEY",
+    "services": [
+      "file-management"
+    ],
+    "class": "internal",
+    "doc": "Secret key of the bundled storage, read from S3_SECRET_ACCESS_KEY_FILE (derived from CYBEDEFEND_SECRET_KEY by the init-secrets job into file-management's own secrets volume)."
+  },
+  {
+    "variable": "SCAN_IMAGE_REGISTRY",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Cloud image-scanner setting; the Community Edition's cluster scans use CYBEDEFEND_SCANNER_*."
+  },
+  {
+    "variable": "SCAN_METADATA_ENCRYPTION_KEY",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "derived",
+    "doc": "Encrypts registry credentials attached to a scan. Derived from CYBEDEFEND_SECRET_KEY (HKDF, hex) by the init-secrets job; read from <KEY>_FILE."
+  },
+  {
+    "variable": "SCAN_NOTIFICATION_DEFER_TTL_SEC",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "default",
+    "doc": "How long an end-of-scan notification waits for the last results."
+  },
+  {
+    "variable": "SECRET_ENCRYPTION_KEY",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "derived",
+    "doc": "Encrypts the values of secret findings. Derived from CYBEDEFEND_SECRET_KEY (HKDF, base64) by the init-secrets job; read from <KEY>_FILE."
+  },
+  {
+    "variable": "SERVICE_AUTH_ALLOW_SCANNER_CALLS",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "file-management",
+      "gateway",
+      "global-management",
+      "policy-management",
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "Lets the scanner pods call their few methods without a service token, where a deployment routes them to the gRPC servers. The Community Edition never does: its scan pods report to the gateway over HTTP."
+  },
+  {
+    "variable": "SERVICE_AUTH_MODE",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "file-management",
+      "gateway",
+      "global-management",
+      "policy-management",
+      "security-scanning"
+    ],
+    "class": "cloud-only",
+    "doc": "verify (log a call without a valid service token and serve it) or enforce (refuse it). The Community Edition always enforces and ignores the variable."
+  },
+  {
+    "variable": "SLACK_CLIENT_ID",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Client id of the Slack app. Unset: the Slack integration is off."
+  },
+  {
+    "variable": "SLACK_CLIENT_SECRET",
+    "services": [
+      "external-integrations"
+    ],
+    "class": "optional",
+    "doc": "Client secret of the Slack app."
+  },
+  {
+    "variable": "STORAGE_PROVIDER",
+    "services": [
+      "security-scanning",
+      "file-management"
+    ],
+    "class": "internal",
+    "doc": "s3."
+  },
+  {
+    "variable": "SYSTEM_RATE_LIMIT",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Requests per minute of internal callers (default 18000)."
+  },
+  {
+    "variable": "TRUSTED_PROXY_CIDRS",
+    "services": [
+      "gateway"
+    ],
+    "class": "internal",
+    "doc": "The internal subnet (CYBEDEFEND_SUBNET): only the bundled nginx may forward a client address."
+  },
+  {
+    "variable": "TRUST_PROXY_CIDR",
+    "services": [
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "CYBEDEFEND_TRUSTED_PROXIES, empty by default: the proxies whose X-Forwarded-For the MCP server trusts; empty, none, and its rate limit keys on the connecting address."
+  },
+  {
+    "variable": "USER_RATE_LIMIT",
+    "services": [
+      "gateway"
+    ],
+    "class": "default",
+    "doc": "Requests per minute per user (default 300)."
+  }
+]

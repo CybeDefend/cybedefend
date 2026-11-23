@@ -1,0 +1,20 @@
+{
+  "components": {
+    "slackIntegration": {
+      "title": "Intégration Slack",
+      "connected": "Connecté",
+      "connectedSince": "Connecté depuis le {{date}}",
+      "connectedDescription": "Slack est connecté à votre organisation. Vous pouvez configurer les canaux de notification dans les paramètres de notification de chaque projet.",
+      "notConnected": "Slack n'est pas connecté",
+      "notConnectedDescription": "Connectez votre espace de travail Slack pour recevoir des alertes de vulnérabilités et des rapports dans des canaux Slack.",
+      "connectButton": "Connecter à Slack",
+      "disconnect": "Déconnecter",
+      "disconnectConfirmTitle": "Déconnecter Slack",
+      "disconnectConfirmMessage": "Êtes-vous sûr de vouloir déconnecter Slack ? Toutes les associations de canaux de projets seront supprimées et les notifications Slack s'arrêteront.",
+      "disconnectSuccess": "Slack déconnecté avec succès",
+      "disconnectError": "Échec de la déconnexion de Slack",
+      "installSuccess": "Slack connecté avec succès",
+      "installError": "Échec de la connexion à Slack"
+    }
+  }
+}

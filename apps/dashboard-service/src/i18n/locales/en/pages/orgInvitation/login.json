@@ -1,0 +1,17 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "login": {
+        "heading": "Sign in to accept",
+        "description": "Choose a provider to sign in. You will come back to this invitation automatically.",
+        "continueWithGoogle": "Continue with Google",
+        "continueWithMicrosoft": "Continue with Microsoft",
+        "continueWithGithub": "Continue with GitHub",
+        "continueWithGitlab": "Continue with GitLab",
+        "connecting": "Connecting...",
+        "backHome": "Return to Homepage",
+        "providerError": "Unable to start the sign-in flow. Please try again."
+      }
+    }
+  }
+}

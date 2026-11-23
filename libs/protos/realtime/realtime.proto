@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package cybedefend.realtime;
+
+// Envelope for all dashboard realtime events.
+// Payloads are IDs-only; clients refetch details via authorized REST.
+message EventEnvelope {
+  string event_id = 1;             // ULID
+  EventType type = 2;
+  string timestamp = 3;            // RFC3339
+  EventScope scope = 4;
+  string traceparent = 5;          // W3C trace context
+  oneof payload {
+    ScanStatusChanged scan_status_changed = 10;
+    VulnerabilityBatchAppended vulnerability_batch_appended = 11;
+    ProjectStateChanged project_state_changed = 12;
+    MembershipChanged membership_changed = 13;
+    PolicyEvaluationCompleted policy_evaluation_completed = 14;
+    StatsAggregateChanged stats_aggregate_changed = 16;
+    ReportReady report_ready = 20;
+    AggregatedReportReady aggregated_report_ready = 21;
+    VibedefendUsageUpdated vibedefend_usage_updated = 22;
+  }
+  reserved 15, 17, 18, 19;
+  reserved "zero_day_detected", "trial_updated", "subscription_changed", "usage_updated";
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  SCAN_STATUS_CHANGED = 1;
+  VULNERABILITY_BATCH_APPENDED = 2;
+  PROJECT_STATE_CHANGED = 3;
+  MEMBERSHIP_CHANGED = 4;
+  POLICY_EVALUATION_COMPLETED = 5;
+  STATS_AGGREGATE_CHANGED = 7;
+  // Async report-generation completion. The payload is the
+  // ReportReady oneof member (tag 20); the dashboard refetches a fresh
+  // signed URL by report_id.
+  REPORT_READY = 11;
+  // Async aggregated (org/team/batch) report-generation completion. The
+  // payload is the AggregatedReportReady oneof member (tag 21); the
+  // dashboard refetches a fresh signed URL via GetGeneratedAggregatedReport.
+  AGGREGATED_REPORT_READY = 12;
+  // Reserved for a product that is not part of this edition (wire
+  // compatibility). Payload: VibedefendUsageUpdated (tag 22).
+  VIBEDEFEND_USAGE_UPDATED = 13;
+  reserved 6, 8, 9, 10;
+  reserved "ZERO_DAY_DETECTED", "TRIAL_UPDATED", "SUBSCRIPTION_CHANGED", "USAGE_UPDATED";
+}
+
+message EventScope {
+  string organization_id = 1;
+  optional string team_id = 2;
+  optional string project_id = 3;
+  optional string scan_id = 4;
+  optional string user_id = 5;     // the user an event is about (membership)
+}
+
+message ScanStatusChanged {
+  string scan_id = 1;
+  string previous_state = 2;
+  string current_state = 3;        // queued|running|completed|completed_degraded|failed
+  optional int32 error_code = 4;
+  optional string error_category = 5;
+  optional string error_message = 6;
+}
+message VulnerabilityBatchAppended {
+  string scan_id = 1;
+  string scanner_type = 2;         // sca|sast|iac|container|secrets
+  uint32 added_count = 3;
+  repeated string sample_vulnerability_ids = 4;
+}
+message ProjectStateChanged {
+  string project_id = 1;
+  string change_type = 2;          // created|updated|deleted|archived
+}
+message MembershipChanged {
+  string user_id = 1;
+  string change_type = 2;          // added|removed|role_changed
+  string scope_type = 3;           // organization|team|project
+  string scope_id = 4;
+}
+message PolicyEvaluationCompleted {
+  string scan_id = 1;
+  string project_id = 2;
+  uint32 violations_count = 3;
+}
+message StatsAggregateChanged {
+  string aggregate_key = 1;        // dashboard|project|team|org
+  string scope_id = 2;
+}
+// Reserved for a product that is not part of this edition (wire
+// compatibility). IDs and enums only (envelope contract).
+message VibedefendUsageUpdated {
+  string organization_id = 1;
+  string unit = 2;
+  string threshold = 3;
+}
+// Async report generation finished (worker side). IDs-only per the
+// envelope contract: the dashboard refetches a fresh signed URL by report_id.
+message ReportReady {
+  string report_id = 1;
+  string project_id = 2;
+  string report_kind = 3;          // owasp|cwe|eu_ai_act|scanner_type
+  string status = 4;               // ready|failed
+}
+
+// Aggregated (org/team/batch) report generation finished, worker side.
+// IDs-only: the dashboard refetches a fresh signed URL via the authorized
+// poll endpoint, keyed by report_id.
+message AggregatedReportReady {
+  string report_id = 1;
+  string scope_type = 2;  // "organization" | "team" | "batch"
+  string scope_id = 3;    // organizationId | teamId | (batch: organizationId)
+  string report_type = 4; // "owasp" | "cwe" | "license" | "ai-act"
+  string status = 5;      // "ready" | "failed"
+}

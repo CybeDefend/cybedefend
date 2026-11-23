@@ -1,0 +1,32 @@
+{
+  "components": {
+    "branchSelector": {
+      "placeholder": "Select a branch",
+      "allBranches": "All branches",
+      "defaultBadge": "default",
+      "scanBadge": "scan",
+      "protectedBadge": "🔒",
+      "noBranches": "No branches available",
+      "label": "Branch",
+      "filterByBranch": "Filter by branch",
+      "selectBranch": "Please select a branch",
+      "searchPlaceholder": "Search branches...",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "showArchived": "Show archived ({{count}})",
+      "hideArchived": "Hide archived ({{count}})",
+      "showArchivedUncounted": "Show archived",
+      "hideArchivedUncounted": "Hide archived",
+      "archivedSection": "Archived",
+      "archivedBadge": "archived",
+      "noResults": "No branches found",
+      "searching": "Searching…",
+      "loadingMore": "Loading more…",
+      "loading": "Loading branches…",
+      "selectAll": "Select all",
+      "defaultBranch": "Default branch",
+      "branchesCount_one": "{{count}} branch",
+      "branchesCount_other": "{{count}} branches"
+    }
+  }
+}

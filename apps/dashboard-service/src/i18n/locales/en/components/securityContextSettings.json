@@ -1,0 +1,126 @@
+{
+  "components": {
+    "securityContextSettings": {
+      "title": "Security Context",
+      "description": "Configure your project's security context for CVSS 4.0 environmental scoring and vulnerability prioritization.",
+      "sections": {
+        "runtimeEnvironment": {
+          "title": "Runtime Environment",
+          "description": "Configure the deployment environment and network topology of your project."
+        },
+        "dataSensitivity": {
+          "title": "Data Sensitivity",
+          "description": "Describe the type and sensitivity of data processed by this project."
+        },
+        "businessContext": {
+          "title": "Business Context",
+          "description": "Define the business criticality and user impact of this project."
+        },
+        "compliance": {
+          "title": "Compliance",
+          "description": "Select applicable regulatory and compliance frameworks."
+        }
+      },
+      "fields": {
+        "environment": {
+          "label": "Environment",
+          "tooltip": "The deployment environment of your project. Production environments are scored more conservatively.",
+          "placeholder": "Select environment",
+          "options": {
+            "production": "Production",
+            "staging": "Staging",
+            "development": "Development"
+          }
+        },
+        "internetExposure": {
+          "label": "Internet Exposure",
+          "tooltip": "How accessible your project is from the internet. Affects the Modified Attack Vector (MAV) in CVSS 4.0.",
+          "placeholder": "Select exposure level",
+          "options": {
+            "public": "Public",
+            "internal": "Internal",
+            "airgapped": "Air-gapped"
+          }
+        },
+        "deploymentType": {
+          "label": "Deployment Type",
+          "tooltip": "How your project is deployed.",
+          "placeholder": "Select deployment type",
+          "options": {
+            "saas": "SaaS",
+            "onprem": "On-Premise",
+            "embedded": "Embedded",
+            "mobile": "Mobile"
+          }
+        },
+        "dataClassification": {
+          "label": "Data Classification",
+          "tooltip": "The sensitivity level of data handled by this project. Affects Confidentiality Requirement (CR) in CVSS 4.0.",
+          "placeholder": "Select classification",
+          "options": {
+            "public": "Public",
+            "internal": "Internal",
+            "confidential": "Confidential",
+            "regulated": "Regulated"
+          }
+        },
+        "handlesPii": {
+          "label": "Handles PII",
+          "tooltip": "Whether this project processes personally identifiable information (names, emails, addresses, etc.)."
+        },
+        "handlesPaymentData": {
+          "label": "Handles Payment Data",
+          "tooltip": "Whether this project processes payment card data or financial information."
+        },
+        "businessCriticality": {
+          "label": "Business Criticality",
+          "tooltip": "How critical this project is to your business operations. Affects Integrity and Availability Requirements (IR/AR).",
+          "placeholder": "Select criticality",
+          "options": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "mission_critical": "Mission Critical"
+          }
+        },
+        "userBaseSize": {
+          "label": "User Base Size",
+          "tooltip": "The approximate number of users of this project. Affects Availability Requirement (AR).",
+          "placeholder": "Select user base size",
+          "options": {
+            "small": "Small (< 1K)",
+            "medium": "Medium (1K to 100K)",
+            "large": "Large (> 100K)"
+          }
+        },
+        "complianceFrameworks": {
+          "label": "Compliance Frameworks",
+          "tooltip": "Regulatory and compliance frameworks this project must adhere to.",
+          "placeholder": "Select frameworks"
+        },
+        "safetyCritical": {
+          "label": "Safety-Critical System",
+          "tooltip": "Whether this system could cause physical harm or safety risks if compromised (e.g. ICS/SCADA, medical devices, automotive). Enables CVSS 4.0 Safety scoring."
+        },
+        "networkSegmentation": {
+          "label": "Network Segmentation",
+          "tooltip": "The level of network segmentation around this project. Refines the Modified Attack Vector (MAV).",
+          "placeholder": "Select segmentation level",
+          "options": {
+            "flat": "Flat Network",
+            "segmented": "Segmented",
+            "microsegmented": "Microsegmented"
+          }
+        }
+      },
+      "saveSuccess": "Security context updated successfully",
+      "saveError": "Failed to update security context",
+      "banner": {
+        "title": "Security context not configured",
+        "description": "Configure your project's security context to enable accurate CVSS environmental scoring and better vulnerability prioritization.",
+        "configure": "Configure",
+        "later": "Later"
+      }
+    }
+  }
+}

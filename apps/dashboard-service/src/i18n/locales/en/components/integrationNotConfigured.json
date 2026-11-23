@@ -1,0 +1,11 @@
+{
+  "components": {
+    "integrationNotConfigured": {
+      "github": "GitHub is not configured on this instance. An administrator can set up a GitHub App for it.",
+      "gitlab": "GitLab is not configured on this instance. An administrator can set up a GitLab application for it.",
+      "jira": "Jira is not configured on this instance. An administrator can set up a Jira OAuth app for it.",
+      "linear": "Linear is not configured on this instance. An administrator can set up a Linear OAuth app for it.",
+      "guideLink": "See the Optional integrations section of the self-hosting guide."
+    }
+  }
+}

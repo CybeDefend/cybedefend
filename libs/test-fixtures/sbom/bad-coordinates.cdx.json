@@ -1,0 +1,19 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "components": [
+    {
+      "type": "library",
+      "name": "lodash",
+      "version": "4.17.20",
+      "purl": "pkg:npm/lodash@4.17.20"
+    },
+    {
+      "type": "library",
+      "name": "evil",
+      "version": "1.0.0; rm -rf /",
+      "purl": "pkg:npm/evil@1.0.0%3B%20rm%20-rf%20%2F"
+    }
+  ]
+}

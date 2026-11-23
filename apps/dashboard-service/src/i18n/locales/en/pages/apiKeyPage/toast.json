@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "apiKeyPage": {
+      "toast": {
+        "createSuccess": "API Key created successfully",
+        "createError": "Failed to create API Key",
+        "copiedSuccess": "Key copied to clipboard!",
+        "copiedError": "Failed to copy key to clipboard!",
+        "regenerateSuccess": "API Key regenerated successfully",
+        "regenerateError": "Failed to regenerate API Key",
+        "deleteSuccess": "API Key deleted successfully",
+        "deleteError": "Failed to delete API Key"
+      }
+    }
+  }
+}

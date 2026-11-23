@@ -1,0 +1,5 @@
+# The shell scripts the containers run (deploy/community/postgres/roles.sh,
+# the nginx entrypoint script) are mounted from the clone into Linux
+# containers: they keep LF line endings on every checkout, Windows included,
+# or sh stops at the first carriage return.
+*.sh text eol=lf

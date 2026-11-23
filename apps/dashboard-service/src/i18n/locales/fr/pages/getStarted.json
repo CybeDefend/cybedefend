@@ -1,0 +1,60 @@
+{
+  "pages": {
+    "getStarted": {
+      "title": "De quoi bien démarrer",
+      "description": "Vos premiers pas avec CybeDefend Open Source : importer des résultats, lancer des analyses, connecter vos outils.",
+      "opensInNewTab": "(s'ouvre dans un nouvel onglet)",
+      "cloud": {
+        "title": "Oubliez l'exploitation : essayez CybeDefend Cloud gratuitement",
+        "recommended": "Recommandé",
+        "body": "Plus simple et plus complet : des scanners gérés pour vous, une analyse IA qui réduit les faux positifs, AutoFix, et rien à héberger.",
+        "cta": "Essayer CybeDefend Cloud",
+        "editions": "Comparer les éditions"
+      },
+      "privateCloud": {
+        "sectionTitle": "Besoin de conformité ou d'un déploiement sur mesure ?",
+        "title": "Private cloud",
+        "body": "Une instance dédiée, avec une isolation complète des données, votre propre domaine et un SLA.",
+        "cta": "Nous contacter"
+      },
+      "quickStart": {
+        "title": "Démarrage rapide",
+        "importSarif": {
+          "title": "Importer vos premiers résultats SARIF",
+          "body": "Ouvrez un projet, puis « Importer des résultats » sur sa page de résultats.",
+          "cta": "Ouvrir les projets"
+        },
+        "kubernetes": {
+          "title": "Connecter un cluster Kubernetes",
+          "body": "Lancez les scanners sur votre propre cluster au lieu d'importer des résultats.",
+          "cta": "Lire le guide"
+        },
+        "ciImport": {
+          "title": "Importer des résultats depuis la CI",
+          "body": "Envoyez du SARIF depuis n'importe quelle CI à l'API d'import, avec un jeton d'accès personnel.",
+          "cta": "Lire le guide"
+        },
+        "githubAction": {
+          "title": "Utiliser la GitHub Action",
+          "body": "Analysez chaque push dans GitHub Actions et importez les résultats ici.",
+          "cta": "Ouvrir l'Action"
+        },
+        "repositories": {
+          "title": "Connecter GitHub ou GitLab",
+          "body": "Liez vos dépôts pour en créer des projets.",
+          "cta": "Ouvrir les intégrations"
+        },
+        "mcp": {
+          "title": "Utiliser le serveur MCP",
+          "body": "Connectez votre agent de code au serveur MCP de cette instance et donnez-lui les résultats.",
+          "cta": "Lire le guide"
+        },
+        "policy": {
+          "title": "Créer une politique de sécurité",
+          "body": "Fixez les règles que vos projets doivent respecter, et voyez ce qui les enfreint.",
+          "cta": "Créer une politique"
+        }
+      }
+    }
+  }
+}

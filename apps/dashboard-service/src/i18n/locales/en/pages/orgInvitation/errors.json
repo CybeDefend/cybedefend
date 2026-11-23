@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "errors": {
+        "invalidLink": "Invalid invitation link. Please request a new invitation.",
+        "invalidDate": "Invalid invitation date. Please request a new invitation.",
+        "expired": "This invitation has expired. Please request a new one.",
+        "invalidFormat": "Invalid invitation format. Please request a new invitation."
+      }
+    }
+  }
+}

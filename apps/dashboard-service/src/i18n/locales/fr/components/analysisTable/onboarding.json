@@ -1,0 +1,15 @@
+{
+  "components": {
+    "analysisTable": {
+      "onboarding": {
+        "title": "Ici, vous pouvez voir tous vos projets.",
+        "subtitle": "Vous pouvez créer un nouveau projet, examiner le niveau de risque et accéder à l'analyse.",
+        "createProject": {
+          "title": "Créez votre premier projet",
+          "subtitle": "Importez un dépôt depuis GitHub ou GitLab, ou ajoutez-en un manuellement, puis lancez votre première analyse de sécurité.",
+          "clickHint": "👆 Cliquez sur « Créer un projet » pour continuer"
+        }
+      }
+    }
+  }
+}

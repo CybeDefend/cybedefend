@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "notFound": {
+      "actions": {
+        "returnHome": {
+          "title": "Retour à l’accueil",
+          "description": "Retourner au tableau de bord principal",
+          "button": "Aller à l’accueil"
+        }
+      }
+    }
+  }
+}

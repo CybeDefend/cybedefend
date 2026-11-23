@@ -1,0 +1,56 @@
+{
+    "components": {
+        "issuesSettings": {
+            "githubIssues": "GitHub Issues",
+            "githubIssuesDescription": "Automatically create GitHub Issues for vulnerabilities detected during scans. Issues will be created in your linked repository.",
+            "gitlabIssues": "GitLab Issues",
+            "gitlabIssuesDescription": "Automatically create GitLab Issues for vulnerabilities detected during scans. Issues will be created in your linked repository.",
+            "issueGroupingMode": "Issue Grouping Mode",
+            "issueGroupingModeDescription": "Choose how vulnerabilities should be grouped when creating issues.",
+            "modeOptions": {
+                "perVulnerabilityType": "One issue per vulnerability type",
+                "perVulnerabilityTypeDesc": "Group all occurrences of the same vulnerability type into a single issue. Recommended for most projects.",
+                "perVulnerability": "One issue per vulnerability detection",
+                "perVulnerabilityDesc": "Create a separate issue for each individual vulnerability detection. Best for SCA dependencies.",
+                "perFile": "One issue per affected file",
+                "perFileDesc": "Group all vulnerabilities in the same file into a single issue."
+            },
+            "jiraIssues": "Jira Tickets",
+            "jiraIssuesDescription": "Create Jira tickets for vulnerabilities detected during scans. Select which Jira project should receive the tickets.",
+            "jiraProjectLabel": "Target Jira project",
+            "jiraProjectPlaceholder": "Select a Jira project...",
+            "jiraBranchLabel": "Allowed branches for Jira tickets",
+            "jiraBranchPlaceholder": "All branches (default)",
+            "jiraBranchInfo": "Jira tickets will only be created for scans on {{count}} branch(es): {{branches}}",
+            "jiraAutoCreate": "Auto-create tickets after scans",
+            "jiraAutoCreateDescription": "When enabled, Jira tickets will be automatically created for new vulnerabilities detected during scans.",
+            "jiraConfigured": "Configured: tickets will be created in {{project}}",
+            "linearIssues": "Linear Tickets",
+            "linearIssuesDescription": "Create Linear tickets for vulnerabilities detected during scans. Select the Linear team that should receive them.",
+            "linearTeamLabel": "Target Linear team",
+            "linearTeamPlaceholder": "Select a Linear team...",
+            "linearNoTeam": "No team (stop creating Linear tickets)",
+            "linearProjectLabel": "Linear project (optional)",
+            "linearProjectPlaceholder": "No Linear project",
+            "linearNoProject": "No Linear project",
+            "linearLabelsLabel": "Labels for Linear tickets",
+            "linearLabelsPlaceholder": "No labels",
+            "linearBranchLabel": "Allowed branches for Linear tickets",
+            "linearBranchPlaceholder": "All branches (default)",
+            "linearBranchInfo": "Linear tickets will only be created for scans on {{count}} branch(es): {{branches}}",
+            "linearAutoCreate": "Auto-create tickets after scans",
+            "linearAutoCreateDescription": "When enabled, Linear tickets will be automatically created for new vulnerabilities detected during scans.",
+            "linearConfigured": "Configured: tickets will be created in {{team}}",
+            "linearConfiguredInProject": "Configured: tickets will be created in {{team}}, in the project {{project}}",
+            "infoTitle": "How it works",
+            "infoDescription": "When enabled, issues will be automatically created after each scan. Issues are also automatically closed when vulnerabilities are resolved.",
+            "branchSelection": {
+                "title": "Branch Selection",
+                "description": "Select on which branches issues should be created. Leave empty to create issues on all branches.",
+                "label": "Target branches",
+                "placeholder": "All branches (default)",
+                "info": "Issues will be created only on {{count}} selected branch(es)"
+            }
+        }
+    }
+}

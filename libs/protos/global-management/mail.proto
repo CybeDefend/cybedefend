@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+message SeverityBreakdown { int32 critical = 1; int32 high = 2; int32 medium = 3; int32 low = 4; }
+message TypeBreakdown { int32 sast = 1; int32 iac = 2; int32 sca = 3; int32 container = 4; }
+message VulnerabilityItem { string id = 1; string title = 2; string severity = 3; string type = 4; string state = 5; string cwe = 6; string package_name = 7; string version = 8; string created_at = 9; string cvss = 10; string branch = 11; }
+
+message PriorityBreakdown { int32 critical_urgent = 1; int32 urgent = 2; int32 normal = 3; int32 low = 4; int32 very_low = 5; }
+message MttrMetrics { double mttr_hours_overall = 1; double mttr_hours_critical = 2; double mttr_hours_high = 3; double mttr_hours_medium = 4; double mttr_hours_low = 5; }
+message TopCriticalPerType { repeated VulnerabilityItem sast = 1; repeated VulnerabilityItem iac = 2; repeated VulnerabilityItem sca = 3; repeated VulnerabilityItem container = 4; }
+
+message WeeklyProjectReportRequest { string project_id = 1; string project_name = 2; SeverityBreakdown severities = 3; TypeBreakdown types = 4; repeated VulnerabilityItem top_recent = 5; int32 total = 6; int32 new_last7d = 7; int32 resolved_last7d = 8; TopCriticalPerType top_critical_per_type = 9; PriorityBreakdown priorities = 10; MttrMetrics mttr = 11; }
+message MonthlyProjectReportRequest { string project_id = 1; string project_name = 2; SeverityBreakdown severities = 3; TypeBreakdown types = 4; repeated VulnerabilityItem top_recent = 5; int32 total = 6; int32 new_last30d = 7; int32 resolved_last30d = 8; TopCriticalPerType top_critical_per_type = 9; PriorityBreakdown priorities = 10; MttrMetrics mttr = 11; }
+message DailyCriticalAlertsRequest { string project_id = 1; string project_name = 2; repeated VulnerabilityItem criticals = 3; int32 count = 4; TopCriticalPerType top_critical_per_type = 5; }
+message MailAckResponse { bool success = 1; string message = 2; }
+
+message ScanCompleteReportRequest {
+  string project_id = 1;
+  string project_name = 2;
+  string scan_id = 3;
+  SeverityBreakdown severities = 4;
+  TypeBreakdown types = 5;
+  int32 total = 6;
+  repeated VulnerabilityItem top_vulnerabilities = 7;
+  string scanner_type = 8; // e.g. "sast", "sca", "iac", "container"
+  string branch = 9;
+}
+
+// --- Consolidated (multi-project) reports ---------------------------------
+// One request per organization carrying every report-enabled project in that
+// org. global-management fans these out to each member who (a) can access the
+// project and (b) has the user-level "Email Notifications" toggle enabled,
+// sending ONE email per (user, organization) with that user's subset.
+
+message WeeklyReportProjectItem {
+  string project_id = 1;
+  string project_name = 2;
+  SeverityBreakdown severities = 3;
+  TypeBreakdown types = 4;
+  repeated VulnerabilityItem top_recent = 5;
+  int32 total = 6;
+  int32 new_last7d = 7;
+  int32 resolved_last7d = 8;
+}
+message ConsolidatedWeeklyReportRequest {
+  string organization_id = 1;
+  repeated WeeklyReportProjectItem projects = 2;
+}
+
+message MonthlyReportProjectItem {
+  string project_id = 1;
+  string project_name = 2;
+  SeverityBreakdown severities = 3;
+  TypeBreakdown types = 4;
+  repeated VulnerabilityItem top_recent = 5;
+  int32 total = 6;
+  int32 new_last30d = 7;
+  int32 resolved_last30d = 8;
+}
+message ConsolidatedMonthlyReportRequest {
+  string organization_id = 1;
+  repeated MonthlyReportProjectItem projects = 2;
+}
+
+message DailyCriticalReportProjectItem {
+  string project_id = 1;
+  string project_name = 2;
+  repeated VulnerabilityItem criticals = 3;
+  int32 count = 4;
+}
+message ConsolidatedDailyCriticalReportRequest {
+  string organization_id = 1;
+  repeated DailyCriticalReportProjectItem projects = 2;
+}
+
+service MailReportService {
+  rpc SendWeeklyProjectReport(WeeklyProjectReportRequest) returns (MailAckResponse);
+  rpc SendMonthlyProjectReport(MonthlyProjectReportRequest) returns (MailAckResponse);
+  rpc SendDailyCriticalAlerts(DailyCriticalAlertsRequest) returns (MailAckResponse);
+  rpc SendScanCompleteReport(ScanCompleteReportRequest) returns (MailAckResponse);
+  rpc SendConsolidatedWeeklyReport(ConsolidatedWeeklyReportRequest) returns (MailAckResponse);
+  rpc SendConsolidatedMonthlyReport(ConsolidatedMonthlyReportRequest) returns (MailAckResponse);
+  rpc SendConsolidatedDailyCriticalReport(ConsolidatedDailyCriticalReportRequest) returns (MailAckResponse);
+}

@@ -1,0 +1,23 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "title": "Source Code & CI/CD (SAST) Configuration",
+        "iacTitle": "IAC Configuration",
+        "cicdTitle": "CI/CD Configuration",
+        "generalConfiguration": "Configuration",
+        "updateConfiguration": "Update Configuration",
+        "agentCategories": {
+          "title": "Cybe analysis Category",
+          "description": "Select the types of vulnerabilities to scan for",
+          "counter": "{{count}} selected",
+          "selectAll": "Select All",
+          "unselectAll": "Unselect All",
+          "validationRequired": "Please select at least one agent category",
+          "sastSectionTitle": "Source Code (SAST)",
+          "cicdSectionTitle": "CI/CD"
+        }
+      }
+    }
+  }
+}

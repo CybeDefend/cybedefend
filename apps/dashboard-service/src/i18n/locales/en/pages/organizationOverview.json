@@ -1,0 +1,225 @@
+{
+  "pages": {
+    "organizationOverview": {
+      "title": "Organization Overview",
+      "subtitle": "Security statistics across all projects and teams",
+      "loading": "Loading organization data...",
+      "noData": "No data available",
+      "error": "An error occurred while loading data",
+      "retry": "Retry",
+      "refresh": "Refresh",
+      "stats": {
+        "totalProjects": "Projects",
+        "totalTeams": "Teams",
+        "criticalRiskProjects": "Critical Risk Projects",
+        "totalVulnerabilities": "Vulnerabilities",
+        "openVulnerabilities": "Open Issues",
+        "newIssues": "New Issues",
+        "solvedIssues": "Resolved",
+        "criticalIssues": "Critical",
+        "highIssues": "High",
+        "mediumIssues": "Medium",
+        "lowIssues": "Low",
+        "autofixAvailable": "Autofix Available",
+        "last7Days": "Last 7 days",
+        "lastNDays": "Last {{days}} days"
+      },
+      "filters": {
+        "title": "Filters",
+        "reset": "Reset",
+        "apply": "Apply",
+        "moreFilters": "More Filters",
+        "branch": "Branch",
+        "branchPlaceholder": "Add branches...",
+        "filteringByBranches": "Filtering by branches",
+        "severity": "Severity",
+        "allSeverities": "All Severities",
+        "status": "Status",
+        "allStatuses": "All Statuses",
+        "analysisType": "Analysis Type",
+        "allTypes": "All Types",
+        "dateRange": "Date Range",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "sortBy": "Sort By",
+        "sortOrder": "Order",
+        "ascending": "Ascending",
+        "descending": "Descending",
+        "trendPeriod": "Trend Period",
+        "trendPeriodDays": "{{days}} days",
+        "includeResolved": "Include Resolved",
+        "sortOptions": {
+          "critical_count": "Critical Count",
+          "total_vulnerabilities": "Total Vulnerabilities",
+          "risk_level": "Risk Level",
+          "name": "Name"
+        },
+        "statusOptions": {
+          "to_verify": "To Verify",
+          "confirmed": "Confirmed",
+          "in_review": "In Review",
+          "resolved": "Resolved",
+          "not_exploitable": "Not Exploitable",
+          "open": "Open"
+        },
+        "activeFilters": "{{count}} filter(s) active",
+        "allProjects": "All projects",
+        "projectsSelected": "{{count}} project(s)",
+        "selectAll": "Select all",
+        "deselectAll": "Deselect all",
+        "clearAll": "Clear filters",
+        "noProjects": "No projects",
+        "projectsFiltered": "project(s) filtered",
+        "state": "State",
+        "branchesSelected_one": "{{count}} branch",
+        "branchesSelected_other": "{{count}} branches"
+      },
+      "export": {
+        "png": "Export as PNG",
+        "pdf": "Export as PDF"
+      },
+      "severity": {
+        "title": "Severity Distribution",
+        "subtitle": "Issues by severity level",
+        "total": "total issues",
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "glanceTitle": "Current severity split"
+      },
+      "state": {
+        "title": "Status Distribution",
+        "subtitle": "Issues by current status",
+        "total": "total issues",
+        "to_verify": "To Verify",
+        "confirmed": "Confirmed",
+        "resolved": "Resolved",
+        "not_exploitable": "Not Exploitable",
+        "in_review": "In Review",
+        "descriptions": {
+          "resolved": "Issues that have been fixed and verified",
+          "toVerify": "Issues pending verification by the security team",
+          "confirmed": "Confirmed vulnerabilities requiring remediation",
+          "notExploitable": "Issues verified as not exploitable in this context",
+          "proposedNotExploitable": "Issues proposed as not exploitable, awaiting review"
+        }
+      },
+      "analysisType": {
+        "title": "Analysis Types",
+        "subtitle": "Issues by scanner type",
+        "SAST": "SAST",
+        "SCA": "SCA",
+        "IAC": "IaC",
+        "CONTAINER": "Container",
+        "CICD": "CI/CD",
+        "SECRET": "Secrets"
+      },
+      "overTime": {
+        "title": "Vulnerability Trends",
+        "subtitle": "New vs resolved over time",
+        "newIssues": "New Issues",
+        "resolvedIssues": "Resolved"
+      },
+      "projects": {
+        "title": "Projects",
+        "subtitle": "{{count}} projects",
+        "noProjects": "No projects found",
+        "columns": {
+          "project": "Project",
+          "team": "Team",
+          "risk": "Risk",
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low",
+          "total": "Total",
+          "autofix": "Autofix"
+        },
+        "riskLevels": {
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
+        "viewAll": "View All Projects",
+        "showingOf": "Showing {{shown}} of {{total}}"
+      },
+      "teams": {
+        "title": "Teams",
+        "subtitle": "{{count}} teams",
+        "noTeams": "No teams found",
+        "columns": {
+          "team": "Team",
+          "projects": "Projects",
+          "critical": "Critical",
+          "high": "High",
+          "total": "Total",
+          "average": "Avg/Project"
+        },
+        "viewAll": "View All Teams"
+      },
+      "riskDistribution": {
+        "title": "Projects at Risk",
+        "projects_one": "project",
+        "projects_other": "projects",
+        "criticalRisk": "Critical Risk",
+        "highRisk": "High Risk",
+        "mediumRisk": "Medium Risk",
+        "lowRisk": "Low Risk",
+        "noRiskProjects": "No projects at risk"
+      },
+      "teamsSummary": {
+        "title": "Team Summary",
+        "teams_one": "team",
+        "teams_other": "teams",
+        "projects": "projects",
+        "noTeams": "No teams"
+      },
+      "topVulnerable": {
+        "title": "Most Vulnerable Projects",
+        "subtitle": "Projects requiring attention",
+        "noProjects": "No vulnerable projects",
+        "critical": "critical",
+        "issues": "issues"
+      },
+      "weeklyActivity": {
+        "title": "Weekly Activity",
+        "newIssues": "New",
+        "resolved": "Resolved",
+        "netChange": "Net Change",
+        "positive": "Increased",
+        "negative": "Decreased"
+      },
+      "licenseDistribution": {
+        "title": "License Distribution",
+        "subtitle": "SCA packages by license category",
+        "totalPackages": "Total packages",
+        "withLicenses": "With licenses",
+        "permissive": "Permissive",
+        "weakCopyleft": "Weak Copyleft",
+        "strongCopyleft": "Strong Copyleft",
+        "unknown": "Unknown",
+        "packages": "packages"
+      },
+      "emptyState": {
+        "title": "No vulnerabilities found",
+        "description": "Your organization is currently clean or no data matches the applied filters.",
+        "clearFilters": "Clear Filters"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {{current}} of {{total}}",
+        "itemsPerPage": "Items per page"
+      },
+      "tabs": {
+        "overview": "At a glance"
+      },
+      "groups": {
+        "scope": "Scope",
+        "vulnerabilities": "Vulnerabilities"
+      }
+    }
+  }
+}

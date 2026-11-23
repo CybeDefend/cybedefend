@@ -1,0 +1,23 @@
+{
+  "components": {
+    "linearIntegration": {
+      "title": "Intégration Linear",
+      "connected": "Connecté",
+      "connectedSince": "Connecté depuis le {{date}}",
+      "connectedDescription": "Linear est connecté à votre organisation. Vous pouvez choisir l'équipe et le projet Linear dans les paramètres de chaque projet CybeDefend.",
+      "notConnected": "Linear n'est pas connecté",
+      "notConnectedDescription": "Connectez votre espace de travail Linear pour créer des tickets à partir des vulnérabilités détectées et suivre leur résolution.",
+      "connectButton": "Connecter à Linear",
+      "reconnectRequired": "Reconnexion nécessaire",
+      "reconnectDescription": "La connexion avec cet espace de travail Linear a expiré ou a été retirée. Les paramètres de vos projets et les liens vers les tickets sont conservés : reconnectez l'espace de travail pour créer et mettre à jour des tickets à nouveau.",
+      "reconnectButton": "Reconnecter Linear",
+      "disconnect": "Déconnecter",
+      "disconnectConfirmTitle": "Déconnecter Linear",
+      "disconnectConfirmMessage": "Êtes-vous sûr de vouloir déconnecter Linear ? Les paramètres des projets et les liens entre les findings et les tickets Linear seront supprimés, et la création de tickets Linear sera désactivée. Les tickets déjà créés dans Linear ne sont pas supprimés.",
+      "disconnectSuccess": "Linear déconnecté avec succès",
+      "disconnectError": "Échec de la déconnexion de Linear",
+      "installSuccess": "Linear connecté avec succès",
+      "installError": "Échec de la connexion à Linear"
+    }
+  }
+}

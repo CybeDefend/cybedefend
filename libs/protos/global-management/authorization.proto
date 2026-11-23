@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+// Authorization messages (migrated from iam/authorization.proto)
+message OrganizationRemoveRelationRequest {
+  string organization_id = 1;
+  repeated string team_ids = 2;
+  repeated string project_ids = 3;
+}

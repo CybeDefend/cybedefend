@@ -1,0 +1,27 @@
+{
+  "components": {
+    "modal": {
+      "confirmation": {
+        "title": "Êtes-vous sûr ?",
+        "seatChange": {
+          "title": "Confirmer la modification des sièges",
+          "message": "Le changement du nombre de sièges de {oldSeats} à {newSeats} sera reflété dans votre prochain cycle de facturation. Cette modification sera facturée immédiatement. Voulez-vous continuer ?",
+          "confirm": "Oui, mettre à jour",
+          "cancel": "Annuler"
+        },
+        "confirm_billing_change": {
+          "title": "Confirmer les modifications de facturation",
+          "message": "Vous êtes sur le point de changer le nombre de sièges de {{currentSeats}} à {{newSeats}}.",
+          "billing_warning": {
+            "title": "Impact sur la facturation",
+            "description": "Ce changement sera reflété dans votre prochain cycle de facturation et peut affecter le coût de votre abonnement."
+          }
+        },
+        "actions": {
+          "cancel": "Annuler",
+          "confirm": "Confirmer les modifications"
+        }
+      }
+    }
+  }
+}

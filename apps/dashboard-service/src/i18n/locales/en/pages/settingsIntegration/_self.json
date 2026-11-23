@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "settingsIntegration": {
+      "searchPlaceholder": "Search Integrations",
+      "linkedStatus": "Linked",
+      "reconnectRequiredStatus": "Reconnection required",
+      "soon": "Soon",
+      "alreadyInstalledByAnother": "This integration has already been installed by another organization member.",
+      "installedByAnother": "Installed by another member",
+      "credentialCount": "credential",
+      "credentialCount_other": "credentials",
+      "gitlabInstallError": "Failed to start GitLab installation",
+      "cloudOnly": {
+        "line": "Available on Cloud only",
+        "cta": "Get it on Cloud",
+        "ctaLabel": "Get it on Cloud: {{name}} (opens in a new tab)"
+      },
+      "communityCli": {
+        "line": "Not supported by this edition yet: import SARIF with the API."
+      }
+    }
+  }
+}

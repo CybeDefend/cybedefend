@@ -1,0 +1,12 @@
+{
+  "components": {
+    "dataFlow": {
+      "noItems": "No data flow items to display",
+      "issue": "Issue",
+      "source": "Source",
+      "step": "Step",
+      "noCode": "No code to display.",
+      "invalidLine": "Invalid line"
+    }
+  }
+}

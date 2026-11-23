@@ -1,0 +1,12 @@
+{
+  "components": {
+    "productSwitch": {
+      "label": "Product",
+      "appsec": "AppSec Platform",
+      "notActivated": "{{product}} (not activated)",
+      "description": {
+        "appsec": "Scans, findings, reports"
+      }
+    }
+  }
+}

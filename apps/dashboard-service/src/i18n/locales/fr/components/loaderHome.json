@@ -1,0 +1,19 @@
+{
+  "components": {
+    "loaderHome": {
+      "status": {
+        "appsec": {
+          "projects": "Chargement de vos projets",
+          "scans": "Lecture des derniers scans",
+          "findings": "Classement des vulnérabilités par risque",
+          "overview": "Préparation de votre vue d'ensemble"
+        },
+        "cybedefend": {
+          "session": "Ouverture de votre session",
+          "workspace": "Chargement de votre espace",
+          "agents": "Préparation des agents"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "backToProjects": "Retour aux projets",
+      "backToVulnerabilities": "Retour aux vuln\u00e9rabilit\u00e9s",
+      "issuesOf": "Probl\u00e8mes de",
+      "settings": "Param\u00e8tres",
+      "scanInProgress": "Analyse en cours...",
+      "state": "Statut",
+      "startScan": "D\u00e9marrer l'analyse",
+      "addImage": "Ajouter une image",
+      "startNewScan": "D\u00e9marrer une nouvelle analyse",
+      "start": "D\u00e9marrer",
+      "uploadZipFile": "T\u00e9l\u00e9verser un fichier .zip",
+      "uploadDescription": "T\u00e9l\u00e9versez le code source de votre projet pour commencer l'analyse.",
+      "branchScanDescription": "L'analyse portera sur le dernier commit de cette branche.",
+      "scanBranchLabel": "Branche \u00e0 analyser",
+      "selectBranchToScan": "S\u00e9lectionner la branche \u00e0 analyser",
+      "selectBranch": "S\u00e9lectionner une branche",
+      "branchNameLabel": "Nom de la branche",
+      "branchNamePlaceholder": "ex: main, master, develop...",
+      "branchNameDescription": "Sp\u00e9cifiez le nom de la branche pour ce code afin d'organiser vos r\u00e9sultats d'analyse.",
+      "branchNameRequired": "Le nom de la branche est requis"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "integration": {
+          "finalizing": "Finalizing your GitLab integration, please wait...",
+          "success": "GitLab integration completed successfully!",
+          "error": "Failed to complete GitLab integration"
+        }
+      }
+    }
+  }
+}

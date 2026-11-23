@@ -1,0 +1,32 @@
+{
+  "components": {
+    "branchSelector": {
+      "placeholder": "Sélectionner une branche",
+      "allBranches": "Toutes les branches",
+      "defaultBadge": "défaut",
+      "scanBadge": "scan",
+      "protectedBadge": "🔒",
+      "noBranches": "Aucune branche disponible",
+      "label": "Branche",
+      "filterByBranch": "Filtrer par branche",
+      "selectBranch": "Veuillez sélectionner une branche",
+      "searchPlaceholder": "Rechercher une branche...",
+      "archive": "Archiver",
+      "unarchive": "Désarchiver",
+      "showArchived": "Afficher archivées ({{count}})",
+      "hideArchived": "Masquer archivées ({{count}})",
+      "showArchivedUncounted": "Afficher archivées",
+      "hideArchivedUncounted": "Masquer archivées",
+      "archivedSection": "Archivées",
+      "archivedBadge": "archivée",
+      "noResults": "Aucune branche trouvée",
+      "searching": "Recherche…",
+      "loadingMore": "Chargement…",
+      "loading": "Chargement des branches…",
+      "selectAll": "Tout sélectionner",
+      "defaultBranch": "Branche par défaut",
+      "branchesCount_one": "{{count}} branche",
+      "branchesCount_other": "{{count}} branches"
+    }
+  }
+}

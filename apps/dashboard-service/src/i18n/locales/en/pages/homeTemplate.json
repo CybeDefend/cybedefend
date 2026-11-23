@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "homeTemplate": {
+      "globalStatistics": "Global statistics",
+      "statisticsDescription": "This block shows aggregated vulnerabilities, new issues, and solved issues across all projects.",
+      "criticalRiskProjects": "Critical Risk Projects",
+      "inLast7Days": "in last 7 days",
+      "solvedIssues": "Solved Issues",
+      "newIssues": "New Issues",
+      "agentTriage": "Agent Triage",
+      "agentFalsePositives": "False Positives Detected",
+      "description": "Overview of your security posture and project analysis",
+      "title": "Dashboard"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "components": {
+    "button": {
+      "loading": "Chargement...",
+      "close": "Fermer"
+    }
+  }
+}

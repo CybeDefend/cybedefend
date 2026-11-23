@@ -1,0 +1,23 @@
+{
+  "components": {
+    "sidebar": {
+      "help": {
+        "community": {
+          "discord": {
+            "title": "Rejoindre la communauté Discord",
+            "description": "Posez vos questions, partagez vos retours"
+          },
+          "contribute": {
+            "title": "Contribuer sur GitHub",
+            "description": "Ouvrir une issue ou proposer une modification"
+          },
+          "support": {
+            "title": "Support",
+            "description": "Disponible sur CybeDefend Cloud"
+          },
+          "opensInNewTab": "(s'ouvre dans un nouvel onglet)"
+        }
+      }
+    }
+  }
+}

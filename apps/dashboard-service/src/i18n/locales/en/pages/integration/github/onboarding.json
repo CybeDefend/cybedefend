@@ -1,0 +1,24 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "onboarding": {
+          "title": "GitHub Integration Onboarding",
+          "subtitle": "Choose how you want to integrate your GitHub repositories.",
+          "option1Title": "Automatic Import",
+          "option1Description": "Import your GitHub repositories automatically",
+          "option2Title": "Project Association",
+          "option2Description": "Link your existing projects to GitHub repositories",
+          "integrationTitle": "GitHub Integration",
+          "chooseOption": "Choose an option to proceed.",
+          "linkExisting": "Link existing project",
+          "addProject": "Add a GitHub project",
+          "projectsAvailable": "{{count}} project available",
+          "projectsAvailable_plural": "{{count}} projects available",
+          "repositoriesAvailable": "{{count}} repository available",
+          "repositoriesAvailable_plural": "{{count}} repositories available"
+        }
+      }
+    }
+  }
+}

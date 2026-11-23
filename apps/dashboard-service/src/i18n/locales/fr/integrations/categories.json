@@ -1,0 +1,15 @@
+{
+  "integrations": {
+    "categories": {
+      "code_repository": "Code source",
+      "ide_plugins": "Plugins IDE",
+      "container_registries": "Registres de conteneurs",
+      "agent_ai": "Agents intégration IA",
+      "continuous_integration": "Intégration continue",
+      "issue_tracking": "Suivi des issues",
+      "notifications": "Notifications",
+      "compliance": "Conformité",
+      "container_orchestrators": "Orchestrateurs de conteneurs"
+    }
+  }
+}

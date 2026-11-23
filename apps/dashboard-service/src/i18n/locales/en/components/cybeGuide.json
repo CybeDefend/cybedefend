@@ -1,0 +1,25 @@
+{
+  "components": {
+    "cybeGuide": {
+      "steps": {
+        "orgCreated": "Create your organization",
+        "firstProject": "Create your first project",
+        "integrationLinked": "Connect GitHub or GitLab",
+        "firstScanCompleted": "Run your first security scan",
+        "firstImportCompleted": "Import your first results",
+        "firstVulnViewed": "Review a vulnerability",
+        "cybeChatUsed": "Chat with Cybe",
+        "firstAutofix": "Auto-fix a vulnerability",
+        "teamCreated": "Create a team",
+        "reportGenerated": "Generate a security report",
+        "policyCreated": "Create a security policy"
+      },
+      "progress": {
+        "title": "Getting started",
+        "complete": "{{count}}/{{total}} completed",
+        "allDone": "All set! You've explored the entire platform.",
+        "dismiss": "Dismiss"
+      }
+    }
+  }
+}

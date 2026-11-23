@@ -1,0 +1,14 @@
+{
+    "components": {
+        "modal": {
+            "configurationScan": {
+                "scaReachability": {
+                    "priorityTitle": "Reachability Priority Adjustment",
+                    "priorityDescription": "Adjust vulnerability priorities based on package reachability analysis. Used packages get higher priority, unused packages get very low priority.",
+                    "statusTitle": "Reachability Auto-Ignore",
+                    "statusDescription": "Automatically set vulnerabilities of unused packages to \"Ignored\" status."
+                }
+            }
+        }
+    }
+}

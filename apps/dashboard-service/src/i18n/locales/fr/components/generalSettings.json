@@ -1,0 +1,33 @@
+{
+  "components": {
+    "generalSettings": {
+      "projectName": "Nom du projet",
+      "projectNameDescription": "Nom de votre projet",
+      "applicationType": "Type d'Application",
+      "applicationTypeDescription": "Définissez le type d'application. Cela modifiera les paramètres au niveau de l'analyse statique et dynamique de l'application.",
+      "selectApplicationType": "Sélectionnez un type d'application",
+      "linkedTeam": "Équipe liée",
+      "linkedTeamDescription": "Équipe liée à votre projet, vous ne pouvez pas la changer",
+      "projectId": "ID du projet",
+      "projectIdDescription": "ID unique de votre projet, vous ne pouvez pas le changer. Il peut être utilisé pour identifier ce projet ou pour l'automatisation avec l'API.",
+      "referenceBranch": "Branche de référence",
+      "referenceBranchDescription": "Définissez une branche de référence pour filtrer les statistiques de vulnérabilités. Lorsqu'elle est définie, seules les vulnérabilités de cette branche seront comptées dans les tableaux de bord et rapports.",
+      "selectReferenceBranch": "Sélectionnez une branche de référence",
+      "allBranches": "Toutes les branches",
+      "default": "défaut",
+      "referenceBranchWarning": "Les statistiques n'incluront que les vulnérabilités de cette branche.",
+      "unlinkFromGithub": "Délier de GitHub",
+      "unlinkFromGithubDescription": "Cela déconnectera le dépôt GitHub actuellement lié à ce projet.",
+      "unlinkFromGitlab": "Délier de GitLab",
+      "unlinkFromGitlabDescription": "Cela déconnectera le dépôt GitLab actuellement lié à ce projet.",
+      "unlinkProject": "Délier le projet",
+      "deleteProject": "Supprimer le projet",
+      "deleteProjectDescription": "La suppression d'un projet effacera tout.",
+      "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.",
+      "scanOnCommit": {
+        "title": "Scan à chaque commit",
+        "description": "Lance automatiquement un scan de sécurité à chaque commit poussé sur la branche surveillée du dépôt lié. Désactivez cette option pour ne scanner qu'à la demande."
+      }
+    }
+  }
+}

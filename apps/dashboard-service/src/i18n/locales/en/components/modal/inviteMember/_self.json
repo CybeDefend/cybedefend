@@ -1,0 +1,20 @@
+{
+  "components": {
+    "modal": {
+      "inviteMember": {
+        "title": "Add Member to",
+        "sendInvite": "Send Invite",
+        "inviteDescription": "Invite a new user to this organization by entering their email address and role",
+        "emailPlaceholder": "Email address",
+        "selectRole": "Select a role",
+        "done": "Done",
+        "link": {
+          "noMailSent": "No e-mail was sent: send this link to {{email}} yourself. It is shown once: once this window is closed, cancel the invitation and invite again to get a new link.",
+          "copy": "Copy the invitation link",
+          "copied": "Invitation link copied",
+          "copyFailed": "The link could not be copied. Select it and copy it by hand."
+        }
+      }
+    }
+  }
+}

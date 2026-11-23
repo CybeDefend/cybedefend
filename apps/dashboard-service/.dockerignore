@@ -1,0 +1,21 @@
+# Build context of the dashboard image (context: this directory, `COPY . .`).
+#
+# node_modules: an installed tree would overwrite the image's own install, and
+# pnpm then stops on « The modules directory ... will be removed and reinstalled
+# from scratch. Proceed? (Y/n) », which no build answers.
+node_modules
+**/node_modules
+# The bundle Vite writes (outDir: build), built again in the image.
+build
+dist
+# Test outputs.
+coverage
+test-results
+playwright-report
+playwright
+playwright-results.json
+.git
+# Vite reads .env files at build time: a local one (.env.local) would be baked
+# into the bundle. Every value comes from the build arguments or, in the
+# Community image, from config.js at runtime.
+.env*

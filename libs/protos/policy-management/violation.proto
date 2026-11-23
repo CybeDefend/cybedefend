@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package cybedefend.policy_management;
+
+import "policy-management/policy_types.proto";
+
+// ============================================================================
+// Violation Request/Response Messages
+// ============================================================================
+
+message GetScanViolationsRequest {
+  string scan_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  // Tenant scope: violations must belong to this project (BOLA guard).
+  string project_id = 4;
+}
+
+message GetScanViolationsResponse {
+  repeated PolicyViolation violations = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetProjectViolationsRequest {
+  string project_id = 1;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message GetProjectViolationsResponse {
+  repeated PolicyViolation violations = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetViolationStatsRequest {
+  string project_id = 1;
+  optional string organization_id = 2;
+  optional int64 from_date = 3;
+  optional int64 to_date = 4;
+}
+
+message GetViolationStatsResponse {
+  int32 total_violations = 1;
+  int32 blocked_count = 4;
+  int32 warned_count = 5;
+  int32 applicable_policies_count = 6;
+  string compliance_status = 7;
+}
+
+// ============================================================================
+// Organization Compliance Overview (CISO Dashboard)
+// ============================================================================
+
+message GetOrganizationComplianceOverviewRequest {
+  string organization_id = 1;
+  string user_id = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  optional int64 from_date = 5;
+  optional int64 to_date = 6;
+  optional string compliance_status_filter = 7;
+  optional string search = 8;
+  optional string sort_by = 9;
+  optional string sort_order = 10;
+  // Timeframe for trend aggregation: "day" (default), "week", or "month"
+  optional string timeframe = 11;
+}
+
+message ProjectComplianceSummary {
+  string project_id = 1;
+  string project_name = 2;
+  string compliance_status = 3;
+  int32 total_violations = 4;
+  int32 blocked_count = 5;
+  int32 warned_count = 6;
+  int32 applicable_policies_count = 7;
+  int64 last_evaluated_at = 8;
+  string last_scan_id = 9;
+  repeated string team_ids = 10;
+}
+
+message OrganizationComplianceStats {
+  int32 total_projects = 1;
+  int32 compliant_projects = 2;
+  int32 non_compliant_projects = 3;
+  int32 pending_projects = 4;
+  int32 total_violations = 5;
+  int32 total_blocked = 6;
+  int32 total_warned = 7;
+  int32 active_policies_count = 8;
+  double compliance_rate = 9;
+}
+
+message ViolationBreakdown {
+  string rule_type = 1;
+  int32 count = 2;
+  int32 blocked_count = 3;
+  int32 warned_count = 4;
+}
+
+message ComplianceTrendPoint {
+  int64 date = 1;
+  int32 compliant_count = 2;
+  int32 non_compliant_count = 3;
+  int32 pending_count = 4;
+  double compliance_rate = 5;
+}
+
+message GetOrganizationComplianceOverviewResponse {
+  OrganizationComplianceStats stats = 1;
+  repeated ProjectComplianceSummary projects = 2;
+  repeated ViolationBreakdown violation_breakdown = 3;
+  repeated ComplianceTrendPoint trend = 4;
+  int32 total = 5;
+  int32 page = 6;
+  int32 page_size = 7;
+}

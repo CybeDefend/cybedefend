@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "settingsIntegration": {
+      "onboarding": {
+        "title": "Enfin, vous pouvez configurer les intégrations.",
+        "subtitle": "Connectez vos outils préférés pour tirer le meilleur parti de votre flux de travail."
+      }
+    }
+  }
+}

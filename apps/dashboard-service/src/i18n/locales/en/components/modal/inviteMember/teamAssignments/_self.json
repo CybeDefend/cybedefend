@@ -1,0 +1,14 @@
+{
+  "components": {
+    "modal": {
+      "inviteMember": {
+        "teamAssignments": {
+          "title": "Team Assignments (Optional)",
+          "description": "Select teams and assign specific roles for this member",
+          "noTeams": "No teams available",
+          "selectRole": "Select role"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+    "components": {
+        "licenseDetailPage": {
+            "backToLicenses": "Back to licenses",
+            "description": "Description",
+            "viewFullText": "View full license text",
+            "legalRisks": "Legal Risks",
+            "obligations": "Obligations",
+            "recommendations": "Recommendations",
+            "noObligations": "No obligations, freely usable",
+            "noLegalRisks": "No significant legal risks identified.",
+            "unknownLegalRisks": "Unable to determine legal risks. The license could not be identified. Manual review required.",
+            "unknownObligations": "Unable to determine obligations. The license could not be identified. Please identify the license first.",
+            "packagesUsing": "Packages using {{license}} ({{count}})",
+            "packageName": "Package Name",
+            "version": "Version",
+            "ecosystem": "Ecosystem",
+            "dependency": "Dependency",
+            "otherLicenses": "Other Licenses",
+            "assignLicense": "Assign License",
+            "assign": "Assign",
+            "assigning": "Assigning...",
+            "assignSuccess": "License assigned successfully",
+            "assignError": "Failed to assign license",
+            "actions": "Actions",
+            "ignore": "Ignore",
+            "unignore": "Restore",
+            "ignoreSuccess": "Package ignored from license analysis",
+            "unignoreSuccess": "Package restored to license analysis",
+            "ignoreError": "Failed to update ignore status",
+            "selectLicense": "Select a license",
+            "searchLicense": "Search license...",
+            "transitive": "Transitive",
+            "direct": "Direct",
+            "risk": {
+                "NONE": "None",
+                "MEDIUM": "Medium",
+                "HIGH": "High",
+                "UNKNOWN": "Unknown"
+            },
+            "unknownRecommendations": [
+                "Manually identify the license by checking the source code or the project's repository.",
+                "Once identified, assign the correct license using the table below.",
+                "Contact the package maintainer if the license is ambiguous or missing."
+            ]
+        }
+    }
+}

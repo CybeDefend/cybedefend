@@ -1,0 +1,25 @@
+{
+  "components": {
+    "cybeGuide": {
+      "steps": {
+        "orgCreated": "Créer votre organisation",
+        "firstProject": "Créer votre premier projet",
+        "integrationLinked": "Connecter GitHub ou GitLab",
+        "firstScanCompleted": "Lancer votre premier scan de sécurité",
+        "firstImportCompleted": "Importer vos premiers résultats",
+        "firstVulnViewed": "Consulter une vulnérabilité",
+        "cybeChatUsed": "Discuter avec Cybe",
+        "firstAutofix": "Corriger automatiquement une vulnérabilité",
+        "teamCreated": "Créer une équipe",
+        "reportGenerated": "Générer un rapport de sécurité",
+        "policyCreated": "Créer une politique de sécurité"
+      },
+      "progress": {
+        "title": "Prise en main",
+        "complete": "{{count}}/{{total}} terminé",
+        "allDone": "C'est tout bon ! Vous avez exploré toute la plateforme.",
+        "dismiss": "Fermer"
+      }
+    }
+  }
+}

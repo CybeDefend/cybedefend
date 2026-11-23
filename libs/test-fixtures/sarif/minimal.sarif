@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep",
+          "version": "1.90.0",
+          "informationUri": "https://semgrep.dev",
+          "rules": [
+            {
+              "id": "python.lang.security.audit.eval-detected",
+              "name": "eval-detected",
+              "shortDescription": {
+                "text": "Use of eval() on dynamic input"
+              },
+              "fullDescription": {
+                "text": "Evaluating a string built from user input runs arbitrary code."
+              },
+              "help": {
+                "text": "Avoid eval().",
+                "markdown": "Avoid `eval()`; parse the input instead."
+              },
+              "helpUri": "https://semgrep.dev/r/python.lang.security.audit.eval-detected",
+              "properties": {
+                "tags": [
+                  "CWE-95",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "javascript.express.security.audit.xss.direct-response-write",
+              "name": "direct-response-write",
+              "shortDescription": {
+                "text": "User input written to the response"
+              },
+              "helpUri": "http://semgrep.dev/r/direct-response-write",
+              "properties": {
+                "tags": [
+                  "external/cwe/cwe-79"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "python.lang.security.audit.eval-detected",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "eval() called with request data"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/views.py"
+                },
+                "region": {
+                  "startLine": 12,
+                  "endLine": 12,
+                  "snippet": {
+                    "text": "    return eval(request.args['q'])"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript.express.security.audit.xss.direct-response-write",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "req.query.name written to res"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "web/server.js"
+                },
+                "region": {
+                  "startLine": 30,
+                  "endLine": 31,
+                  "snippet": {
+                    "text": "res.send(req.query.name)"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

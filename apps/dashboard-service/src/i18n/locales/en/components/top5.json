@@ -1,0 +1,14 @@
+{
+  "components": {
+    "top5": {
+      "title": "Top 5: All categories",
+      "subtitle": "Highest-priority findings across every scan type",
+      "close": "Close",
+      "score": "score",
+      "aiSummary": "AI",
+      "emptyTitle": "Nothing urgent right now",
+      "emptyDescription": "No prioritised findings were returned for this project.",
+      "openIssue": "Open issue"
+    }
+  }
+}

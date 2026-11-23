@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "issuePage": {
+      "tabs": {
+        "detailsAndFix": "Details & Fix",
+        "codeContext": "Code Examples",
+        "history": "History",
+        "autofix": "AI Corrections",
+        "corrections": "Corrections",
+        "noHistoryTitle": "No History Found",
+        "noCodeExamplesTitle": "No Code Examples Found",
+        "noCodeExamplesDescription": "There are no code examples available for this vulnerability.",
+        "vulnerableCode": "Vulnerable Code",
+        "secretDetectedInHistory": "This secret was detected in the Git history. The current file may have been modified since the commit where it was found.",
+        "noHistoryDescription": "There is no history of status, priority, or comment changes for this vulnerability."
+      }
+    }
+  }
+}

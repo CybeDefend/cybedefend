@@ -1,0 +1,11 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "notFound": {
+        "title": "No Teams Found",
+        "description": "We couldn't find any teams in this organization.",
+        "noAssignmentDescription": "You are not assigned to any team yet. Please ask a manager or an administrator to assign you to a team."
+      }
+    }
+  }
+}

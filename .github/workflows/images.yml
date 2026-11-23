@@ -1,0 +1,102 @@
+name: Images
+
+# Publishes one image per service to the GitHub Container Registry for each
+# release tag v<version>: ghcr.io/cybedefend/cybedefend-<name>:<version> and :latest.
+# Each image carries a build provenance attestation and an SBOM, and its digest
+# is signed with cosign, keyless (the workflow's OIDC identity): see « Verify an
+# image » in deploy/community/README.md.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: cybedefend-${{ matrix.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gateway
+            dockerfile: apps/gateway-service/Dockerfile
+            context: .
+          - name: global-management
+            dockerfile: apps/global-management-service/Dockerfile
+            context: .
+          - name: security-scanning
+            dockerfile: apps/security-scanning-service/Dockerfile
+            context: .
+          - name: analysis-reporting
+            dockerfile: apps/analysis-reporting-service/Dockerfile
+            context: .
+          - name: file-management
+            dockerfile: apps/file-management-service/Dockerfile
+            context: .
+          - name: external-integrations
+            dockerfile: apps/external-integrations-service/Dockerfile
+            context: .
+          - name: policy-management
+            dockerfile: apps/policy-management-service/Dockerfile
+            context: .
+          - name: mcp
+            dockerfile: apps/mcp-service/Dockerfile
+            context: .
+          - name: dashboard
+            dockerfile: apps/dashboard-service/Dockerfile
+            context: apps/dashboard-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Log in to ghcr.io
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build and push
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          case "$version" in
+            ''|*[!0-9A-Za-z.-]*) echo "not a release tag: v<version>" >&2; exit 1 ;;
+          esac
+          # The compose file of this commit runs the version .env.example names.
+          expected="$(sed -n 's/^CYBEDEFEND_VERSION=//p' deploy/community/.env.example)"
+          if [ "$version" != "$expected" ]; then
+            echo "tag v$version, but deploy/community/.env.example names CYBEDEFEND_VERSION=$expected" >&2
+            exit 1
+          fi
+          # The source label links each package to this repository, so that it
+          # is created public; the index carries it too, since the attestations
+          # make the pushed image an index.
+          docker buildx build --push --provenance=true --sbom=true \
+            --label "org.opencontainers.image.source=https://github.com/CybeDefend/cybedefend" \
+            --annotation "index:org.opencontainers.image.source=https://github.com/CybeDefend/cybedefend" \
+            --label "org.opencontainers.image.licenses=AGPL-3.0-only" \
+            --metadata-file "$RUNNER_TEMP/metadata.json" \
+            --build-arg GIT_COMMIT_HASH="$GITHUB_SHA" \
+            -f "${{ matrix.dockerfile }}" \
+            -t "ghcr.io/cybedefend/cybedefend-${{ matrix.name }}:${version}" \
+            -t "ghcr.io/cybedefend/cybedefend-${{ matrix.name }}:latest" \
+            "${{ matrix.context }}"
+          digest="$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/metadata.json")"
+          case "$digest" in
+            sha256:*) ;;
+            *) echo "no image digest in the build metadata" >&2; exit 1 ;;
+          esac
+          # Signs the digest that was pushed, never a tag that could move in between.
+          cosign sign --yes "ghcr.io/cybedefend/cybedefend-${{ matrix.name }}@${digest}"

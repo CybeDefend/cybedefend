@@ -1,0 +1,43 @@
+{
+    "pages": {
+        "settingsLicenses": {
+            "title": "License Classifications",
+            "description": "Customize how licenses are classified for your organization. Changes apply to all projects.",
+            "back": "Back to settings",
+            "searchPlaceholder": "Search by license ID or name...",
+            "allCategories": "All categories",
+            "resetAll": "Reset to Defaults",
+            "customized": "Customized",
+            "total": "Total",
+            "noResults": "No licenses found matching your search.",
+            "table": {
+                "license": "License",
+                "name": "Name",
+                "defaultCategory": "Default",
+                "classification": "Classification"
+            },
+            "addCustom": "Add License",
+            "deleteCustom": "Delete",
+            "deleting": "Deleting...",
+            "addModal": {
+                "title": "Add a License",
+                "description": "Add a custom license to your organization's classification list.",
+                "spdxLabel": "License ID (SPDX)",
+                "spdxPlaceholder": "e.g. MIT, Apache-2.0, LicenseRef-Custom",
+                "categoryLabel": "Classification",
+                "cancel": "Cancel",
+                "confirm": "Add"
+            },
+            "toast": {
+                "loadError": "Failed to load license classifications",
+                "saveSuccess": "License classifications updated successfully",
+                "saveError": "Failed to save license classifications",
+                "resetSuccess": "License classifications reset to defaults",
+                "resetError": "Failed to reset license classifications",
+                "alreadyExists": "This license ID already exists",
+                "deleteSuccess": "Custom license deleted successfully",
+                "deleteError": "Failed to delete custom license"
+            }
+        }
+    }
+}

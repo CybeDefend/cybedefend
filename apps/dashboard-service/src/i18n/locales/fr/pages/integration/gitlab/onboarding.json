@@ -1,0 +1,24 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "onboarding": {
+          "title": "Intégration GitLab",
+          "subtitle": "Connectez vos dépôts GitLab avec CybeDefend",
+          "option1Title": "Import automatique",
+          "option1Description": "Importez vos dépôts GitLab automatiquement",
+          "option2Title": "Association de projets",
+          "option2Description": "Liez vos projets existants aux dépôts GitLab",
+          "integrationTitle": "Intégration GitLab",
+          "chooseOption": "Choisissez comment procéder",
+          "linkExisting": "Lier à un projet existant",
+          "addProject": "Ajouter un nouveau projet depuis GitLab",
+          "projectsAvailable": "{{count}} projet disponible",
+          "projectsAvailable_plural": "{{count}} projets disponibles",
+          "repositoriesAvailable": "{{count}} dépôt disponible",
+          "repositoriesAvailable_plural": "{{count}} dépôts disponibles"
+        }
+      }
+    }
+  }
+}

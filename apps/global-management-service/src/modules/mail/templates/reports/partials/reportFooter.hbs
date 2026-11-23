@@ -1,0 +1,89 @@
+{{! Professional Footer }}
+<table
+  cellpadding='0'
+  cellspacing='0'
+  width='100%'
+  role='presentation'
+  style='margin-top:50px;'
+>
+  <tr>
+    <td
+      align='center'
+      style='padding:30px 20px;background:#f9fafb;border-top:1px solid #e5e7eb;'
+    >
+      {{! Main message }}
+      <table cellpadding='0' cellspacing='0' role='presentation'>
+        <tr>
+          <td align='center' style='padding-bottom:20px;'>
+            <h3
+              style='margin:0;font-family:Arial,sans-serif;font-size:20px;color:#111827;font-weight:700;'
+            >
+              Let's secure your code!
+            </h3>
+            <p
+              style='margin:8px 0 0 0;font-family:Arial,sans-serif;font-size:14px;color:#6b7280;'
+            >
+              The CybeDefend team
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      {{! Address }}
+      <table cellpadding='0' cellspacing='0' role='presentation'>
+        <tr>
+          <td align='center' style='padding:15px 0;'>
+            <p
+              style='margin:0;font-family:Arial,sans-serif;font-size:13px;color:#9ca3af;line-height:1.6;'
+            >
+              177 Allée Clementine Deman, 59000 Lille, France
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      {{! Unsubscribe }}
+      <table cellpadding='0' cellspacing='0' role='presentation'>
+        <tr>
+          <td align='center' style='padding:15px 0;'>
+            <p
+              style='margin:0;font-family:Arial,sans-serif;font-size:12px;color:#9ca3af;'
+            >
+              To unsubscribe, manage your
+              <a
+                href='{{notificationSettingsUrl}}' {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path; no user or tenant value chooses its scheme }}
+                style='color:#7845FF;text-decoration:none;font-weight:600;'
+              >
+                notification settings
+              </a>
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      {{! Divider }}
+      <table cellpadding='0' cellspacing='0' width='100%' role='presentation'>
+        <tr>
+          <td style='padding:20px 0;'>
+            <div style='height:1px;background:#e5e7eb;'></div>
+          </td>
+        </tr>
+      </table>
+
+      {{! Copyright }}
+      <table cellpadding='0' cellspacing='0' role='presentation'>
+        <tr>
+          <td align='center'>
+            <p
+              style='margin:0;font-family:Arial,sans-serif;font-size:12px;color:#9ca3af;'
+            >
+              CybeDefend ©
+              {{currentYear}}
+              All Rights Reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

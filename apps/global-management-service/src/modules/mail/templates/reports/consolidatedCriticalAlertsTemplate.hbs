@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{totalCritical}} Critical Vulnerabilities Detected</title>
+    <style type="text/css">
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+      table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+      a { text-decoration: none; }
+      @media only screen and (max-width: 600px) {
+        .email-container { width: 100% !important; }
+        .mobile-padding { padding: 15px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="background-color:#f3f4f6;">
+      <tr>
+        <td align="center" style="padding:20px 0;">
+          <table role="presentation" cellspacing="0" cellpadding="0" width="600" class="email-container" style="background-color:#ffffff;max-width:600px;margin:0 auto;">
+            <tr>
+              <td>
+                {{!-- Header --}}
+                {{> reportHeader}}
+
+                {{!-- Main Content --}}
+                <table cellpadding="0" cellspacing="0" width="100%" role="presentation">
+                  <tr>
+                    <td style="padding:40px 30px;" class="mobile-padding">
+                      {{!-- Title --}}
+                      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                        <tr>
+                          <td align="center" style="padding-bottom:10px;">
+                            <h1 style="margin:0;font-family:Arial,sans-serif;font-size:26px;color:#b91c1c;font-weight:700;line-height:1.3;">
+                              🚨 {{totalCritical}} Critical Vulnerabilities Detected
+                            </h1>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td align="center" style="padding-bottom:25px;">
+                            <p style="margin:0;font-family:Arial,sans-serif;font-size:14px;color:#6b7280;">
+                              {{userName}} &middot; {{todayDate}}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Call to action --}}
+                      <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                        <tr>
+                          <td align="center" style="padding-bottom:30px;">
+                            <a href="{{dashboardUrl}}" style="display:inline-block;background:#b91c1c;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-family:Arial,sans-serif;font-size:15px;font-weight:600;"> {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path; no user or tenant value chooses its scheme }}
+                              Review my projects
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {{!-- Per-project critical sections --}}
+                      {{#each projects}}
+                        {{!-- Shared vuln row, reused by the flat list and by each branch section --}}
+                        {{#*inline "dailyVulnRow"}}
+                          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-bottom:1px solid #f3f4f6;">
+                            <tr>
+                              <td style="padding:10px 0;font-family:Arial,sans-serif;font-size:14px;color:#374151;">
+                                <span style="display:inline-block;background:#d32f2f;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-right:8px;">{{severity}}</span>
+                                {{title}}
+                                {{#if packageName}}<span style="color:#6b7280;"> &mdash; {{packageName}}{{#if version}}@{{version}}{{/if}}</span>{{/if}}
+                                {{#if cvss}}<span style="color:#6b7280;"> (CVSS {{cvss}})</span>{{/if}}
+                              </td>
+                            </tr>
+                          </table>
+                        {{/inline}}
+                        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:24px;border:1px solid #fee2e2;border-radius:12px;">
+                          <tr>
+                            <td style="background:#fef2f2;border-radius:12px 12px 0 0;padding:16px 20px;">
+                              <a href="{{projectUrl}}" style="font-family:Arial,sans-serif;font-size:16px;color:#111827;font-weight:700;">{{projectName}}</a>{{#if branch}}<span style="font-family:Arial,sans-serif;font-size:13px;color:#6b7280;font-weight:500;"> &#127807; {{branch}}</span>{{/if}} {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path, the branch name URL-encoded in its query; no user or tenant value chooses its scheme }}
+                              <span style="font-family:Arial,sans-serif;font-size:13px;color:#b91c1c;font-weight:600;float:right;">{{criticalCount}} critical</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:8px 20px 16px 20px;">
+                              {{#if multiBranch}}
+                                {{!-- Multi-branch project: one section per branch --}}
+                                {{#each branches}}
+                                  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                                    <tr>
+                                      <td style="padding:14px 0 6px 0;font-family:Arial,sans-serif;font-size:13px;color:#374151;font-weight:700;border-bottom:2px solid #fee2e2;">
+                                        <a href="{{branchUrl}}" style="color:#374151;">&#127807; {{branch}}</a> {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path, the branch name URL-encoded in its query; no user or tenant value chooses its scheme }}
+                                        <span style="color:#b91c1c;font-weight:600;float:right;">{{criticalCount}} critical</span>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                  {{#each vulnerabilities}}
+                                    {{> dailyVulnRow}}
+                                  {{/each}}
+                                  {{#if hasMore}}
+                                    <p style="margin:8px 0 0 0;font-family:Arial,sans-serif;font-size:13px;color:#6b7280;">
+                                      + {{remainingCount}} more on this branch &mdash;
+                                      <a href="{{branchUrl}}" style="color:#b91c1c;font-weight:600;">view all</a> {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path, the branch name URL-encoded in its query; no user or tenant value chooses its scheme }}
+                                    </p>
+                                  {{/if}}
+                                {{/each}}
+                              {{else}}
+                                {{!-- Single-branch project: flat list (branch shown inline in the header) --}}
+                                {{#each vulnerabilities}}
+                                  {{> dailyVulnRow}}
+                                {{/each}}
+                                {{#if hasMore}}
+                                  <p style="margin:12px 0 0 0;font-family:Arial,sans-serif;font-size:13px;color:#6b7280;">
+                                    + {{remainingCount}} more critical vulnerabilit{{#if (eq remainingCount 1)}}y{{else}}ies{{/if}} &mdash;
+                                    <a href="{{projectUrl}}" style="color:#b91c1c;font-weight:600;">view all</a> {{! cybedefend-ignore[CD-SAST-0455]: the server builds this URL from the configured FRONTEND_URL and a fixed path, the branch name URL-encoded in its query; no user or tenant value chooses its scheme }}
+                                  </p>
+                                {{/if}}
+                              {{/if}}
+                            </td>
+                          </tr>
+                        </table>
+                      {{/each}}
+                    </td>
+                  </tr>
+                </table>
+
+                {{!-- Footer --}}
+                {{> reportFooter notificationSettingsUrl=notificationSettingsUrl currentYear=currentYear}}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "components": {
+    "comingSoon": {
+      "title": "Bientôt disponible",
+      "subtitle": "De nouvelles fonctionnalités arrivent...",
+      "viewRoadmap": "Voir la roadmap"
+    }
+  }
+}

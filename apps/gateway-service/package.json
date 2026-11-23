@@ -1,0 +1,177 @@
+{
+  "name": "gateway-service",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "prebuild": "pnpm run proto:generate",
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "prestart:dev": "pnpm run proto:generate",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node --require ./dist/instrumentation.js dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "proto:generate": "protoc -I ../../libs/protos --plugin=protoc-gen-ts_proto=$(pwd)/node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=\"nestJs=true:src/core/grpc\" $(find ../../libs/protos -name '*.proto' -print | sed 's|../../libs/protos/||')"
+  },
+  "dependencies": {
+    "@fastify/compress": "^8.3.1",
+    "@fastify/multipart": "^10.1.9",
+    "@fastify/static": "^10.1.12",
+    "@grpc/grpc-js": "^1.14.7",
+    "@nestjs/axios": "^12.0.2",
+    "@nestjs/common": "^12.5.1",
+    "@nestjs/config": "^12.1.1",
+    "@nestjs/core": "^12.5.1",
+    "@nestjs/jwt": "^12.0.5",
+    "@nestjs/microservices": "^12.5.1",
+    "@nestjs/platform-express": "^12.5.1",
+    "@nestjs/platform-fastify": "^12.5.1",
+    "@nestjs/swagger": "^12.1.2",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.81.2",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
+    "@opentelemetry/instrumentation-pino": "^0.66.0",
+    "@opentelemetry/resources": "~2.9.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
+    "@opentelemetry/sdk-trace-base": "~2.9.0",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
+    "@permify/permify-node": "1.6.10",
+    "axios": "^1.20.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.8",
+    "ioredis": "^5.11.1",
+    "joi": "^18.3.2",
+    "jose": "^6.2.18",
+    "jsonwebtoken": "^9.0.3",
+    "nestjs-otel": "^8.1.1",
+    "nestjs-pino": "^5.3.2",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "pino-opentelemetry-transport": "^3.0.0",
+    "pino-pretty": "^13.1.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "ulid": "^3.0.2",
+    "uuid": "^14.0.3",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^10.0.1",
+    "@nestjs/cli": "^12.0.15",
+    "@nestjs/schematics": "^12.0.16",
+    "@nestjs/testing": "^12.5.1",
+    "@types/express": "^5.0.6",
+    "@types/ioredis": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.4",
+    "@types/supertest": "^7.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.7",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "globals": "^17.6.0",
+    "ioredis-mock": "^8.13.1",
+    "jest": "^30.4.2",
+    "mysql2": "^3.24.6",
+    "prettier": "^3.8.5",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "ts-proto": "^2.11.10",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^6.0.3"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "<rootDir>/core/testing/esm-node-modules.transformer.js",
+        {
+          "tsconfig": {
+            "esModuleInterop": true,
+            "allowSyntheticDefaultImports": true
+          }
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "transformIgnorePatterns": [
+      "node_modules/\\.pnpm/(?!(uuid@|jose@|@nestjs\\+))",
+      "node_modules/(?!(\\.pnpm|uuid|jose|@nestjs))"
+    ],
+    "coverageProvider": "v8",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1",
+      "^@grpc/grpc-js$": "@grpc/grpc-js",
+      "^@grpc/proto-loader$": "@grpc/proto-loader",
+      "^@grpc/wrapper-grpc$": "<rootDir>/core/grpc/wrapper-grpc.ts",
+      "^@grpc/(.*)$": "<rootDir>/core/grpc/$1"
+    },
+    "testTimeout": 30000,
+    "forceExit": true
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "protobufjs",
+      "unrs-resolver"
+    ],
+    "ignoredBuiltDependencies": [
+      "@scarf/scarf"
+    ],
+    "overrides": {
+      "fastify": "$fastify",
+      "@babel/core@7": "^7.29.7",
+      "@opentelemetry/core@2": "^2.8.0",
+      "protobufjs@7": "^7.6.6",
+      "protobufjs@8": "^8.6.6",
+      "find-my-way": "^9.7.0",
+      "js-yaml@4": "^4.3.2",
+      "js-yaml@5": "^5.4.3",
+      "multer": "^2.5.0",
+      "body-parser": "^2.4.0",
+      "fast-copy": "^4.1.2",
+      "qs": "^6.16.1",
+      "brace-expansion@1": "^1.1.21",
+      "brace-expansion@2": "^2.1.7",
+      "brace-expansion@>=3": "^5.0.12",
+      "fast-uri": "^3.1.9",
+      "form-data@2": "^2.5.6",
+      "form-data@>=3": "^4.0.6",
+      "js-yaml@3": "^3.15.2",
+      "systeminformation": "^5.33.16",
+      "tmp": "^0.2.7",
+      "ws": "^8.21.3",
+      "@fastify/static": "$@fastify/static",
+      "zod@3": "^4.6.7",
+      "zod@4": "^4.6.7"
+    }
+  }
+}

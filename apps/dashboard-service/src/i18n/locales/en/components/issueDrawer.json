@@ -1,0 +1,17 @@
+{
+  "components": {
+    "issueDrawer": {
+      "ariaLabel": "Vulnerability quick view",
+      "close": "Close",
+      "previous": "Previous vulnerability",
+      "next": "Next vulnerability",
+      "openFullPage": "Open full details",
+      "resize": "Resize panel",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "description": "Description",
+      "remediation": "How to prevent",
+      "loadError": "Unable to load this vulnerability. It may have been removed."
+    }
+  }
+}

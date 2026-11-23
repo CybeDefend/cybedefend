@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "aibom": {
+          "title": "AI-BOM & conformité EU AI Act",
+          "description": "Inventorie les composants IA (modèles, datasets, prompts, agents, MCP servers, guardrails) et évalue la conformité au Règlement (UE) 2024/1689."
+        }
+      }
+    }
+  }
+}

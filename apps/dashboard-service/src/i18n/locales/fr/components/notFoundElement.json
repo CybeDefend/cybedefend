@@ -1,0 +1,8 @@
+{
+  "components": {
+    "notFoundElement": {
+      "title": "Aucun résultat trouvé",
+      "description": "Nous n'avons trouvé aucun élément correspondant."
+    }
+  }
+}

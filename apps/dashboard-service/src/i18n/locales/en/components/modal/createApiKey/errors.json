@@ -1,0 +1,14 @@
+{
+  "components": {
+    "modal": {
+      "createApiKey": {
+        "errors": {
+          "nameRequired": "Name is required",
+          "descriptionRequired": "Description is required",
+          "expirationRequired": "Expiration duration is required",
+          "invalidIps": "Invalid IP(s): "
+        }
+      }
+    }
+  }
+}

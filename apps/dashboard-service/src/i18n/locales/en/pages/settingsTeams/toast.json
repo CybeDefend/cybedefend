@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "toast": {
+        "fetchError": "An error occurred while fetching teams.",
+        "createSuccess": "Team created successfully",
+        "createError": "An error occurred while creating the team.",
+        "deleteUserError": "An error occurred while deleting team user.",
+        "deleteTeamError": "An error occurred while deleting the team.",
+        "updateRoleError": "An error occurred while updating team user role.",
+        "addUserSuccess": "User added successfully!",
+        "addUserError": "An error occurred while adding team user.",
+        "deleteUserSuccess": "User removed from the team.",
+        "deleteTeamSuccess": "Team deleted.",
+        "updateRoleSuccess": "Role updated."
+      }
+    }
+  }
+}

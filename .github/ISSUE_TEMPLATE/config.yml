@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/CybeDefend/cybedefend/blob/main/SECURITY.md
+    about: Never in a public issue. SECURITY.md says how to report it privately.

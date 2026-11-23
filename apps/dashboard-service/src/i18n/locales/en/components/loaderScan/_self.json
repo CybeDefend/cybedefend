@@ -1,0 +1,50 @@
+{
+  "components": {
+    "loaderScan": {
+      "title": "Security Analysis",
+      "stateCompleted": "Scan Completed",
+      "stateFailed": "Scan Failed",
+      "stateDegraded": "Scan Completed with Issues",
+      "stateInProgress": "Scanning in Progress",
+      "stateInitializing": "Initializing Scan...",
+      "stateQueued": "Waiting for Processing",
+      "stateWaitingForFile": "Waiting for File",
+      "stateRunning": "Analysis in Progress",
+      "stepWaiting": "Waiting for scan to start...",
+      "errorDefaultFailed": "We apologize for the inconvenience. Please try again later or contact support if the issue persists.",
+      "buttonRetry": "Retry Scan",
+      "messageDefaultDegraded": "The scan finished, but encountered some issues. Some results might be incomplete.",
+      "vulnerabilitiesDetected": "Vulnerabilities Detected",
+      "progress": "Progress",
+      "stateWaitingInQueue": "Waiting in queue...",
+      "stateCancelled": "Scan Cancelled",
+      "buttonCancel": "Cancel Scan",
+      "buttonDismiss": "Dismiss",
+      "messageCancelled": "This scan has been cancelled.",
+      "agentLabel": "AI agent",
+      "messageDegraded": "The scan finished, but some scanners could not complete. The results may be incomplete.",
+      "agentStatus": {
+        "analysisDone": "Analysis completed",
+        "analysisStarted": "Analysis started",
+        "analysisRunning": "Analysis in progress",
+        "analyzing": "Analyzing…",
+        "reviewed": "{{processed}} of {{total}} findings reviewed",
+        "confirmed_one": "{{count}} confirmed",
+        "confirmed_other": "{{count}} confirmed",
+        "falsePositives_one": "{{count}} false positive",
+        "falsePositives_other": "{{count}} false positives",
+        "failed_one": "{{count}} could not be reviewed",
+        "failed_other": "{{count}} could not be reviewed",
+        "vulnStart": "Analyzing a vulnerability…",
+        "vulnResult": "Refined results for a vulnerability",
+        "vulnDone": "Vulnerability analysis completed",
+        "vulnRunning": "Vulnerability analysis in progress…",
+        "prioritizationStart": "Prioritization in progress…",
+        "prioritizationDecided": "Prioritization decisions applied",
+        "prioritizationRunning": "Prioritization running…",
+        "parsing": "Parsing scan data…",
+        "ingestion": "Preparing data for analysis…"
+      }
+    }
+  }
+}

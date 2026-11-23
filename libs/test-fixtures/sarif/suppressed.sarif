@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep",
+          "rules": [
+            {
+              "id": "sup-01",
+              "name": "sup-01"
+            },
+            {
+              "id": "sup-02",
+              "name": "sup-02"
+            },
+            {
+              "id": "sup-03",
+              "name": "sup-03"
+            },
+            {
+              "id": "sup-04",
+              "name": "sup-04"
+            },
+            {
+              "id": "sup-05",
+              "name": "sup-05"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "sup-01",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "suppressed in source"
+          },
+          "suppressions": [
+            {
+              "kind": "inSource"
+            }
+          ],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/sup.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "sup-02",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "suppressed externally, accepted"
+          },
+          "suppressions": [
+            {
+              "kind": "external",
+              "status": "accepted",
+              "justification": "test data"
+            }
+          ],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/sup.py"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "sup-03",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "suppression rejected, imported"
+          },
+          "suppressions": [
+            {
+              "kind": "external",
+              "status": "rejected"
+            }
+          ],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/sup.py"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "sup-04",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "suppression under review, imported"
+          },
+          "suppressions": [
+            {
+              "kind": "external",
+              "status": "underReview"
+            }
+          ],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/sup.py"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "sup-05",
+          "ruleIndex": 4,
+          "kind": "pass",
+          "level": "error",
+          "message": {
+            "text": "not a failure"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/sup.py"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

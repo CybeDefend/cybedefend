@@ -1,0 +1,15 @@
+{
+  "components": {
+    "modal": {
+      "createProject": {
+        "errors": {
+          "projectNameRequired": "Project name is required.",
+          "teamRequired": "Please select a team.",
+          "repoRequired": "Please select a repository, or pick \"No source\" to continue.",
+          "createFailed": "Unable to create the project. Please check your inputs and try again.",
+          "limitReached": "Your plan's project limit has been reached. Upgrade your plan or delete an existing project to create a new one."
+        }
+      }
+    }
+  }
+}

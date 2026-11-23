@@ -1,0 +1,16 @@
+{
+  "components": {
+    "apiKeyTable": {
+      "addApiKey": "Add API Key",
+      "name": "Name",
+      "description": "Description",
+      "apiKey": "API Key",
+      "expiration": "Expiration",
+      "created": "Created",
+      "manage": "Manage",
+      "noResultsFound": "No Results Found",
+      "noApiKeys": "We couldn't find any matching api keys.",
+      "totalKeys": "API keys"
+    }
+  }
+}

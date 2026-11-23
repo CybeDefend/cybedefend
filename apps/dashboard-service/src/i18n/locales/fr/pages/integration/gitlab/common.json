@@ -1,0 +1,24 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "common": {
+          "copyright": "© CybeDefend SAS — GNU AGPL v3",
+          "backToChoice": "Retour au choix",
+          "backToHome": "Retour à l'Accueil",
+          "loadingRepositories": "Chargement des dépôts...",
+          "loadingProjects": "Chargement des projets...",
+          "selectRepo": "Sélectionner un dépôt",
+          "action": "Action",
+          "repository": "Dépôt",
+          "projectName": "Nom du projet",
+          "select": "Sélectionner",
+          "link": "Lier",
+          "status": "Statut",
+          "private": "Privé",
+          "gitlab": "GitLab"
+        }
+      }
+    }
+  }
+}

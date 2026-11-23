@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package cybedefend.file_management;
+
+message UploadFileRequest {
+  string scan_id = 1;
+  string project_id = 2;
+  string type_scan = 3;
+  // "archive" (default when absent) | "history"
+  optional string artifact = 4;
+}
+
+message UploadFileResponse {
+  string url = 1;
+  string scan_id = 2;
+}
+
+message DeleteFileRequest {
+  string scan_id = 1;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetDownloadUrlRequest {
+  string scan_id = 1;
+  // "external" signs the URL on S3_PUBLIC_ENDPOINT, for a scanner pod outside the
+  // compose network (Community cluster scans). Absent: the internal endpoint, as today.
+  optional string audience = 2;
+  // "archive" (default when absent) | "history"
+  optional string artifact = 3;
+}
+
+message GetDownloadUrlResponse {
+  string url = 1;
+}
+
+// -------------------------------------------------------------------
+// Report upload — generic two-step flow used by analysis-reporting to
+// publish PDFs/HTML/JSON/MD reports without piping the buffer through
+// gRPC (avoids the 50MB max-message ceiling and the pod RAM spike).
+//
+// Flow:
+//   1. RequestReportUploadUrl(projectId, filename, contentType)
+//      -> returns a 60-second signed PUT URL plus the assigned
+//         object_path. Caller PUTs the buffer directly to GCS/S3.
+//   2. FinalizeReportUpload(object_path, ttl_seconds)
+//      -> verifies the object exists and returns a signed READ URL
+//         valid for ttl_seconds (default 900 = 15 min).
+// -------------------------------------------------------------------
+
+message RequestReportUploadUrlRequest {
+  string project_id = 1;
+  string filename = 2;       // Suggested download filename
+  string content_type = 3;   // MIME type, e.g. application/pdf
+}
+
+message RequestReportUploadUrlResponse {
+  string upload_url = 1;             // Signed PUT URL (60s)
+  string object_path = 2;            // Server-assigned key in the bucket
+  uint64 upload_expires_at_ms = 3;   // Epoch ms when upload_url expires
+}
+
+message FinalizeReportUploadRequest {
+  string object_path = 1;            // From RequestReportUploadUrlResponse
+  uint32 ttl_seconds = 2;            // Read-URL TTL; 0 → server default (900)
+  string filename = 3;               // Suggested download filename — forces
+                                     // Content-Disposition: attachment so the
+                                     // browser downloads instead of inlining.
+                                     // Optional; empty falls back to 'attachment'.
+  string project_id = 4;             // Authoritative caller project id. Used
+                                     // by file-management to validate the
+                                     // cross-tenant boundary: object_path
+                                     // MUST start with "reports/<project_id>/"
+                                     // so a compromised analysis-reporting
+                                     // job cannot finalise an object that
+                                     // belongs to a different project.
+                                     // Optional for backward compatibility:
+                                     // empty string skips the check (legacy
+                                     // callers).
+}
+
+message FinalizeReportUploadResponse {
+  string download_url = 1;           // Signed GET URL
+  uint64 expires_at_ms = 2;          // Epoch ms when download_url expires
+}
+
+// Hard-delete a stored report object. Used by the retention purge
+// cron and the user-initiated delete. The object_path MUST start with
+// "reports/<project_id>/" — same cross-tenant boundary as FinalizeReportUpload
+// — so a job cannot delete an object belonging to a different project.
+// Idempotent: deleting an already-absent object returns success.
+message DeleteReportObjectRequest {
+  string object_path = 1;   // reports/<project_id>/<id>.<ext>
+  string project_id = 2;    // authoritative caller project id (cross-tenant guard)
+}
+
+message DeleteReportObjectResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// -------------------------------------------------------------------
+// SARIF import object. One key per (project, scan),
+// whatever the compression: import/<projectId>/<scanId>.sarif.
+// `content_encoding` sets only the signed Content-Type, never the key;
+// readers detect gzip from the first bytes (1f 8b). Import objects get
+// no file_scan row and are never processed by the upload cron.
+// -------------------------------------------------------------------
+
+message RequestImportUploadUrlRequest {
+  string scan_id = 1;
+  string project_id = 2;
+  // "identity" | "gzip": sets the signed Content-Type only.
+  string content_encoding = 3;
+  // Exact upload size in bytes; pins the S3 ContentLength and the GCS
+  // x-goog-content-length-range. 1..52428800 (50 MiB).
+  uint64 content_length = 4;
+  // Community cluster scans only (only the Community cluster engine sets it): the scanner
+  // container the file belongs to. Set, the key is import/<projectId>/<scanId>/<containerId>.sarif;
+  // absent, import/<projectId>/<scanId>.sarif.
+  optional string container_id = 5;
+  // "sarif" (absent: the same) | "sbom": the CycloneDX SBOM of an sca
+  // import, key import/<projectId>/<scanId>.sbom, or, with container_id (the
+  // sca container of a Community cluster scan),
+  // import/<projectId>/<scanId>/<containerId>.sbom; Content-Type
+  // application/vnd.cyclonedx+json (application/gzip when gzip). Any other
+  // value is INVALID_ARGUMENT.
+  optional string kind = 6;
+}
+
+message RequestImportUploadUrlResponse {
+  string upload_url = 1;             // Signed PUT URL (300 s, internal endpoint)
+  string object_key = 2;             // import/<projectId>/<scanId>.sarif,
+                                     // import/<projectId>/<scanId>/<containerId>.sarif with container_id,
+                                     // import/<projectId>/<scanId>.sbom with kind "sbom",
+                                     // import/<projectId>/<scanId>/<containerId>.sbom with both
+  uint64 upload_expires_at_ms = 3;   // Epoch ms when upload_url expires
+  // Headers the PUT must send, exactly (the signature covers them).
+  map<string, string> upload_headers = 4;
+}
+
+message GetImportDownloadUrlRequest {
+  string project_id = 1;   // authoritative caller project id (cross-tenant guard)
+  string object_key = 2;   // import/<projectId>/<scanId>.sarif, import/<projectId>/<scanId>.sbom,
+                           // import/<projectId>/<scanId>/<containerId>.sarif or .../<containerId>.sbom
+}
+
+message GetImportDownloadUrlResponse {
+  string url = 1;          // Signed GET URL (1200 s, internal endpoint)
+  uint64 size_bytes = 2;   // Object size, so the reader can bound its read
+}
+
+message DeleteImportObjectRequest {
+  string project_id = 1;   // authoritative caller project id (cross-tenant guard)
+  string object_key = 2;   // import/<projectId>/<scanId>.sarif, import/<projectId>/<scanId>.sbom,
+                           // import/<projectId>/<scanId>/<containerId>.sarif or .../<containerId>.sbom
+}
+
+message DeleteImportObjectResponse {
+  bool success = 1;        // Idempotent: a missing object still succeeds
+}

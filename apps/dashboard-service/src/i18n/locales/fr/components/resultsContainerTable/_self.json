@@ -1,0 +1,16 @@
+{
+  "components": {
+    "resultsContainerTable": {
+      "imageName": "Nom de l'Image",
+      "scannedImage": "Image scannée",
+      "description": "Sélectionnez une image pour voir ses vulnérabilités et ses paquets.",
+      "title": "Vulnérabilités Container",
+      "cve": "CVE",
+      "cve_one": "CVE",
+      "cve_other": "CVE",
+      "fixedVersion": "Version corrigée",
+      "packageGroup_one": "paquet",
+      "packageGroup_other": "paquets"
+    }
+  }
+}

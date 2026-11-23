@@ -1,0 +1,9 @@
+{
+  "components": {
+    "filterBar": {
+      "filters": "Filters",
+      "clearFilters": "Clear filters",
+      "activeOn": "Filtering on: {{names}}"
+    }
+  }
+}

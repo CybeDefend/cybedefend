@@ -1,0 +1,11 @@
+{
+  "components": {
+    "upsell": {
+      "opensInNewTab": "(opens in a new tab)",
+      "aiAnalysis": {
+        "sentence": "CybeDefend Cloud and Enterprise add Cybe Analysis, which cuts false positives, and 5,000+ managed rules with clear vulnerability names and descriptions, automatic deduplication and automatic resolution.",
+        "link": "See the plans"
+      }
+    }
+  }
+}

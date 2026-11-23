@@ -1,0 +1,31 @@
+{
+  "components": {
+    "mobileTour": {
+      "progress": "{{current}} of {{total}}",
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip",
+      "start": "Let's go",
+      "saveFailed": "We couldn't save that. Please try again.",
+      "slides": {
+        "scan": {
+          "title": "Scan your code",
+          "body": "Import a GitHub or GitLab repository, or add a project by hand, then launch your first scan.",
+          "importBody": "Import a GitHub or GitLab repository, or add a project by hand, then import your first results."
+        },
+        "cybe": {
+          "title": "Cybe does the triage",
+          "body": "Our AI agent filters out false positives, explains each finding and proposes a fix."
+        },
+        "posture": {
+          "title": "Track your posture",
+          "body": "An organisation-wide overview: severities, projects at risk and trends over time."
+        },
+        "tools": {
+          "title": "Plug in your tools",
+          "body": "Link GitHub or GitLab to your projects, and follow alerts in Jira or Slack."
+        }
+      }
+    }
+  }
+}

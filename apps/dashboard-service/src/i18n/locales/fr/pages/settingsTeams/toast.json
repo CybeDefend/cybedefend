@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "toast": {
+        "fetchError": "Une erreur s'est produite lors de la récupération des équipes.",
+        "createSuccess": "Équipe créée avec succès",
+        "createError": "Une erreur s'est produite lors de la création de l'équipe.",
+        "deleteUserError": "Une erreur s'est produite lors de la suppression de l'utilisateur de l'équipe.",
+        "deleteTeamError": "Une erreur s'est produite lors de la suppression de l'équipe.",
+        "updateRoleError": "Une erreur s'est produite lors de la mise à jour du rôle de l'utilisateur de l'équipe.",
+        "addUserSuccess": "Utilisateur ajouté avec succès !",
+        "addUserError": "Une erreur s'est produite lors de l'ajout de l'utilisateur à l'équipe.",
+        "deleteUserSuccess": "Utilisateur retiré de l’équipe.",
+        "deleteTeamSuccess": "Équipe supprimée.",
+        "updateRoleSuccess": "Rôle mis à jour."
+      }
+    }
+  }
+}

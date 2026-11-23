@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "accountTemplate": {
+      "support": {
+        "documentation": {
+          "title": "Documentation",
+          "description": "Explore our comprehensive guides and learn how to use CybeDefend.",
+          "button": "Visit Documentation"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "tabs": {
+        "codeAnalysis": "Code source",
+        "infrastructureAsCode": "Infrastructure as Code",
+        "cicd": "CI/CD",
+        "secret": "Secrets",
+        "softwareCompositionAnalysis": "Dépendances logiciels",
+        "containerSecurity": "Conteneur"
+      }
+    }
+  }
+}

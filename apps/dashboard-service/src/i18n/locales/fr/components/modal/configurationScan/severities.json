@@ -1,0 +1,16 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "severities": {
+          "title": "Sévérité des vulnérabilités analysées",
+          "description": "Vous pouvez sélectionner les sévérités des vulnérabilités à scanner, les sévérités non cochées ne seront pas enregistrées dans les résultats du scan. Ce paramètre n'affecte pas le temps de scan.",
+          "critical": "Critique",
+          "high": "Élevée",
+          "medium": "Moyenne",
+          "low": "Faible"
+        }
+      }
+    }
+  }
+}

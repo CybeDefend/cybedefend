@@ -1,0 +1,60 @@
+{
+  "pages": {
+    "getStarted": {
+      "title": "Something to help you succeed",
+      "description": "Your first steps with CybeDefend Open Source: import results, run scans, connect your tools.",
+      "opensInNewTab": "(opens in a new tab)",
+      "cloud": {
+        "title": "Skip the ops work: try CybeDefend Cloud free",
+        "recommended": "Recommended",
+        "body": "Simpler and more complete: managed scanners, AI analysis that cuts false positives, AutoFix, and nothing to host.",
+        "cta": "Try CybeDefend Cloud",
+        "editions": "Explore the editions"
+      },
+      "privateCloud": {
+        "sectionTitle": "Need compliance or custom deployment?",
+        "title": "Private cloud",
+        "body": "A dedicated instance with full data isolation, your own custom domain and an SLA.",
+        "cta": "Contact us"
+      },
+      "quickStart": {
+        "title": "Quick start",
+        "importSarif": {
+          "title": "Import your first SARIF results",
+          "body": "Open a project, then « Import results » on its results page.",
+          "cta": "Open the projects"
+        },
+        "kubernetes": {
+          "title": "Connect a Kubernetes cluster",
+          "body": "Run the scanners on your own cluster instead of importing results.",
+          "cta": "Read the guide"
+        },
+        "ciImport": {
+          "title": "Import results from CI",
+          "body": "Send SARIF from any CI job to the import API with a personal access token.",
+          "cta": "Read the guide"
+        },
+        "githubAction": {
+          "title": "Use the GitHub Action",
+          "body": "Scan every push in GitHub Actions and import the results here.",
+          "cta": "Open the Action"
+        },
+        "repositories": {
+          "title": "Connect GitHub or GitLab",
+          "body": "Link your repositories to create projects from them.",
+          "cta": "Open the integrations"
+        },
+        "mcp": {
+          "title": "Use the MCP server",
+          "body": "Connect your coding agent to this instance's MCP server and give it the findings.",
+          "cta": "Read the guide"
+        },
+        "policy": {
+          "title": "Create a security policy",
+          "body": "Set the rules your projects must meet, and see what breaks them.",
+          "cta": "Create a policy"
+        }
+      }
+    }
+  }
+}

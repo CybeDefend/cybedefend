@@ -1,0 +1,9 @@
+{
+  "pages": {
+    "projectSetting": {
+      "globalSettingsTitle": "Project settings",
+      "errorFetchingProject": "Error fetching project",
+      "globalSettingsSubtitle": "These settings apply to this project only."
+    }
+  }
+}

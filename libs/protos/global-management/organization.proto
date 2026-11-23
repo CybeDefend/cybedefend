@@ -1,0 +1,321 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+message TeamAssignment {
+  string teamId = 1;
+  string role   = 2; // Team role: team_manager, developer, viewer
+}
+
+message OrganizationInviteRequest {
+  string invitedBy      = 1;
+  string email          = 2;
+  string organizationId = 3;
+  string role           = 4;
+  repeated TeamAssignment teamAssignments = 5; // Optional array of team assignments with roles
+  // Per-member products:
+  // the products the invitation gives, each "appsec" | "vibedefend". Empty
+  // (an older gateway or CLI) means every active product the inviter may give.
+  repeated string products = 6;
+}
+
+message OrganizationInviteResponse {
+  string id               = 1;
+  string token            = 2;
+  string email            = 3;
+  string status           = 4;
+  string organizationId   = 5;
+  string organizationName = 6;
+  string organizationRole = 7;
+  string expiresAt        = 8;
+}
+
+message OrganizationCancelRequest {
+  string organizationId = 1;
+  string invitationId   = 2;
+}
+
+message CancelAllPendingInvitationsRequest {
+  string organizationId = 1;
+}
+
+message CancelAllPendingInvitationsResponse {
+  int32 cancelledCount = 1;
+}
+
+message OrganizationGetInvitationsRequest {
+  string organizationId = 1;
+  int32  page           = 2;
+  int32  pageSize       = 3;
+}
+
+message GetOrganizationInvitationsResponse {
+  string organizationId                         = 1;
+  repeated OrganizationInviteResponse invitations = 2;
+}
+
+message OrganizationInformationsList {
+  repeated OrganizationInformationsResponse organizations = 1;
+}
+
+message OrganizationGetRequest {
+  string organizationId = 1;
+}
+
+message OrganizationGetAllRequest {
+  string userId = 1;
+}
+
+message OrganizationInformationsResponse {
+  string id                  = 1;
+  string name                = 2;
+  string industry            = 3;
+  string country             = 4;
+  int32  concurrentScanLimit = 7;
+  reserved 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18;
+  reserved "companyName", "vatNumber", "billingAddressLine1", "billingAddressLine2", "billingCity", "billingPostalCode", "billingRegion", "customerType", "firstName", "lastName", "diffScanMaxParallelPerUser";
+}
+
+message OrganizationUpdateRequest {
+  optional string organizationId      = 1;
+  optional string name                = 2;
+  optional string industry            = 3; // replaces description
+  // field 4 (email) removed
+  optional string country             = 4;
+  // field 6 (address) removed
+  // field 7 (website) removed
+  optional bool   isActive            = 5;
+  optional int32  concurrentScanLimit = 6;
+  // Optional billing profile fields
+  optional string companyName         = 7;
+  optional string vatNumber           = 8;
+  optional string billingAddressLine1 = 9;
+  optional string billingAddressLine2 = 10;
+  optional string billingCity         = 11;
+  optional string billingPostalCode   = 12;
+  optional string billingRegion       = 13;
+  // field 14 (billingCountry) removed; use country instead
+  // Identity fields
+  optional string customerType        = 14; // 'individual' | 'company'
+  optional string firstName           = 15;
+  optional string lastName            = 16;
+  optional int32  diffScanMaxParallelPerUser = 17; // Per-user parallel diff-scan cap (>=1)
+}
+
+
+message OrganizationUpdateResponse {
+  string message = 1;
+}
+
+message AttributionTouch {
+  string source        = 1;
+  string medium        = 2;
+  string campaign      = 3;
+  string content       = 4;
+  string term          = 5;
+  string click_id      = 6;
+  string click_id_type = 7;
+  string landing_path  = 8;
+  string referrer      = 9;
+  string at            = 10;
+}
+
+message Attribution {
+  AttributionTouch first = 1;
+  AttributionTouch last  = 2;
+}
+
+message OrganizationCreateRequest {
+  string name        = 1;
+  string industry    = 2;
+  string country     = 3;
+  string creatorId   = 4;
+  // Billing identity and profile (required server-side)
+  string customerType        = 5;  // 'individual' | 'company'
+  string firstName           = 6;  // required if individual
+  string lastName            = 7;  // required if individual
+  string companyName         = 8;  // required if company
+  string vatNumber           = 9;  // optional if company
+  string billingAddressLine1 = 10; // at least one of line1/line2
+  string billingAddressLine2 = 11;
+  string billingCity         = 12;
+  string billingPostalCode   = 13;
+  string billingRegion       = 14;
+  Attribution attribution    = 15;
+  optional string hdyhau     = 16;
+  optional string intended_plan = 17; // 'developer' | 'team' | 'scale'
+  optional string lead_id       = 18; // marketing lead correlation id (uuid v4), from the sign-up link
+  // The sign-up request's own network context, read off the HTTP request by
+  // the gateway, for the server-side sign-up event this creation emits from a
+  // service that has no request of its own. Empty when the gateway had
+  // nothing to read, and the event then carries neither: an IP and a user
+  // agent describe one request and are never recycled.
+  string client_ip         = 19;
+  string client_user_agent = 20; // capped at 512 characters
+}
+
+message OrganizationCreateResponse {
+  string message        = 1;
+  string organizationId = 2;
+  string name           = 3;
+  string industry       = 4;
+}
+
+// Refused by global-management whatever it carries: the
+// deletion is ConfirmOrganizationDeletion. Kept so that an older gateway's
+// call is answered with a refusal, never a deletion.
+message OrganizationDeleteRequest {
+  string organizationId   = 1;
+}
+
+// Only the organization's creator deletes it, confirmed by the 6-digit code
+// RequestOrganizationDeletionCode e-mailed to them.
+message ConfirmOrganizationDeletionRequest {
+  string organizationId   = 1;
+  // The authenticated caller (gateway: req.user.sub), never a body value.
+  string requestedBy      = 2;
+  string confirmationCode = 3;
+}
+
+message RequestOrganizationDeletionCodeRequest {
+  string organizationId = 1;
+  string requestedBy    = 2;
+}
+
+message RequestOrganizationDeletionCodeResponse {
+  // ISO 8601: when the code e-mailed to the creator stops being valid.
+  string expiresAt = 1;
+}
+
+message OrganizationDeleteResponse {
+  string message = 1;
+}
+
+message OrganizationGetMembersRequest {
+  string organizationId = 1;
+  int32  page           = 2;
+  int32  pageSize       = 3;
+  string searchQuery    = 4;
+}
+
+// A member of the organisation, as GetMembers lists it. Fields 1 to 6 are
+// those of UserInformationsResponse, number for number, so a reader built on
+// PaginatedUsersResponse decodes this page unchanged.
+message OrganizationMember {
+  string id        = 1;
+  string firstName = 2;
+  string lastName  = 3;
+  string email     = 4;
+  string picture   = 5;
+  optional string role = 6; // organisation role
+  // Per-member products:
+  // the member's products in the organisation, "appsec" | "vibedefend".
+  repeated string products = 7;
+}
+
+// Same field numbers as PaginatedUsersResponse (team.proto).
+message PaginatedOrganizationMembersResponse {
+  repeated OrganizationMember users = 1;
+  int32 totalUsers = 2;
+  int32 totalPages = 3;
+}
+
+message OrganizationAcceptInviteRequest {
+  string userId = 1;
+  string token  = 2;
+}
+
+message OrganizationAcceptInviteResponse {
+  string message                                = 1;
+  OrganizationInformationsResponse organization = 2;
+}
+
+message OrganizationUpdateRoleRequest {
+  string organizationId = 1;
+  string userId         = 2;
+  string role           = 3;
+  // The member making the change (gateway: the token's subject). Ranked like
+  // an invitation: they must be allowed to invite
+  // both the member's current role and the new one. Empty (an older
+  // gateway): refused, PERMISSION_DENIED.
+  string updatedBy      = 4;
+}
+
+message OrganizationUpdateRoleResponse {
+  string message = 1;
+}
+
+message OrganizationDeleteMemberRequest {
+  string organizationId = 1;
+  string userId         = 2;
+  // The member removing them (gateway: the token's subject). Ranked like an
+  // invitation: they must be allowed to invite
+  // the member's role, or be removing themself. Empty (an older gateway):
+  // refused, PERMISSION_DENIED.
+  string removedBy      = 3;
+}
+
+message OrganizationDeleteMemberResponse {
+  string message = 1;
+}
+
+message OrganizationGetIdByProjectIdRequest {
+  string projectId = 1;
+}
+
+message OrganizationGetIdByProjectIdResponse {
+  string organizationId = 1;
+  // The project's team, read by the same query. Absent from a
+  // global-management that predates it, so a caller falls back to
+  // ProjectService/Get when it is missing.
+  optional string teamId = 2;
+}
+
+message OrganizationGetIdByTeamIdRequest {
+  string teamId = 1;
+}
+
+message OrganizationGetIdByTeamIdResponse {
+  string organizationId = 1;
+}
+
+message OrganizationAddTeamRequest {
+  string organization_id = 1;
+  string team_id         = 2;
+}
+
+message OrganizationAddTeamResponse {
+  string message = 1;
+}
+
+message OrganizationAddMemberByIdRequest {
+  string organization_id = 1;
+  string user_id         = 2;
+  string role            = 3;
+}
+
+message OrganizationAddMemberResponse {
+  string message = 1;
+  string user_id = 2;
+}
+
+// Efficient count of members in an organization (single SQL COUNT query, used by billing-service addon validation)
+message CountMembersInOrganizationRequest {
+  string organizationId = 1;
+  // Per-member products: "appsec" | "vibedefend". Unset counts every member,
+  // as before. Set, it counts the members with that product; while the
+  // organisation's switch (memberProducts) is off, that is every member.
+  optional string product = 2;
+  // Also count the pending invitations (with `product` when it is set),
+  // returned in pendingInvitations; totalMembers never includes them.
+  bool includePendingInvitations = 3;
+}
+
+message CountMembersInOrganizationResponse {
+  int32 totalMembers = 1;
+  // The pending invitations counted when includePendingInvitations is set, else 0.
+  int32 pendingInvitations = 2;
+  // The organisation's per-member products switch: true once members' products
+  // are enforced (Permify `member_products`).
+  bool memberProducts = 3;
+}

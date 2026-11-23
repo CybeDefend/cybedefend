@@ -1,0 +1,13 @@
+{
+  "components": {
+    "select": {
+      "placeholder": "Sélectionnez une option",
+      "itemsSelected": "éléments sélectionnés",
+      "all": "Tous",
+      "searchPlaceholder": "Rechercher...",
+      "noResults": "Aucun résultat trouvé",
+      "searching": "Recherche…",
+      "loadingMore": "Chargement…"
+    }
+  }
+}

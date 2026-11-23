@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "settingsIntegration": {
+      "categories": {
+        "all": "Tout",
+        "sourceControl": "Contrôle de source",
+        "ticketingNotifications": "Ticketing & notifications",
+        "containerRegistries": "Registres de conteneurs",
+        "cloudProviders": "Fournisseurs Cloud"
+      }
+    }
+  }
+}

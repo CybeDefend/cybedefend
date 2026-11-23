@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "issuePage": {
+      "tabs": {
+        "detailsAndFix": "Détails & correction",
+        "codeContext": "Exemples de Code",
+        "history": "Historique",
+        "autofix": "Corrections IA",
+        "corrections": "Corrections",
+        "noHistoryTitle": "Aucun historique trouvé",
+        "noCodeExamplesTitle": "Aucun exemple de Code trouvé",
+        "noCodeExamplesDescription": "Il n'y a pas d'exemples de code disponibles pour cette vulnérabilité.",
+        "vulnerableCode": "Code vulnérable",
+        "secretDetectedInHistory": "Ce secret a été détecté dans l'historique Git. Le fichier actuel a pu être modifié depuis le commit où il a été trouvé.",
+        "noHistoryDescription": "Il n'y a pas d'historique de changement de statut, de priorité ou de commentaire pour cette vulnérabilité."
+      }
+    }
+  }
+}

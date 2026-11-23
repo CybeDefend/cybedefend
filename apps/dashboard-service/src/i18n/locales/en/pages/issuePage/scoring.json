@@ -1,0 +1,295 @@
+{
+  "pages": {
+    "issuePage": {
+      "scoring": {
+        "tabTitle": "Scoring & Exploitability",
+        "unavailable": "Unavailable",
+        "unavailableShort": "N/A",
+        "cvss": {
+          "title": "CVSS",
+          "base": "Base",
+          "environmental": "Env.",
+          "historicLabel": "3.1 historic",
+          "iaLabel": "4.0 AI",
+          "score": "CVSS 4.0 Score",
+          "scoreV3": "CVSS 3.1 Score",
+          "scoreV4": "CVSS 4.0 Score",
+          "legacyLabel": "CVSS v3",
+          "iaAnalysis": "AI Analysis",
+          "delta": "+{{value}} env.",
+          "envSameAsBase": "= base",
+          "narrative": {
+            "intro": "Score {{score}} ({{severityLabel}}):",
+            "severity": {
+              "critical": "critical",
+              "high": "high",
+              "medium": "medium",
+              "low": "low",
+              "none": "informational"
+            },
+            "attacker": {
+              "network": "an attacker on the Internet",
+              "adjacent": "an attacker on the same local network",
+              "local": "a local attacker on the host",
+              "physical": "an attacker with physical access to the host"
+            },
+            "auth": {
+              "none": "without any authentication",
+              "low": "with low-privilege credentials",
+              "high": "with high-privilege credentials"
+            },
+            "interaction": {
+              "none": "and no user interaction",
+              "passive": "and minimal user interaction (passive)",
+              "active": "and active user interaction (e.g. clicking a link)"
+            },
+            "complexity": {
+              "low": "via a straightforward attack path",
+              "high": "via a complex attack path requiring specific conditions"
+            },
+            "actionVerb": "can exploit this vulnerability",
+            "impact": {
+              "fullCia": "to fully compromise the confidentiality, integrity and availability of your system",
+              "ci": "to compromise the confidentiality and integrity of your data",
+              "ca": "to compromise the confidentiality and availability of your system",
+              "ia": "to compromise the integrity and availability of your system",
+              "c": "to compromise the confidentiality of your data",
+              "i": "to alter the integrity of your data",
+              "a": "to disrupt the availability of your system",
+              "low": "with limited impact on confidentiality, integrity or availability",
+              "none": "with no direct impact on confidentiality, integrity or availability"
+            },
+            "subsequent": ", and the impact may extend to downstream systems.",
+            "env": {
+              "intro": "Your project context adjusts the score to {{envScore}}:",
+              "increased": "{{drivers}} amplify the real-world impact in this environment.",
+              "decreased": "{{drivers}} reduce the real-world impact in this environment.",
+              "unchangedNoText": "no change",
+              "driverSeparator": ", ",
+              "driverLastSeparator": " and "
+            },
+            "drivers": {
+              "CR": {
+                "L": "low confidentiality requirement",
+                "M": "medium confidentiality requirement",
+                "H": "high confidentiality requirement"
+              },
+              "IR": {
+                "L": "low integrity requirement",
+                "M": "medium integrity requirement",
+                "H": "high integrity requirement"
+              },
+              "AR": {
+                "L": "low availability requirement",
+                "M": "medium availability requirement",
+                "H": "high availability requirement"
+              },
+              "MAV": {
+                "N": "broader network exposure",
+                "A": "adjacent-network exposure",
+                "L": "local-only exposure",
+                "P": "physical-only exposure"
+              },
+              "MAC": {
+                "L": "lower attack complexity",
+                "H": "higher attack complexity"
+              },
+              "MAT": {
+                "N": "no special attack requirements",
+                "P": "additional attack requirements"
+              },
+              "MPR": {
+                "N": "no privilege requirement",
+                "L": "low privilege requirement",
+                "H": "high privilege requirement"
+              },
+              "MUI": {
+                "N": "no user interaction needed",
+                "P": "minimal user interaction",
+                "A": "active user interaction"
+              },
+              "MVC": {
+                "N": "no confidentiality impact",
+                "L": "limited confidentiality impact",
+                "H": "high confidentiality impact"
+              },
+              "MVI": {
+                "N": "no integrity impact",
+                "L": "limited integrity impact",
+                "H": "high integrity impact"
+              },
+              "MVA": {
+                "N": "no availability impact",
+                "L": "limited availability impact",
+                "H": "high availability impact"
+              },
+              "MSC": {
+                "N": "no downstream confidentiality impact",
+                "L": "limited downstream confidentiality impact",
+                "H": "high downstream confidentiality impact"
+              },
+              "MSI": {
+                "N": "no downstream integrity impact",
+                "L": "limited downstream integrity impact",
+                "H": "high downstream integrity impact",
+                "S": "safety-critical downstream integrity impact"
+              },
+              "MSA": {
+                "N": "no downstream availability impact",
+                "L": "limited downstream availability impact",
+                "H": "high downstream availability impact",
+                "S": "safety-critical downstream availability impact"
+              }
+            }
+          },
+          "decode": {
+            "toggleShow": "Technical details",
+            "toggleHide": "Hide technical details",
+            "rawVectorTitle": "Raw vector",
+            "baseVector": "Base vector",
+            "environmentalVector": "Environmental vector",
+            "driversTitle": "Environmental drivers",
+            "sameAsBaseVector": "No environmental overrides, identical to base vector",
+            "groups": {
+              "exploitability": "Exploitability",
+              "vulnerable": "Vulnerable System impact",
+              "subsequent": "Subsequent System impact",
+              "requirements": "Security Requirements",
+              "modified": "Modified Base Metrics"
+            },
+            "metrics": {
+              "AV": {
+                "label": "Attack Vector",
+                "values": {
+                  "N": "Network",
+                  "A": "Adjacent",
+                  "L": "Local",
+                  "P": "Physical"
+                }
+              },
+              "AC": {
+                "label": "Attack Complexity",
+                "values": { "L": "Low", "H": "High" }
+              },
+              "AT": {
+                "label": "Attack Requirements",
+                "values": { "N": "None", "P": "Present" }
+              },
+              "PR": {
+                "label": "Privileges Required",
+                "values": { "N": "None", "L": "Low", "H": "High" }
+              },
+              "UI": {
+                "label": "User Interaction",
+                "values": { "N": "None", "P": "Passive", "A": "Active" }
+              },
+              "VC": {
+                "label": "Confidentiality",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "VI": {
+                "label": "Integrity",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "VA": {
+                "label": "Availability",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "SC": {
+                "label": "Confidentiality",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "SI": {
+                "label": "Integrity",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "SA": {
+                "label": "Availability",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "CR": {
+                "label": "Confidentiality Requirement",
+                "values": { "H": "High", "M": "Medium", "L": "Low" }
+              },
+              "IR": {
+                "label": "Integrity Requirement",
+                "values": { "H": "High", "M": "Medium", "L": "Low" }
+              },
+              "AR": {
+                "label": "Availability Requirement",
+                "values": { "H": "High", "M": "Medium", "L": "Low" }
+              },
+              "MAV": {
+                "label": "Modified Attack Vector",
+                "values": { "N": "Network", "A": "Adjacent", "L": "Local", "P": "Physical" }
+              },
+              "MAC": {
+                "label": "Modified Attack Complexity",
+                "values": { "L": "Low", "H": "High" }
+              },
+              "MAT": {
+                "label": "Modified Attack Requirements",
+                "values": { "N": "None", "P": "Present" }
+              },
+              "MPR": {
+                "label": "Modified Privileges Required",
+                "values": { "N": "None", "L": "Low", "H": "High" }
+              },
+              "MUI": {
+                "label": "Modified User Interaction",
+                "values": { "N": "None", "P": "Passive", "A": "Active" }
+              },
+              "MVC": {
+                "label": "Modified Confidentiality",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "MVI": {
+                "label": "Modified Integrity",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "MVA": {
+                "label": "Modified Availability",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "MSC": {
+                "label": "Modified Subsequent Confidentiality",
+                "values": { "H": "High", "L": "Low", "N": "None" }
+              },
+              "MSI": {
+                "label": "Modified Subsequent Integrity",
+                "values": { "S": "Safety", "H": "High", "L": "Low", "N": "None" }
+              },
+              "MSA": {
+                "label": "Modified Subsequent Availability",
+                "values": { "S": "Safety", "H": "High", "L": "Low", "N": "None" }
+              }
+            }
+          }
+        },
+        "exploitability": {
+          "title": "Exploitability",
+          "score": "Score",
+          "static": "Static"
+        },
+        "justification": {
+          "title": "Justification",
+          "titleVerdict": "Verdict (TP / FP)",
+          "titleScore": "Why this exploitability score?"
+        },
+        "decomposition": {
+          "title": "Why this priority?",
+          "cvssEnv": "CVSS Env.",
+          "exploitability": "Exploitability",
+          "context": "Context",
+          "priority": {
+            "criticalUrgent": "Critical Urgent",
+            "urgent": "Urgent",
+            "normal": "Normal",
+            "low": "Low",
+            "veryLow": "Very Low"
+          }
+        }
+      }
+    }
+  }
+}

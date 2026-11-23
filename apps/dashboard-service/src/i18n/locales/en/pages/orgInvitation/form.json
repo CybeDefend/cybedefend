@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "form": {
+        "title": "Complete Your Registration",
+        "subtitle": "You've been invited to join {{organizationName}} as a team member",
+        "yourRole": "Your Role",
+        "invitedEmail": "Invitation sent to",
+        "expires": "Invitation Expires",
+        "loading": "Loading...",
+        "buttonLoading": "Completing registration...",
+        "buttonAccept": "Accept & Join Organization",
+        "terms": "By accepting, you agree to our Terms of Service and Privacy Policy",
+        "accepted": "Invitation accepted",
+        "settingUpPermissions": "Setting up your permissions…"
+      }
+    }
+  }
+}

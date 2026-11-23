@@ -1,0 +1,33 @@
+{
+  "errors": {
+    "fetchImages": "Échec de la récupération des images.",
+    "reports": {
+      "timeout": "Délai d'attente dépassé pour la génération du rapport",
+      "failed": "Échec de la génération du rapport",
+      "generateFailed": "Impossible de générer le rapport",
+      "downloadFailed": "Impossible de télécharger le rapport",
+      "owaspFailed": "Impossible de générer le rapport OWASP",
+      "cweFailed": "Impossible de générer le rapport CWE",
+      "orgFailed": "Impossible de générer le rapport organisation",
+      "teamFailed": "Impossible de générer le rapport équipe",
+      "batchFailed": "Impossible de générer le rapport batch"
+    },
+    "generic": {
+      "loadFailed": "La politique n’a pas pu être chargée",
+      "loadingFailed": "Les données n’ont pas pu être chargées",
+      "operationFailed": "L'opération a échoué. Veuillez réessayer."
+    },
+    "validation": {
+      "required": "Ce champ est obligatoire"
+    },
+    "api": {
+      "badRequest": "La requête a été refusée. Vérifiez les champs et réessayez.",
+      "notAllowed": "Vous n’êtes pas autorisé à faire cela.",
+      "notFound": "Cet élément n’existe plus ou est introuvable.",
+      "conflict": "Cela entre en conflit avec un élément existant.",
+      "tooManyRequests": "Trop de requêtes. Patientez un instant puis réessayez.",
+      "unavailable": "Le serveur est injoignable. Réessayez dans un instant.",
+      "generic": "Une erreur est survenue. Veuillez réessayer."
+    }
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "pages": {
+    "reportsPage": {
+      "title": "Rapports de sécurité",
+      "description": "Générez des rapports de sécurité agrégés pour votre organisation, vos équipes ou une sélection personnalisée de projets.",
+      "generateButton": "Générer le rapport",
+      "helpText": "Le rapport sera téléchargé automatiquement",
+      "scopes": {
+        "organizationShort": "Tous les projets de votre organisation",
+        "teamShort": "Projets d'une équipe spécifique",
+        "customShort": "Sélectionner des projets spécifiques"
+      },
+      "standards": {
+        "owaspDesc": "Risques de sécurité des applications web",
+        "cweDesc": "Faiblesses logicielles courantes",
+        "licenseDesc": "Conformité des licences open source",
+        "aiActDesc": "Conformité des composants IA (Règlement 2024/1689)"
+      },
+      "detailLevels": {
+        "detailedDesc": "Détails complets des vulnérabilités",
+        "summaryDesc": "Vue d'ensemble de haut niveau"
+      },
+      "stats": {
+        "totalProjects": "Total projets",
+        "totalTeams": "Équipes",
+        "standard": "Standard"
+      },
+      "standardInfo": {
+        "owasp": {
+          "title": "À propos de l'OWASP Top 10",
+          "description": "L'OWASP Top 10 est un document de sensibilisation standard représentant un large consensus sur les risques de sécurité les plus critiques pour les applications web. Il aide les développeurs et les équipes de sécurité à prioriser et traiter les vulnérabilités courantes comme les attaques par injection, l'authentification défaillante et l'exposition de données sensibles."
+        },
+        "cwe": {
+          "title": "À propos du CWE Top 25",
+          "description": "Le CWE Top 25 des faiblesses logicielles les plus dangereuses est une liste compilée par MITRE qui identifie les faiblesses les plus répandues et critiques dans les logiciels. Il fournit un langage commun pour décrire les failles de sécurité et aide les organisations à se concentrer sur l'élimination des causes profondes des vulnérabilités."
+        },
+        "license": {
+          "title": "À propos du rapport de licences",
+          "description": "Le Rapport de Licences offre une visibilité sur les licences open source utilisées dans vos projets. Il aide à identifier les risques de conformité en catégorisant les packages comme Permissif, Copyleft faible, Copyleft fort ou Inconnu."
+        },
+        "learnMore": "En savoir plus"
+      },
+      "features": {
+        "compliance": "Conformité garantie",
+        "complianceDesc": "Standards OWASP Top 10 & CWE Top 25",
+        "formats": "Multiples formats",
+        "formatsDesc": "Export en PDF, HTML ou JSON",
+        "scope": "Portée flexible",
+        "scopeDesc": "Organisation, équipe ou sélection personnalisée"
+      },
+      "configuration": {
+        "globalSettings": "S'applique à tous les rapports",
+        "title": "Configuration du rapport",
+        "reportType": "Type de rapport",
+        "format": "Format",
+        "detailedReport": "Niveau de détail",
+        "selectReportType": "Sélectionner le type de rapport",
+        "selectFormat": "Sélectionner le format",
+        "detailed": "Détaillé",
+        "summary": "Résumé",
+        "branchFilter": "Filtre de branche"
+      },
+      "reportTypes": {
+        "owasp": "OWASP Top 10",
+        "cwe": "CWE Top 25",
+        "license": "Licences",
+        "aiAct": "EU AI act"
+      },
+      "branchFilter": {
+        "all": "Toutes les branches",
+        "allDesc": "Inclure les vulnérabilités de toutes les branches",
+        "reference": "Branche de référence uniquement",
+        "referenceDesc": "Inclure uniquement la branche de référence de chaque projet",
+        "selected": "Branches sélectionnées",
+        "selectedDesc": "Inclure uniquement les branches de votre choix"
+      },
+      "branchSelector": {
+        "loading": "Chargement des branches...",
+        "searchPlaceholder": "Rechercher des projets...",
+        "noProjects": "Aucun projet disponible.",
+        "selectedCount": "{{count}} branche(s) sélectionnée(s)",
+        "clearAll": "Tout effacer",
+        "noTeam": "Sans équipe",
+        "noBranches": "Aucune branche",
+        "selectAll": "Tout sélectionner",
+        "noneSelected": "Aucune branche sélectionnée. Dépliez les projets ci-dessus et sélectionnez des branches."
+      },
+      "organizationReport": {
+        "title": "Rapport d’organisation",
+        "description": "Générer un rapport consolidé pour tous les projets de {{organization}}",
+        "includes": "Contenu inclus :",
+        "includesDesc": "Tous les projets de toutes les équipes de votre organisation seront analysés et consolidés dans un rapport complet unique.",
+        "generateButton": "Générer le rapport d'Organisation"
+      },
+      "teamReport": {
+        "title": "Rapport d’équipe",
+        "description": "Générer un rapport consolidé pour tous les projets d'une équipe spécifique",
+        "includes": "Contenu inclus :",
+        "includesDesc": "Tous les projets appartenant à l'équipe sélectionnée seront agrégés dans un rapport de sécurité unifié.",
+        "selectTeam": "Sélectionner l'Équipe",
+        "selectTeamPlaceholder": "Choisir une équipe",
+        "viewProjectsButton": "Voir les projets",
+        "generateButton": "Générer le rapport d'Équipe",
+        "errorTitle": "Échec du chargement des équipes",
+        "noTeamsTitle": "Aucune équipe disponible",
+        "noTeamsMessage": "Votre organisation n'a pas encore d'équipes.",
+        "noDescription": "Aucune description",
+        "viewProjects": "Voir les projets de l'équipe",
+        "projectsModalTitle": "Projets de l'Équipe",
+        "noProjectsInTeam": "Cette équipe n'a pas encore de projets.",
+        "createdAt": "Créé le {{date}}"
+      },
+      "batchReport": {
+        "title": "Rapport personnalisé",
+        "description": "Générer un rapport consolidé pour une sélection personnalisée de projets",
+        "includes": "Contenu inclus :",
+        "includesDesc": "Choisissez des projets spécifiques de votre organisation pour créer un rapport de sécurité sur mesure.",
+        "selectedCount": "{{count}} sur {{total}} projets sélectionnés",
+        "selectAll": "Tout sélectionner",
+        "deselectAll": "Tout désélectionner",
+        "generateButton": "Générer le rapport personnalisé",
+        "errorTitle": "Échec du chargement des projets",
+        "noProjectsTitle": "Aucun projet disponible",
+        "noProjectsMessage": "Votre organisation n'a pas encore de projets."
+      },
+      "generating": {
+        "started": "Génération du rapport lancée. Le téléchargement démarrera une fois prêt.",
+        "message": "Génération de votre rapport… cela peut prendre quelques minutes pour les grands périmètres."
+      },
+      "errors": {
+        "noOrganization": "Aucune organisation sélectionnée",
+        "noTeamSelected": "Veuillez sélectionner une équipe",
+        "noProjectsSelected": "Veuillez sélectionner au moins un projet",
+        "generateFailed": "Échec de la génération du rapport",
+        "generateTimeout": "La génération du rapport a expiré. Veuillez réessayer."
+      },
+      "error": {
+        "title": "Erreur lors de la génération du rapport"
+      },
+      "tabs": {
+        "generate": "Générer",
+        "stored": "Rapports stockés"
+      },
+      "storedReports": {
+        "unavailable": "Indisponible",
+        "openButton": "Rapports stockés {{count}}",
+        "openButtonLabel": "Rapports stockés",
+        "drawerTitle": "Rapports stockés",
+        "close": "Fermer",
+        "expand": "Agrandir",
+        "collapse": "Réduire",
+        "resize": "Redimensionner le panneau",
+        "viewTypeReports_one": "Voir {{count}} rapport {{type}} stocké",
+        "viewTypeReports_other": "Voir {{count}} rapports {{type}} stockés",
+        "metadata": {
+          "title": "Détails du rapport",
+          "type": "Type",
+          "format": "Format",
+          "scope": "Portée",
+          "scopeOrganization": "Organisation",
+          "scopeTeam": "Équipe",
+          "scopeProject": "Projet",
+          "scopeBatch": "Sélection personnalisée",
+          "organization": "Organisation",
+          "branch": "Branche",
+          "generated": "Généré le",
+          "expires": "Expire le",
+          "status": "Statut",
+          "id": "ID du rapport"
+        },
+        "quota": {
+          "used": "{{used}} / {{limit}} rapports stockés dans l’organisation",
+          "retention": "Conservés {{days}} jours",
+          "full": "Quota de stockage des rapports atteint. Supprimez un rapport ou passez à un plan supérieur."
+        },
+        "table": {
+          "name": "Nom",
+          "type": "Type",
+          "format": "Format",
+          "created": "Généré le",
+          "expires": "Expire",
+          "actions": "Actions"
+        },
+        "download": "Télécharger",
+        "downloadFailed": "Échec du téléchargement. Ce rapport n'est plus disponible (il a peut-être expiré ou été supprimé). Vous pouvez le retirer de la liste.",
+        "delete": "Supprimer",
+        "deleteConfirm": "Supprimer ce rapport ? Cela libère un emplacement de stockage et est irréversible.",
+        "expiresIn_one": "{{count}} jour restant",
+        "expiresIn_other": "{{count}} jours restants",
+        "neverExpires": "Pas d'expiration",
+        "notFound": "Le rapport ouvert depuis ce lien n'est plus disponible (supprimé ou expiré). Vos rapports stockés actuels sont listés ci-dessous.",
+        "status": {
+          "queued": "Génération…",
+          "ready": "Prêt",
+          "failed": "Échec"
+        },
+        "empty": {
+          "title": "Aucun rapport stocké",
+          "description": "Les rapports que vous générez apparaîtront ici pour téléchargement ou suppression."
+        }
+      },
+      "wizard": {
+        "back": "Retour",
+        "continue": "Continuer",
+        "projects": "projet(s)",
+        "reviewDesc": "Vérifiez la configuration de votre rapport avant de le générer.",
+        "reviewTitle": "Vérifier et générer",
+        "step1": "Choisir le périmètre",
+        "step2": "Configurer",
+        "step3": "Générer",
+        "summaryBranches": "Branches",
+        "summaryDetail": "Détail",
+        "summaryFormat": "Format",
+        "summaryScope": "Périmètre",
+        "summaryType": "Standard"
+      }
+    }
+  }
+}

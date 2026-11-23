@@ -1,0 +1,13 @@
+{
+  "components": {
+    "cybe": {
+      "chat": {
+        "noProjectButton": "Add a project"
+      },
+      "emptyState": {
+        "noProject": "You don't have any projects yet. Connect your repo and I'll start working on it.",
+        "noVuln": "No vulnerabilities detected on this project. I'll keep monitoring."
+      }
+    }
+  }
+}

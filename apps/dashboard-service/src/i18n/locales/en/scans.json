@@ -1,0 +1,8 @@
+{
+  "scans": {
+    "failedFor": "Failed to start scan for:",
+    "scanStarted": "Scan started successfully",
+    "credentialIdRequired": "A credential ID is required to scan a private registry.",
+    "unsupportedRegistry": "Unsupported registry type."
+  }
+}

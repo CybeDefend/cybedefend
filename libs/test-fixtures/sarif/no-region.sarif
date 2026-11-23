@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Checkov",
+          "rules": [
+            {
+              "id": "CKV_DOCKER_3",
+              "name": "Ensure that a user for the container has been created",
+              "properties": {
+                "tags": [
+                  "CWE-250"
+                ]
+              }
+            },
+            {
+              "id": "CKV_DOCKER_2",
+              "name": "Ensure that HEALTHCHECK instructions have been added",
+              "properties": {
+                "tags": []
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CKV_DOCKER_3",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Container image runs as root user"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CKV_DOCKER_2",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "No HEALTHCHECK instruction"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/Dockerfile"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

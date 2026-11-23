@@ -1,0 +1,13 @@
+{
+  "components": {
+    "upsell": {
+      "cloudCard": {
+        "title": "La sécurité, pas l'hébergement.",
+        "sentence": "CybeDefend Cloud est plus simple et plus complet : scanners gérés, analyse IA qui réduit les faux positifs, AutoFix.",
+        "tryCloud": "Essayer CybeDefend Cloud",
+        "enterprise": "Cloud privé et Enterprise",
+        "dismiss": "Masquer la carte CybeDefend Cloud"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "components": {
+    "gitHistoryCoverage": {
+      "partial": "Large git history: commits analysed since {{date}}. Every new commit is analysed at each scan.",
+      "none": "Git history not analysed (too large or unavailable): only the current code was scanned. Every new commit is analysed at each scan.",
+      "gaps": "Some commits were not analysed, between {{from}} and {{to}}.",
+      "failed": "The last analysis of the git history failed. It is retried at the next scan."
+    }
+  }
+}

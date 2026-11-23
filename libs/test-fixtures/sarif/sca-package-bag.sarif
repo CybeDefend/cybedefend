@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "acme-sca",
+          "version": "1.0.0",
+          "rules": [
+            {
+              "id": "CVE-2021-44906",
+              "name": "minimist prototype pollution",
+              "shortDescription": {
+                "text": "Prototype pollution in minimist"
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2021-44906",
+              "properties": {
+                "tags": [
+                  "CWE-1321",
+                  "security"
+                ],
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "CVE-2021-3807",
+              "name": "ansi-regex ReDoS",
+              "shortDescription": {
+                "text": "Inefficient regular expression in ansi-regex"
+              },
+              "properties": {
+                "tags": [
+                  "CWE-1333"
+                ],
+                "security-severity": "7.5"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2021-44906",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "minimist is vulnerable"
+          },
+          "properties": {
+            "cybedefend/package": {
+              "name": "minimist",
+              "version": "1.2.5",
+              "fixedVersion": "1.2.6",
+              "ecosystem": "npm"
+            }
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2021-3807",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "ansi-regex is vulnerable"
+          },
+          "properties": {
+            "cybedefend/package": {
+              "name": "ansi-regex",
+              "version": "5.0.0",
+              "fixedVersion": "5.0.1"
+            }
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "yarn.lock"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tool": {
+        "driver": {
+          "name": "Trivy",
+          "fullName": "Trivy Vulnerability Scanner",
+          "version": "0.76.1",
+          "informationUri": "https://github.com/aquasecurity/trivy",
+          "rules": [
+            {
+              "id": "CVE-2020-8203",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2020-8203: Prototype pollution in lodash"
+              },
+              "fullDescription": {
+                "text": "lodash versions prior to 4.17.19 are vulnerable to Prototype Pollution (CVE-2020-8203)."
+              },
+              "help": {
+                "text": "Upgrade lodash to 4.17.19 or later. See https://avd.aquasec.com/nvd/cve-2020-8203 for CVE-2020-8203.",
+                "markdown": "Upgrade lodash to 4.17.19 or later. See [CVE-2020-8203](https://avd.aquasec.com/nvd/cve-2020-8203)."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2020-8203",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "7.4",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "ROOTPATH": {
+          "uri": "file:///"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2020-8203",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.20\nVulnerability CVE-2020-8203\nSeverity: HIGH\nFixed Version: 4.17.19\nLink: [CVE-2020-8203](https://avd.aquasec.com/nvd/cve-2020-8203)"
+          },
+          "properties": {
+            "cybedefend/package": {
+              "name": "lodash",
+              "version": "4.17.15",
+              "fixedVersion": "4.17.19",
+              "ecosystem": "npm"
+            }
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

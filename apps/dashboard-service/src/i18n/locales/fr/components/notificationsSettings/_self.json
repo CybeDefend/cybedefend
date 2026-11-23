@@ -1,0 +1,31 @@
+{
+  "components": {
+    "notificationsSettings": {
+      "slackChannel": "Canal Slack",
+      "noChannelSelected": "Aucun canal sélectionné",
+      "changeChannel": "Changer de canal",
+      "selectChannel": "Sélectionner un canal",
+      "connectSlackHint": "Connectez Slack dans les paramètres de votre organisation pour recevoir les notifications dans un canal Slack.",
+      "filters": "Filtres de notification",
+      "severityThreshold": "Seuil de sévérité",
+      "severityThresholdDescription": "Ne recevez des notifications que pour les vulnérabilités correspondant aux niveaux de sévérité sélectionnés.",
+      "scannerTypes": "Types de scanners",
+      "scannerTypesDescription": "Ne recevez des notifications que pour les résultats des types de scanners sélectionnés.",
+      "scanComplete": "Scan terminé",
+      "scanCompleteDescription": "Soyez notifié quand un scan se termine avec un résumé des résultats.",
+      "reports": "Rapports",
+      "weeklyReport": "Rapport hebdomadaire",
+      "monthlyReport": "Rapport mensuel",
+      "emailAlert": "Alerte email",
+      "emailAlertDescription": "Recevez des alertes par email en cas de nouvelles vulnérabilités critiques dans votre projet.",
+      "configure": "Configurer",
+      "monthlyReportDescription": "Recevez chaque mois par email un rapport complet des vulnérabilités de votre projet.",
+      "weeklyReportDescription": "Recevez chaque semaine par email un rapport complet des vulnérabilités de votre projet.",
+      "incidentCreationConfig": "Configuration de la création d'incidents",
+      "incidentCreationDescription": "Vous pouvez sélectionner un paramètre pour la création d'incidents. Ce paramètre est directement assigné aux intégrations \"ticketing & notifications\". Vous pouvez choisir si vous voulez créer un incident pour un groupe de vulnérabilités ou pour chaque occurrence.",
+      "searchChannels": "Rechercher des canaux...",
+      "channelLoadError": "Impossible de charger les canaux Slack",
+      "channelUpdateError": "Impossible de mettre à jour le canal Slack"
+    }
+  }
+}

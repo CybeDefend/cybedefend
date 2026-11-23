@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "projectOverview": {
+      "team": "Équipe :",
+      "noData": "Aucune donnée trouvée ou une erreur s'est produite.",
+      "noVulnerabilitiesTitle": "Aucune vulnérabilité sur ce projet",
+      "noVulnerabilitiesDescription": "La dernière analyse n’a rien trouvé. Les nouveaux résultats apparaîtront ici dès qu’une analyse se termine.",
+      "errorFetchingProject": "Erreur lors de la récupération du projet",
+      "errorFetchingOverview": "Erreur lors de la récupération de l'aperçu",
+      "filteringByBranch": "Filtré par branche :"
+    }
+  }
+}

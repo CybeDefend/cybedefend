@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+package cybedefend.global_management;
+
+// Community Edition local identity. global-management
+// loads this file in every edition (CORE_SERVER_PROTOS) but binds its handlers
+// only when CYBEDEFEND_EDITION=community; in the cloud every call answers
+// UNIMPLEMENTED.
+//
+// Refusals carry the code as the gRPC message, from this closed list:
+// INVALID_CREDENTIALS, REFRESH_RACE, REFRESH_INVALID,
+// SETUP_TOKEN_INVALID, SETUP_CLOSED, SETUP_REQUIRED, SIGNUP_DISABLED,
+// ACCOUNT_EXISTS, PASSWORD_POLICY, CURRENT_PASSWORD_INVALID, RESET_TOKEN_INVALID,
+// INVITATION_INVALID, PAT_INVALID, PAT_NOT_FOUND, PAT_NAME_INVALID,
+// PAT_EXPIRY_INVALID, PAT_NAME_TAKEN, PAT_LIMIT_REACHED. E-mail and name
+// format failures are the gateway DTO's 400s, never a code here. Rate limits
+// (login, reset per e-mail) are the gateway's, never a code here. Secrets
+// (passwords, tokens, hashes) are never logged and never echoed in an error.
+service LocalAuthService {
+  // Whether the instance still has no user. Never fails.
+  rpc GetSetupStatus (GetSetupStatusRequest) returns (GetSetupStatusResponse);
+  // Creates the first administrator, its organisation and a default team.
+  //   PERMISSION_DENIED   SETUP_TOKEN_INVALID   (token differs from CYBEDEFEND_SETUP_TOKEN, or it is unset)
+  //   FAILED_PRECONDITION SETUP_CLOSED          (a user exists)
+  //   INVALID_ARGUMENT    PASSWORD_POLICY       (not 12 to 128 code points)
+  rpc SetupInstance (SetupInstanceRequest) returns (SetupInstanceResponse);
+  // Creates an account without an invitation, only when AUTH_SIGNUP_MODE=open.
+  //   FAILED_PRECONDITION SIGNUP_DISABLED       (AUTH_SIGNUP_MODE=invite_only; gateway 403)
+  //   FAILED_PRECONDITION SETUP_REQUIRED        (setup still open: the first account is the setup's)
+  //   ALREADY_EXISTS      ACCOUNT_EXISTS
+  //   INVALID_ARGUMENT    PASSWORD_POLICY
+  rpc SignUp (LocalSignUpRequest) returns (LocalSignUpResponse);
+  // Same answer for an unknown e-mail and a wrong password. The login rate limit
+  // (10 per (IP, e-mail), 100 per IP, per 15 min) is the gateway's.
+  //   UNAUTHENTICATED     INVALID_CREDENTIALS
+  rpc Login (LocalLoginRequest) returns (LocalLoginResponse);
+  // Rotates the refresh token. The new one keeps the family's absolute expiry (30 days from login).
+  //   ABORTED             REFRESH_RACE          (the token was rotated less than 20 s ago; nothing revoked; gateway answers 409)
+  //   UNAUTHENTICATED     REFRESH_INVALID       (unknown, expired, revoked, or reused after the 20 s grace: the family is
+  //                                              revoked; a reuse is only logged AUTH_REFRESH_REUSE, never another code)
+  rpc Refresh (LocalRefreshRequest) returns (LocalRefreshResponse);
+  // Revokes the token's family. Idempotent: an unknown token answers OK.
+  rpc Logout (LocalLogoutRequest) returns (LocalLogoutResponse);
+  // Checks the current password, sets the new one, revokes every refresh family
+  // of the user, then opens a new session for the caller.
+  //   INVALID_ARGUMENT    CURRENT_PASSWORD_INVALID  (never UNAUTHENTICATED: the dashboard must not sign out)
+  //   INVALID_ARGUMENT    PASSWORD_POLICY
+  rpc ChangePassword (LocalChangePasswordRequest) returns (LocalChangePasswordResponse);
+  // Same answer whether or not the e-mail has an account. Sends the link by SMTP when
+  // configured. Never fails: the 3-per-user-per-hour cap is silent, the per-e-mail 429 is the gateway's.
+  rpc RequestPasswordReset (RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+  // Consumes the 30-minute, single-use token and revokes every refresh token of the user.
+  // A busy verifier (UNAVAILABLE PASSWORD_VERIFICATION_BUSY) leaves the token unused.
+  //   INVALID_ARGUMENT    RESET_TOKEN_INVALID   (wrong, expired or used: never distinguished)
+  //   INVALID_ARGUMENT    PASSWORD_POLICY
+  rpc ResetPassword (ResetPasswordRequest) returns (ResetPasswordResponse);
+  // Creates the account of an invited e-mail with a password, then accepts the invitation.
+  //   INVALID_ARGUMENT    INVITATION_INVALID    (unknown, expired, cancelled or already accepted)
+  //   ALREADY_EXISTS      ACCOUNT_EXISTS        (the invited e-mail already has an account: sign in, then accept)
+  //   INVALID_ARGUMENT    PASSWORD_POLICY
+  rpc AcceptInvitation (AcceptLocalInvitationRequest) returns (AcceptLocalInvitationResponse);
+  // Public keys that verify access tokens (the unretired signing keys). Never fails once booted.
+  rpc GetJwks (GetJwksRequest) returns (GetJwksResponse);
+  //   INVALID_ARGUMENT    PAT_NAME_INVALID | PAT_EXPIRY_INVALID  (expiry in the past)
+  //   ALREADY_EXISTS      PAT_NAME_TAKEN
+  //   RESOURCE_EXHAUSTED  PAT_LIMIT_REACHED     (10 active tokens per user; gateway 409, not 429)
+  rpc CreatePersonalAccessToken (CreateLocalPersonalAccessTokenRequest) returns (CreateLocalPersonalAccessTokenResponse);
+  rpc ListPersonalAccessTokens (ListLocalPersonalAccessTokensRequest) returns (ListLocalPersonalAccessTokensResponse);
+  //   NOT_FOUND           PAT_NOT_FOUND         (unknown, or another user's)
+  rpc RevokePersonalAccessToken (RevokeLocalPersonalAccessTokenRequest) returns (RevokeLocalPersonalAccessTokenResponse);
+  // Called by the gateway for each request whose bearer starts with "cdp_". Updates lastUsedAt.
+  //   UNAUTHENTICATED     PAT_INVALID           (unknown, revoked or expired)
+  rpc VerifyPersonalAccessToken (VerifyLocalPersonalAccessTokenRequest) returns (VerifyLocalPersonalAccessTokenResponse);
+}
+
+// A signed-in session. The gateway puts refreshToken in the cd_refresh cookie
+// (HttpOnly; Secure; SameSite=Strict; Path=${AUTH_COOKIE_PATH}, default /auth)
+// and never in a response body. int64 fields reach Node clients as strings (longs: String).
+message LocalAuthSession {
+  string accessToken           = 1; // ES256 JWT, iss=cybedefend-community, aud=cybedefend-api, claims sub = cybeid = userId, email, name
+  int64  accessTokenExpiresAt  = 2; // epoch ms (issued + 15 min)
+  string refreshToken          = 3; // 32 random bytes, base64url
+  int64  refreshTokenExpiresAt = 4; // epoch ms (absolute: login + 30 days)
+  string userId                = 5; // the CybeDefend user UUID
+  string email                 = 6;
+  string name                  = 7;
+}
+
+message GetSetupStatusRequest {}
+
+message GetSetupStatusResponse {
+  bool   setupOpen            = 1; // true while the instance has no user
+  string signupMode           = 2; // "invite_only" | "open" (AUTH_SIGNUP_MODE)
+  bool   passwordResetByEmail = 3; // SMTP configured
+}
+
+message SetupInstanceRequest {
+  string setupToken       = 1;
+  string email            = 2;
+  string name             = 3; // stored as firstName = name.trim(), lastName = ''
+  string password         = 4; // 12 to 128 code points
+  string organizationName = 5;
+  string clientIp         = 6; // for the logs' rate keys only, never stored
+}
+
+message SetupInstanceResponse {
+  LocalAuthSession session        = 1;
+  string           organizationId = 2;
+  string           teamId         = 3; // the default team
+}
+
+message LocalSignUpRequest {
+  string email    = 1;
+  string name     = 2; // stored as firstName = name.trim(), lastName = ''
+  string password = 3; // 12 to 128 code points
+  string clientIp = 4; // for the logs only, never stored
+}
+
+message LocalSignUpResponse {
+  LocalAuthSession session = 1;
+}
+
+message LocalLoginRequest {
+  string email    = 1;
+  string password = 2;
+  string clientIp = 3; // for the logs only, from the gateway's trusted client IP; the rate limit is the gateway's
+}
+
+message LocalLoginResponse {
+  LocalAuthSession session = 1;
+}
+
+message LocalRefreshRequest {
+  string refreshToken = 1;
+}
+
+message LocalRefreshResponse {
+  LocalAuthSession session = 1;
+}
+
+message LocalLogoutRequest {
+  string refreshToken = 1;
+}
+
+message LocalLogoutResponse {}
+
+message LocalChangePasswordRequest {
+  string userId          = 1; // from the gateway's authenticated user (an access JWT, never a cdp_ token), never the body
+  string currentPassword = 2;
+  string newPassword     = 3;
+  string refreshToken    = 4; // the caller's cd_refresh cookie, empty when absent
+}
+
+message LocalChangePasswordResponse {
+  LocalAuthSession session = 1; // the new session; every other family is revoked
+}
+
+message RequestPasswordResetRequest {
+  string email    = 1;
+  string clientIp = 2;
+}
+
+message RequestPasswordResetResponse {}
+
+message ResetPasswordRequest {
+  string token       = 1; // the 32-byte link token, base64url
+  string newPassword = 2;
+}
+
+// The account's e-mail, normalised: the gateway clears that account's login
+// counter and trusts the browser that reset the password. Never sent to the client.
+message ResetPasswordResponse {
+  string email = 1;
+}
+
+message AcceptLocalInvitationRequest {
+  string token    = 1; // the invitation token of /invite/:token
+  string name     = 2;
+  string password = 3;
+}
+
+message AcceptLocalInvitationResponse {
+  LocalAuthSession session        = 1;
+  string           organizationId = 2;
+}
+
+message GetJwksRequest {}
+
+// One RFC 7517 public key. ES256 only: kty "EC", crv "P-256", alg "ES256", use "sig".
+message LocalJwk {
+  string kid = 1;
+  string kty = 2;
+  string crv = 3;
+  string x   = 4; // base64url
+  string y   = 5; // base64url
+  string alg = 6;
+  string use = 7;
+}
+
+message GetJwksResponse {
+  repeated LocalJwk keys = 1;
+}
+
+message LocalPersonalAccessToken {
+  string id         = 1; // UUID
+  string name       = 2;
+  string lastFour   = 3; // last four characters of the token
+  int64  createdAt  = 4; // epoch ms
+  int64  lastUsedAt = 5; // epoch ms, 0 = never used
+  int64  expiresAt  = 6; // epoch ms, 0 = never
+}
+
+message CreateLocalPersonalAccessTokenRequest {
+  string userId    = 1; // from the gateway's authenticated user, never the body
+  string name      = 2;
+  int64  expiresAt = 3; // epoch ms, 0 = never
+}
+
+message CreateLocalPersonalAccessTokenResponse {
+  LocalPersonalAccessToken token = 1;
+  string                   value = 2; // "cdp_" + 32 random bytes base64url; returned once, stored as SHA-256 only
+}
+
+message ListLocalPersonalAccessTokensRequest {
+  string userId = 1;
+}
+
+message ListLocalPersonalAccessTokensResponse {
+  repeated LocalPersonalAccessToken tokens = 1; // active tokens, newest first; never a value
+}
+
+message RevokeLocalPersonalAccessTokenRequest {
+  string userId  = 1;
+  string tokenId = 2;
+}
+
+message RevokeLocalPersonalAccessTokenResponse {}
+
+message VerifyLocalPersonalAccessTokenRequest {
+  string token = 1;
+}
+
+message VerifyLocalPersonalAccessTokenResponse {
+  string userId  = 1;
+  string email   = 2;
+  string name    = 3;
+  string tokenId = 4;
+}

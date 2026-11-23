@@ -1,0 +1,18 @@
+{
+  "components": {
+    "onboarding": {
+      "welcome": "Welcome to CybeDefend!",
+      "startTour": "Let's get started with a quick tour.",
+      "reports": {
+        "title": "Generate Security Reports",
+        "subtitle": "Create comprehensive OWASP or CWE reports for your organization, teams, or specific projects. Export them as PDF, HTML, or JSON."
+      },
+      "organizationOverview": {
+        "title": "Organization Overview",
+        "subtitle": "Get a bird's-eye view of your organization's security posture. Track vulnerabilities by severity, monitor trends over time, and identify high-risk areas."
+      },
+      "clickToContinue": "Click to continue",
+      "saveFailed": "We couldn't save that the tour is finished. Please try again."
+    }
+  }
+}

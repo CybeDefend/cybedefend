@@ -1,0 +1,50 @@
+{
+  "components": {
+    "ticketTracker": {
+      "title": "Suivi des tickets",
+      "toolChoice": "Outil de tickets",
+      "linkedTickets": "Tickets liés",
+      "unlinked_one": "{{count}} occurrence sans ticket {{tool}}",
+      "unlinked_other": "{{count}} occurrences sans ticket {{tool}}",
+      "allLinked": "Toutes les occurrences sont liées à un ticket {{tool}}",
+      "noTickets": "Aucun ticket lié à ce groupe pour l'instant",
+      "occurrencesShort": "{{count}} occ.",
+      "project": "Projet",
+      "team": "Équipe",
+      "priority": "Priorité",
+      "assignee": "Assigné à",
+      "unassigned": "Non assigné",
+      "createTicket": "Créer un ticket {{tool}}",
+      "linkTicket": "Lier à un ticket existant",
+      "confirmLink": "Lier le ticket",
+      "addToExisting": "Ajouter à un ticket existant",
+      "jiraKeyLabel": "Clé du ticket Jira",
+      "linearRefLabel": "Identifiant ou lien du ticket Linear",
+      "linearRefPlaceholder": "ENG-123 ou https://linear.app/…",
+      "linear": {
+        "createSuccess": "Ticket Linear créé",
+        "createNone": "Aucun ticket Linear n'a été créé. Ces occurrences sont peut-être déjà liées à un ticket Linear ouvert.",
+        "createError": "Le ticket Linear n'a pas pu être créé. Réessayez.",
+        "linkSuccess": "Lié au ticket Linear",
+        "linkError": "Ces occurrences n'ont pas pu être liées à ce ticket Linear. Réessayez.",
+        "optionsError": "Les équipes Linear n'ont pas pu être chargées. Réessayez."
+      },
+      "form": {
+        "teamPlaceholder": "Choisissez une équipe",
+        "teamRequired": "Choisissez une équipe pour créer le ticket.",
+        "noProject": "Aucun projet",
+        "labels": "Labels",
+        "noLabels": "Aucun label",
+        "occurrences_one": "Ce ticket couvrira {{count}} occurrence",
+        "occurrences_other": "Ce ticket couvrira {{count}} occurrences",
+        "priorities": {
+          "none": "Aucune",
+          "urgent": "Urgente",
+          "high": "Haute",
+          "medium": "Moyenne",
+          "low": "Basse"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "pages": {
+    "issuePage": {
+      "sca": {
+        "reachability": {
+          "title": "Accessibilité",
+          "used": "Utilisé",
+          "unused": "Inutilisé",
+          "potentially_used": "Potentiellement utilisé",
+          "test_only": "Tests uniquement",
+          "unknown": "Inconnu"
+        },
+        "importLocations": {
+          "title": "Emplacements d'Import",
+          "file": "Fichier",
+          "line": "Ligne",
+          "description": "Emplacements où ce paquet est importé dans votre code."
+        },
+        "exploitablePath": {
+          "title": "Chemin exploitable",
+          "description": "Fichiers où ce paquet est importé, montrant les points d'entrée exploitables dans votre application.",
+          "transitiveDescription": "Ceci est une dépendance transitive. Les emplacements ci-dessous montrent où son paquet parent ({{parentName}}) est importé.",
+          "noData": "Aucun chemin exploitable détecté. Ce paquet est une dépendance transitive non importée directement dans le code.",
+          "importCount_one": "Importé dans {{count}} fichier",
+          "importCount_other": "Importé dans {{count}} fichiers"
+        }
+      }
+    }
+  }
+}

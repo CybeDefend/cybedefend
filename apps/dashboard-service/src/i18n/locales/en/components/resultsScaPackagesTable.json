@@ -1,0 +1,19 @@
+{
+  "components": {
+    "resultsScaPackagesTable": {
+      "searchPlaceholder": "Search packages...",
+      "projectPackages": "Project Packages",
+      "packageName": "Package Name",
+      "version": "Version",
+      "fileName": "File Name",
+      "ecosystem": "Ecosystem",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "noPackagesFound": "No Packages Found",
+      "noPackagesDescription": "There are currently no packages detected for this project.",
+      "refresh": "Refresh",
+      "showing": "Showing {{count}} of {{total}} packages",
+      "reachability": "Reachability"
+    }
+  }
+}

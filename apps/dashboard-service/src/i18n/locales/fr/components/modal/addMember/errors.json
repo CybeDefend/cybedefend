@@ -1,0 +1,12 @@
+{
+  "components": {
+    "modal": {
+      "addMember": {
+        "errors": {
+          "selectUser": "Veuillez sélectionner un utilisateur.",
+          "selectRole": "Veuillez sélectionner un rôle."
+        }
+      }
+    }
+  }
+}

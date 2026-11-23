@@ -1,0 +1,17 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "account": {
+        "signedInAs": "Connecté en tant que {{email}}",
+        "signOut": "Se déconnecter",
+        "switchAccount": "Se connecter avec un autre compte",
+        "signOutError": "Impossible de vous déconnecter. Veuillez réessayer.",
+        "mismatchTitle": "Cette invitation est destinée à une autre adresse e-mail",
+        "mismatchDescription": "Elle a été envoyée à {{invitedEmail}}, mais vous êtes connecté avec {{currentEmail}}. Connectez-vous avec {{invitedEmail}} pour l'accepter.",
+        "mismatchDescriptionGeneric": "Elle a été envoyée à une autre adresse e-mail que celle de votre compte. Connectez-vous avec l'adresse qui a reçu l'invitation pour l'accepter.",
+        "notFoundTitle": "Invitation introuvable",
+        "notFoundDescription": "Nous n'avons pas trouvé cette invitation. Vérifiez que vous êtes connecté avec l'adresse e-mail qui l'a reçue, ou demandez une nouvelle invitation."
+      }
+    }
+  }
+}

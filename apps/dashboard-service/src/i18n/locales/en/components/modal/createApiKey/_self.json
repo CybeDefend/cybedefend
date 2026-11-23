@@ -1,0 +1,19 @@
+{
+  "components": {
+    "modal": {
+      "createApiKey": {
+        "title": "Create New API Key",
+        "nameInput": "Enter API key name",
+        "descriptionInput": "Enter description",
+        "expirationDuration": "Expiration Duration",
+        "selectDuration": "Select duration",
+        "authorizedIps": "Authorized IPs (Optional)",
+        "enterIp": "Enter an IP and press Enter",
+        "days7": "7 Days",
+        "days30": "30 Days",
+        "months3": "3 Months",
+        "months6": "6 Months"
+      }
+    }
+  }
+}

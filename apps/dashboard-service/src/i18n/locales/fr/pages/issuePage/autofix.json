@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "issuePage": {
+      "autofix": {
+        "noAutofixTitle": "Aucune correction IA disponible",
+        "noAutofixDescription": "Aucune correction automatique n'a encore été générée pour cette vulnérabilité."
+      }
+    }
+  }
+}

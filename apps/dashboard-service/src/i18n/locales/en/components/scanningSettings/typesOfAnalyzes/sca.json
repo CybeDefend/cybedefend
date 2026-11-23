@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "sca": {
+          "title": "Software composition analysis (SCA)",
+          "description": "Analyzes open source software components present in an application and identifies vulnerabilities in these components and libraries."
+        }
+      }
+    }
+  }
+}

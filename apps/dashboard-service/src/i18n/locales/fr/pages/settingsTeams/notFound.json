@@ -1,0 +1,11 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "notFound": {
+        "title": "Aucune équipe trouvée",
+        "description": "Nous n'avons trouvé aucune équipe dans cette organisation.",
+        "noAssignmentDescription": "Vous n'êtes rattaché à aucune équipe pour le moment. Demandez à un manager ou à un administrateur de vous rattacher à une équipe."
+      }
+    }
+  }
+}

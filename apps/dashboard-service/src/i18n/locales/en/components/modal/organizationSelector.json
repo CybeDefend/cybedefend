@@ -1,0 +1,10 @@
+{
+  "components": {
+    "modal": {
+      "organizationSelector": {
+        "title": "Select an organization",
+        "noOrganizations": "No organizations found."
+      }
+    }
+  }
+}

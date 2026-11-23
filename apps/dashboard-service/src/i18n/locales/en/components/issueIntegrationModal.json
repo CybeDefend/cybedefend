@@ -1,0 +1,36 @@
+{
+    "components": {
+        "issueIntegrationModal": {
+            "title": {
+                "github": "GitHub Issues Integration",
+                "gitlab": "GitLab Issues Integration"
+            },
+            "description": {
+                "github": "Automatically create and manage GitHub Issues for vulnerabilities detected in your projects. This integration helps your development team track and fix security issues directly in GitHub.",
+                "gitlab": "Automatically create and manage GitLab Issues for vulnerabilities detected in your projects. This integration helps your development team track and fix security issues directly in GitLab."
+            },
+            "stepsTitle": "How to set up:",
+            "step1": {
+                "title": {
+                    "github": "Link your repository to GitHub",
+                    "gitlab": "Link your repository to GitLab"
+                },
+                "description": {
+                    "github": "Make sure your project is connected to a GitHub repository. You can do this in the integrations settings.",
+                    "gitlab": "Make sure your project is connected to a GitLab repository. You can do this in the integrations settings."
+                }
+            },
+            "step2": {
+                "title": "Select a project",
+                "description": "Go to your projects page and select the project where you want to enable issue tracking."
+            },
+            "step3": {
+                "title": "Enable issue creation",
+                "description": "In the project settings, go to the 'Issues' tab and enable automatic issue creation. You can also choose how issues should be grouped."
+            },
+            "infoTitle": "Automatic management",
+            "infoDescription": "Once enabled, issues will be automatically created after each scan. Issues are also automatically closed when vulnerabilities are resolved.",
+            "goToProjects": "Go to my projects"
+        }
+    }
+}

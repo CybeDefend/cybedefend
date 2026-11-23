@@ -1,0 +1,92 @@
+{
+  "components": {
+    "projectOverview": {
+      "posture": {
+        "bands": {
+          "now": "Posture actuelle",
+          "trend": "Tendance",
+          "next": "À faire ensuite"
+        },
+        "headline": {
+          "open_one": "vulnérabilité ouverte",
+          "open_other": "vulnérabilités ouvertes",
+          "priority_one": "critique ou élevée",
+          "priority_other": "critiques ou élevées",
+          "resolved_one": "résolue à ce jour",
+          "resolved_other": "résolues à ce jour"
+        },
+        "meta": {
+          "allBranches": "Toutes les branches",
+          "scanners_one": "{{count}} scanner avec des vulnérabilités",
+          "scanners_other": "{{count}} scanners avec des vulnérabilités",
+          "team": "Équipe {{name}}",
+          "teamInline": "équipe {{name}}"
+        },
+        "severity": {
+          "title": "Vulnérabilités ouvertes par sévérité",
+          "meta_one": "{{value}} vulnérabilité ouverte",
+          "meta_other": "{{value}} vulnérabilités ouvertes",
+          "other": "Non évaluée",
+          "priority": "Critiques ou élevées",
+          "priorityMeta": "des vulnérabilités ouvertes, à corriger en premier"
+        },
+        "scanners": {
+          "title": "Où elles se trouvent",
+          "meta": "Vulnérabilités ouvertes par scanner",
+          "empty": "Aucune vulnérabilité ouverte.",
+          "centre_one": "ouverte",
+          "centre_other": "ouvertes",
+          "sast": "SAST",
+          "iac": "IaC",
+          "sca": "SCA",
+          "secret": "Secrets",
+          "cicd": "CI/CD",
+          "container": "Conteneur"
+        },
+        "states": {
+          "title": "Par état",
+          "meta_one": "{{value}} vulnérabilité, ouverte ou fermée",
+          "meta_other": "{{value}} vulnérabilités, ouvertes et fermées",
+          "empty": "Aucune vulnérabilité pour l’instant.",
+          "toVerify": "À vérifier",
+          "confirmed": "Confirmée",
+          "proposedNotExploitable": "Proposée non exploitable",
+          "notExploitable": "Non exploitable",
+          "resolved": "Résolue",
+          "ignored": "Ignorée",
+          "closed": "Fermées",
+          "closedMeta": "résolues ou non exploitables"
+        },
+        "trend": {
+          "title": "Vulnérabilités ouvertes au fil du temps",
+          "projectMeta": "Par date de découverte, vulnérabilités encore ouvertes aujourd’hui",
+          "organizationMeta": "Solde ouvert net, jour par jour",
+          "open": "ouvertes",
+          "priority": "critiques ou élevées",
+          "inPeriod": "sur la période",
+          "vsPrevious": "vs période précédente",
+          "timeframe": "Période",
+          "empty": "Pas encore assez d’historique."
+        },
+        "nextSteps": {
+          "title": "Prochaine étape",
+          "then": "Ensuite",
+          "open": "Ouvrir la liste",
+          "nothing": "Rien d’urgent : aucune vulnérabilité ouverte ne vous attend.",
+          "fixCritical_one": "vulnérabilité critique à corriger en premier",
+          "fixCritical_other": "vulnérabilités critiques à corriger en premier",
+          "fixHigh_one": "vulnérabilité élevée à corriger en premier",
+          "fixHigh_other": "vulnérabilités élevées à corriger en premier",
+          "triage_one": "vulnérabilité en attente de tri",
+          "triage_other": "vulnérabilités en attente de tri",
+          "fixConfirmed_one": "vulnérabilité confirmée à corriger",
+          "fixConfirmed_other": "vulnérabilités confirmées à corriger",
+          "review_one": "vulnérabilité proposée non exploitable à revoir",
+          "review_other": "vulnérabilités proposées non exploitables à revoir",
+          "meta": "D’après les chiffres ci-dessus"
+        },
+        "unavailable": "Indisponible"
+      }
+    }
+  }
+}

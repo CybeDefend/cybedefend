@@ -1,0 +1,11 @@
+{
+    "components": {
+        "modal": {
+            "displayPat": {
+                "title": "Jeton d'accès personnel créé",
+                "token": "Votre jeton",
+                "copySave": "Copiez et sauvegardez ce jeton maintenant. Vous ne pourrez plus le voir."
+            }
+        }
+    }
+}

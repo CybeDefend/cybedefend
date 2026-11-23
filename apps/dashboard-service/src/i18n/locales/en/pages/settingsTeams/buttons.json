@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "buttons": {
+        "addMember": "Add Member",
+        "deleteTeam": "Delete Team"
+      }
+    }
+  }
+}

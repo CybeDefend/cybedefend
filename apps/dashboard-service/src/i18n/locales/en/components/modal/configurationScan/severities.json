@@ -1,0 +1,16 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "severities": {
+          "title": "Severity of vulnerability analyzed",
+          "description": "You can select the severities of vulnerabilities to scan, unchecked severities will not be recorded in the scan results. This parameter does not affect the scan time.",
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
+      }
+    }
+  }
+}

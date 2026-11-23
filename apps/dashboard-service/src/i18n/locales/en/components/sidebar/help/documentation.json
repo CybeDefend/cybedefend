@@ -1,0 +1,12 @@
+{
+  "components": {
+    "sidebar": {
+      "help": {
+        "documentation": {
+          "title": "Documentation",
+          "description": "Guides and references"
+        }
+      }
+    }
+  }
+}

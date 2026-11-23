@@ -1,0 +1,34 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "createProjects": {
+          "title": "Import from GitLab",
+          "subtitle": "Create new projects from your GitLab repositories",
+          "bulkCreation": "Bulk Creation",
+          "bulkDescription": "Select multiple repositories to create projects in batch",
+          "pageTitle": "Create Projects from GitLab",
+          "pageSubtitle": "Select the repositories you want to import as new projects",
+          "team": "Team",
+          "selectTeamError": "Please select a team",
+          "noSelectedRepos": "Please select at least one repository",
+          "noRepos": "No available repositories to import",
+          "createButton": "Create Selected Projects",
+          "failedToCreate": "Failed to create project",
+          "failedToCreateMultiple": "Failed to create projects",
+          "projectName": "Project Name",
+          "projectNamePlaceholder": "Enter project name",
+          "searchPlaceholder": "Search repositories...",
+          "noMatchingRepos": "No matching repositories found",
+          "availableRepos": "available",
+          "alreadyLinked": "already linked",
+          "showLinked": "Show linked",
+          "linked": "Linked",
+          "alreadyLinkedToProject": "Already linked to a project",
+          "totalRepos": "repositories total",
+          "available": "available"
+        }
+      }
+    }
+  }
+}

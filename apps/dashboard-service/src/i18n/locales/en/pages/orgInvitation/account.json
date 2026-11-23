@@ -1,0 +1,17 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "account": {
+        "signedInAs": "Signed in as {{email}}",
+        "signOut": "Sign out",
+        "switchAccount": "Sign in with another account",
+        "signOutError": "Unable to sign out. Please try again.",
+        "mismatchTitle": "This invitation is for another email address",
+        "mismatchDescription": "It was sent to {{invitedEmail}}, but you are signed in as {{currentEmail}}. Sign in with {{invitedEmail}} to accept it.",
+        "mismatchDescriptionGeneric": "It was sent to a different email address than the one you are signed in with. Sign in with the address that received the invitation to accept it.",
+        "notFoundTitle": "Invitation not found",
+        "notFoundDescription": "We couldn't find this invitation. Check that you are signed in with the email address it was sent to, or ask for a new invitation."
+      }
+    }
+  }
+}

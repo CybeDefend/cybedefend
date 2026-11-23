@@ -1,0 +1,19 @@
+{
+    "components": {
+        "resultsScaLicensesTable": {
+            "permissive": "Permissive",
+            "weakCopyleft": "Weak Copyleft",
+            "strongCopyleft": "Strong Copyleft",
+            "unknown": "Unknown",
+            "summary": "Showing {{withLicense}} package(s) with licenses out of {{total}} package(s)",
+            "type": "Type",
+            "licenseName": "License Name",
+            "severity": "Severity",
+            "packages": "Packages",
+            "riskDescription": "Risk Description",
+            "noLicensesFound": "No Licenses Found",
+            "noLicensesDescription": "There are currently no licenses detected for this project.",
+            "refresh": "Refresh"
+        }
+    }
+}

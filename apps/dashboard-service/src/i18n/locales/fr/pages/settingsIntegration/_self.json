@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "settingsIntegration": {
+      "searchPlaceholder": "Rechercher des intégrations",
+      "linkedStatus": "Lié",
+      "reconnectRequiredStatus": "Reconnexion nécessaire",
+      "soon": "Bientôt",
+      "alreadyInstalledByAnother": "Cette intégration a déjà été installée par un autre membre de l'organisation.",
+      "installedByAnother": "Installée par un autre membre",
+      "credentialCount": "credential",
+      "credentialCount_other": "credentials",
+      "gitlabInstallError": "L'installation GitLab n'a pas pu démarrer",
+      "cloudOnly": {
+        "line": "Disponible uniquement sur le Cloud",
+        "cta": "L'obtenir sur le Cloud",
+        "ctaLabel": "L'obtenir sur le Cloud : {{name}} (s'ouvre dans un nouvel onglet)"
+      },
+      "communityCli": {
+        "line": "Pas encore pris en charge par cette édition : importez le SARIF avec l'API."
+      }
+    }
+  }
+}

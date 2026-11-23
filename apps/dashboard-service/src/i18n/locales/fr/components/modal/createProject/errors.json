@@ -1,0 +1,15 @@
+{
+  "components": {
+    "modal": {
+      "createProject": {
+        "errors": {
+          "projectNameRequired": "Le nom du projet est requis.",
+          "teamRequired": "Veuillez sélectionner une équipe.",
+          "repoRequired": "Sélectionnez un dépôt ou choisissez « Aucune source » pour continuer.",
+          "createFailed": "Impossible de créer le projet. Veuillez vérifier vos informations et réessayer.",
+          "limitReached": "La limite de projets de votre offre est atteinte. Mettez votre offre à niveau ou supprimez un projet existant pour pouvoir en créer un nouveau."
+        }
+      }
+    }
+  }
+}

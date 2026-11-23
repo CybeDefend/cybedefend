@@ -1,0 +1,16 @@
+# Build context of every image built from the repository root
+# (deploy/community/docker-compose.build.yml, context `../..`). mcp-service reads
+# its own apps/mcp-service/Dockerfile.dockerignore instead, and the dashboard builds
+# from its own directory.
+#
+# node_modules: an installed tree (after `pnpm install` or a test run) would be
+# copied into the build, and pnpm then stops on « The modules directory ... will
+# be removed and reinstalled from scratch. Proceed? (Y/n) », which no build
+# answers. Every image installs its own dependencies.
+**/node_modules
+# Every Dockerfile builds its dist, and the shared libs' dist, in its builder stage.
+**/dist
+**/coverage
+.git
+# No Dockerfile copies an environment file: configuration comes at runtime.
+**/.env*

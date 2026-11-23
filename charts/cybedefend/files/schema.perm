@@ -1,0 +1,196 @@
+// Version: 1.5.0
+//
+// Permify authorization schema: organisation -> team -> project.
+// - Organisation roles grant reads; product gates (`appsec_active`, `appsec_writable`,
+//   `vibedefend`) say whether a product is active for the organisation and held by the
+//   caller. The creator and administrators always hold every product, so a missing
+//   tuple never locks them out.
+// - Per-member products (`appsec_user`, `vibedefend_user`) are enforced only while the
+//   organisation attribute `member_products` is on; off, every member holds every product.
+// - Reading the organisation, its members and teams depends on the role only;
+//   administrative writes need at least one product usable in writing (`writable_any`).
+// - Every team and project permission also requires membership of the organisation
+//   (`org_member`): a team tuple left behind by a removal grants nothing.
+// Each gateway route uses the permission of the product it serves.
+entity user {}
+
+entity organization {
+    // RBAC
+    relation creator @user
+    relation administrator @user
+    relation manager @user
+    relation billing_manager @user
+    relation member @user
+
+    // Per-member products: the products a member may use, read only
+    // while member_products is on.
+    relation appsec_user @user
+    relation vibedefend_user @user
+
+    // ABAC local
+    attribute is_active boolean          // AppSec: active for the organisation
+    attribute writes_blocked boolean     // AppSec: read-only (writes refused)
+    attribute vibedefend_active boolean  // closed extension: active for the organisation
+    attribute member_products boolean    // per-member products enforced (unset = off)
+
+    // Product gates: the product is active, and the caller holds it (or the
+    // organisation does not enforce per-member products yet). The creator and
+    // administrators always hold both: no missing tuple can lock them out.
+    permission appsec_active = is_active and (member_products_off(member_products) or appsec_user or creator or administrator)
+    permission appsec_writable = appsec_active and not_blocked(writes_blocked)
+    permission vibedefend = vibedefend_active and (member_products_off(member_products) or vibedefend_user or creator or administrator)
+    permission writable_any = appsec_writable or vibedefend
+
+    // Product-neutral: membership only
+    permission read = creator or administrator or manager or billing_manager or member
+    permission read_user = creator or administrator or manager or member
+    permission billing = billing_manager or creator or administrator
+    permission remove_user = creator or administrator or manager
+
+    // Administrative writes: at least one product usable in writing
+    permission manage = writable_any and (creator or administrator)
+    permission manage_integration = writable_any and (creator or administrator or manager)
+    permission update_user_role = writable_any and (creator or administrator)
+    permission add_user = writable_any and (creator or administrator or manager)
+    permission create_team = writable_any and (creator or administrator or manager)
+
+    // GRC / SIEM export — the gate on GET /v1/organizations/:organizationId/findings.
+    //
+    // It MUST be declared here, on `organization`, and not only on `project`:
+    // PermissionsGuard resolves its Permify subject id from request.params and
+    // only understands organizationId / teamId / projectId, so an org-wide
+    // endpoint can only be checked against the organization entity. A
+    // permission the target entity does not declare is never ALLOWED, so the
+    // project-level twin below cannot serve this route.
+    //
+    // This is the COARSE gate — "may this principal reach this organization at
+    // all". The narrowing that matters happens afterwards, per project, in
+    // global-management (`getReadableProjectsInOrganization`): the export only
+    // ever returns findings from projects whose team the caller belongs to, or
+    // every project when they are org creator/administrator. A member with no
+    // team therefore gets an empty page, not a 403.
+    //
+    // Kept separate from `read` rather than reusing it so this capability can
+    // be tightened for a GRC service account later without touching the
+    // permission the whole dashboard depends on. AppSec findings: AppSec gate.
+    permission export_findings = appsec_active and (creator or administrator or manager or billing_manager or member)
+
+    // AppSec organisation views: results overview and distributions, main
+    // statistics, container registry listings, the organisation chat. `read` is
+    // product-neutral, so these routes must not sit on it: deactivating AppSec
+    // cuts them for every member.
+    permission read_appsec = appsec_active and (creator or administrator or manager or billing_manager or member)
+
+    // Policies Organization (AppSec)
+    permission read_policy = appsec_active and (creator or administrator or manager or member)
+    permission manage_policy = appsec_writable and (creator or administrator)
+    permission delete_policy = appsec_writable and (creator or administrator)
+
+    // Aggregated reports of the organisation (AppSec): read, list and usage; generate
+    // (organisation and batch); delete. Creator and administrators, on the AppSec gates.
+    permission read_report = appsec_active and (creator or administrator)
+    permission create_report = appsec_writable and (creator or administrator)
+    permission archive_report = appsec_writable and (creator or administrator)
+
+    // Organisation views of a closed extension (kept for schema compatibility)
+    permission read_vibedefend = vibedefend and (creator or administrator or manager or billing_manager or member)
+}
+
+entity team {
+    relation organization @organization
+    relation team_manager @user
+    relation analyst_developer @user
+    relation developer @user
+    relation read_only @user
+
+    // Inherited gates from org: at least one product usable in writing; AppSec
+    permission org_writable_any = organization.writable_any
+    permission org_appsec_active = organization.appsec_active
+    permission org_appsec_writable = organization.appsec_writable
+    // The caller is a member of the organisation: a team role held by a user who left
+    // it (a tuple a failed removal left behind) grants nothing.
+    permission org_member = organization.read
+
+    permission read = org_member and (read_only or team_manager or analyst_developer or developer or organization.creator or organization.administrator)
+    permission manage = org_writable_any and org_member and (team_manager or organization.creator or organization.administrator)
+    permission update_user_role = org_writable_any and org_member and (team_manager or organization.creator or organization.administrator)
+    permission add_user = org_writable_any and org_member and (team_manager or organization.creator or organization.administrator)
+    permission remove_user = org_writable_any and org_member and (team_manager or organization.creator or organization.administrator)
+    permission create_project = org_writable_any and org_member and (team_manager or organization.creator or organization.administrator)
+    permission read_log = org_member and (team_manager or organization.creator or organization.administrator)
+
+    // Aggregated reports of the team (AppSec): team manager, creator and administrators,
+    // on the AppSec gates.
+    permission read_report = org_appsec_active and org_member and (team_manager or organization.creator or organization.administrator)
+    permission create_report = org_appsec_writable and org_member and (team_manager or organization.creator or organization.administrator)
+    permission archive_report = org_appsec_writable and org_member and (team_manager or organization.creator or organization.administrator)
+}
+
+entity project {
+    relation team @team
+    relation organization @organization
+    relation owner @user
+
+    // Inherited gates from org
+    permission org_appsec_active = organization.appsec_active
+    permission org_appsec_writable = organization.appsec_writable
+    permission org_vibedefend = organization.vibedefend
+    permission org_writable_any = organization.writable_any
+    // The caller is a member of the project's organisation (through its team): every
+    // permission below that names a team role requires it, so a leftover team tuple of a
+    // removed member grants nothing.
+    permission org_member = team.org_member
+
+    // Shared (both spaces): project page, settings
+    permission read = team.read
+    permission update = org_writable_any and team.manage
+    permission delete = org_member and (team.team_manager or organization.creator or organization.administrator)
+
+    // Shared page: the code map, shown by both spaces
+    permission read_code_graph = (org_appsec_active or org_vibedefend) and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer)
+
+    // ---------------------------------------------------------------- AppSec
+    // Scan Result
+    permission read_scan_result = org_appsec_active and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer)
+    permission change_vulnerability_state = org_appsec_writable and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer)
+
+    // GRC / SIEM export — consumed by GET /v1/findings and nothing else.
+    // Deliberately NOT folded into read_scan_result: that permission also gates
+    // non-read routes, so widening it would grant read_only members those writes.
+    // A read-only GRC service account gets THIS permission and nothing else.
+    permission export_findings = org_appsec_active and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer or team.read_only)
+
+    // Report
+    permission read_report = org_appsec_active and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer)
+    permission create_report = org_appsec_writable and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer)
+    permission archive_report = org_appsec_writable and org_member and (team.team_manager or organization.creator or organization.administrator)
+
+    // Scan (AppSec full scan)
+    permission start_scan = org_appsec_writable and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer)
+
+    // Policy
+    permission read_effective_policy = org_appsec_active and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer or team.read_only)
+    permission read_compliance_history = org_appsec_active and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer or team.read_only)
+    permission read_policy_violation = org_appsec_active and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer)
+
+    // ------------------------------------------------------- closed extension
+    // Permissions of a product that is not part of this edition; kept for schema
+    // compatibility. Use:
+    permission use_vibedefend = org_vibedefend and org_member and (team.team_manager or organization.creator or organization.administrator or team.analyst_developer or team.developer)
+    // Configuration:
+    permission manage_vibedefend = org_vibedefend and team.manage
+}
+
+// Helper rule used by `appsec_writable` to enforce "writes_blocked == false"
+// Permify's schema parser does not support a `not <attribute>` prefix
+// operator inline, so the negation is expressed via a named rule.
+rule not_blocked(writes_blocked boolean) {
+    writes_blocked == false
+}
+
+// Helper rule used by `appsec_active` and `vibedefend`: the organisation
+// does not enforce per-member products. An unset attribute reads as false, so
+// every organisation is off until global-management turns its switch on.
+rule member_products_off(member_products boolean) {
+    member_products == false
+}

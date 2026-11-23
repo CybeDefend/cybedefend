@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "api": {
+          "title": "API security testing",
+          "description": "Detect vulnerabilities by interacting with the API and analyzing its responses."
+        }
+      }
+    }
+  }
+}

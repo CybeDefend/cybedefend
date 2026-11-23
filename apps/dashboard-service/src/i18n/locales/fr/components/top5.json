@@ -1,0 +1,14 @@
+{
+  "components": {
+    "top5": {
+      "title": "Top 5 : Toutes catégories",
+      "subtitle": "Findings prioritaires tous scanners confondus",
+      "close": "Fermer",
+      "score": "score",
+      "aiSummary": "IA",
+      "emptyTitle": "Rien d'urgent pour l'instant",
+      "emptyDescription": "Aucun finding prioritaire n'a été retourné pour ce projet.",
+      "openIssue": "Ouvrir le ticket"
+    }
+  }
+}

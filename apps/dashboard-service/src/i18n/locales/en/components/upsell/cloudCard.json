@@ -1,0 +1,13 @@
+{
+  "components": {
+    "upsell": {
+      "cloudCard": {
+        "title": "Focus on security, not hosting.",
+        "sentence": "CybeDefend Cloud is simpler and more complete: managed scanners, AI analysis that cuts false positives, AutoFix.",
+        "tryCloud": "Try CybeDefend Cloud",
+        "enterprise": "Private cloud & Enterprise",
+        "dismiss": "Hide the CybeDefend Cloud card"
+      }
+    }
+  }
+}

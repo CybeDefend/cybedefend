@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package cybedefend.security_scanning;
+
+import "security-scanning/data_purge.proto";
+import "secret-rotation/secret_rotation.proto";
+
+import "security-scanning/scan.proto";
+
+service SecurityScanningSecretRotation {
+  rpc NotifyRotation(cybedefend.secretrotation.RotationRequest) returns (cybedefend.secretrotation.RotationResponse);
+}
+
+service ScanService {
+  rpc GetScan(GetScanRequest) returns (ScanResponse);
+  rpc CreateScan(CreateScanRequest) returns (CreateScanResponse);
+  rpc StartScan(StartScanRequest) returns (StartScanResponse);
+  rpc UpdateScan(UpdateScanRequest) returns (UpdateScanResponse);
+  rpc UpdateScanData(UpdateScanDataRequest) returns (UpdateScanResponse);
+  rpc GetLastScanStatus(ProjectGetRequest) returns (GetLastScanStatusResponse);
+  rpc CreateFailedScan(CreateFailedScanRequest) returns (CreateFailedScanResponse);
+  rpc CheckExistingScan(CheckExistingScanRequest) returns (CheckExistingScanResponse);
+  rpc GetScanIdsByBranch(GetScanIdsByBranchRequest) returns (GetScanIdsByBranchResponse);
+  // Batch check for multiple projects to see if they have active scans (for performance optimization)
+  rpc GetProjectsScanStatus(GetProjectsScanStatusRequest) returns (GetProjectsScanStatusResponse);
+  // Get distinct branches from all scans for a project (for branch selection in UI)
+  rpc GetProjectBranchesFromScans(GetProjectBranchesFromScansRequest) returns (GetProjectBranchesFromScansResponse);
+  rpc GetProjectBranchesFromScansPaginated (GetProjectBranchesFromScansPaginatedRequest) returns (GetProjectBranchesFromScansPaginatedResponse);
+  // Batch get last scan dates for multiple projects (for performance optimization)
+  rpc GetBatchLastScans(GetBatchLastScansRequest) returns (GetBatchLastScansResponse);
+  // Create a completed scan (used for OSV sync when new vulnerabilities are discovered)
+  rpc CreateCompletedScan(CreateCompletedScanRequest) returns (CreateCompletedScanResponse);
+  // Cancel a scan in waiting_for_file or queued state
+  rpc CancelScan(CancelScanRequest) returns (UpdateScanResponse);
+  // Ends an import scan: completed or failed, from analysis-reporting
+  rpc CompleteImportScan(CompleteImportScanRequest) returns (CompleteImportScanResponse);
+  // Declares a scan's results final; the scan completes once its containers are closed too
+  rpc MarkScanResultsFinal(MarkScanResultsFinalRequest) returns (MarkScanResultsFinalResponse);
+  // Reads the git history cursor of a branch: where the last history pass stopped
+  rpc GetGitHistoryCursor(GetGitHistoryCursorRequest) returns (GetGitHistoryCursorResponse);
+  // Records the history pass a scan performed, so the next scan can continue from it
+  rpc RecordGitHistoryPass(RecordGitHistoryPassRequest) returns (RecordGitHistoryPassResponse);
+  // Records that the results of a scan's secret scanner were not all stored, so
+  // its history pass counts as failed when its results are final. Idempotent.
+  rpc MarkHistoryIngestionFailed(MarkHistoryIngestionFailedRequest) returns (MarkHistoryIngestionFailedResponse);
+}
+
+// Community scans on a connected Kubernetes cluster. A service of its
+// own, in this package, so that ScanService's controller stays unchanged: the Community-only
+// controllers serve it (@GrpcMethod('ClusterScanService', ...)); the cloud does not serve it
+// and answers UNIMPLEMENTED. The messages live in scan.proto.
+service ClusterScanService {
+  // Whether this instance can run scans on a connected cluster.
+  rpc GetScanCapabilities(GetScanCapabilitiesRequest) returns (GetScanCapabilitiesResponse);
+  // The gateway's results route checks a scanner pod's upload token...
+  rpc AuthorizeScanUpload(AuthorizeScanUploadRequest) returns (AuthorizeScanUploadResponse);
+  // ...then hands over the object it stored; the token is spent once.
+  rpc SubmitScanResults(SubmitScanResultsRequest) returns (SubmitScanResultsResponse);
+}

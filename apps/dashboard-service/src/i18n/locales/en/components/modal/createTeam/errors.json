@@ -1,0 +1,16 @@
+{
+  "components": {
+    "modal": {
+      "createTeam": {
+        "errors": {
+          "nameRequired": "Team name is required",
+          "nameLength": "Team name must be 255 characters or fewer",
+          "nameInvalidCharacter": "Team name contains a character that is not allowed",
+          "descriptionRequired": "Team description is required",
+          "descriptionLength": "Description must be 255 characters or fewer",
+          "descriptionInvalidCharacter": "Description contains a character that is not allowed"
+        }
+      }
+    }
+  }
+}

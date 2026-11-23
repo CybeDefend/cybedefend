@@ -1,0 +1,8 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "searchPlaceholder": "Search teams",
+      "headerTitleDefault": "Create or Select a Team"
+    }
+  }
+}

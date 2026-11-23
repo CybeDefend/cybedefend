@@ -1,0 +1,14 @@
+{
+  "components": {
+    "memberProducts": {
+      "title": "Products",
+      "names": {
+        "appsec": "AppSec Platform"
+      },
+      "none": "No product",
+      "nothingToGive": "You hold none of the organization's active products, so you cannot give any. Ask an administrator.",
+      "updated": "The member's products were updated.",
+      "updateFailed": "The member's products could not be updated. Try again in a moment."
+    }
+  }
+}

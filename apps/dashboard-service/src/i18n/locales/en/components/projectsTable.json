@@ -1,0 +1,13 @@
+{
+  "components": {
+    "projectsTable": {
+      "searchPlaceholder": "Search projects",
+      "name": "Name",
+      "createdAt": "Created At",
+      "manage": "Manage",
+      "noProjectsFound": "No Projects Found",
+      "noProjectsDescription": "We couldn't find any users.",
+      "showing": "Showing {{count}} of {{total}} results"
+    }
+  }
+}

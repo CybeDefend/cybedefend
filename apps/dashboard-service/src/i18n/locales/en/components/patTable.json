@@ -1,0 +1,25 @@
+{
+    "components": {
+        "patTable": {
+            "addToken": "New Token",
+            "name": "Name",
+            "token": "Token",
+            "expiration": "Expiration",
+            "created": "Created",
+            "manage": "Manage",
+            "noTokens": "No personal access tokens yet",
+            "noTokensDescription": "Create a personal access token to authenticate with the CybeDefend API.",
+            "totalTokens": "tokens",
+            "show": "Show token",
+            "hide": "Hide token",
+            "copy": "Copy token",
+            "rename": "Rename",
+            "expired": "Expired",
+            "usageLabel": "PATs used",
+            "capReached": "Maximum 10 PATs allowed. Delete an existing token to create a new one.",
+            "lastUsed": "Last used",
+            "neverUsed": "Never",
+            "loadError": "The personal access tokens could not be loaded. Try again."
+        }
+    }
+}

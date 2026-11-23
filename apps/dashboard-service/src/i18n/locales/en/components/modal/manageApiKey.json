@@ -1,0 +1,14 @@
+{
+  "components": {
+    "modal": {
+      "manageApiKey": {
+        "title": "Manage API Key:",
+        "regenerateKey": "Regenerate Key",
+        "deleteKey": "Delete Key",
+        "managementDescription": "Do you want to manage the API Key for",
+        "managementInstructions": "You can regenerate or delete the key below.",
+        "confirmDeleteKey": "Are you sure you want to delete this API key? This action cannot be undone."
+      }
+    }
+  }
+}

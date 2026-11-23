@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "strict": false,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2025",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": [
+      "node",
+      "jest"
+    ],
+    "paths": {
+      "@grpc/*": [
+        "./src/core/grpc/*"
+      ],
+      "@modules/*": [
+        "./src/modules/*"
+      ],
+      "@core/*": [
+        "./src/core/*"
+      ],
+      "@entities/*": [
+        "./src/entities/*"
+      ],
+      "src/*": [
+        "./src/*"
+      ]
+    },
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

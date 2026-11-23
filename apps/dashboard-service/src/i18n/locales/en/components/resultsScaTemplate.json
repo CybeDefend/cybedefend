@@ -1,0 +1,13 @@
+{
+  "components": {
+    "resultsScaTemplate": {
+      "vulnerabilities": "Vulnerabilities",
+      "packages": "Packages",
+      "licenses": "Licenses",
+      "includeDevAndTest": "Include dev and test dependencies",
+      "reachabilityIgnoredBanner": "{{count}} vulnerability(ies) automatically ignored because their packages are not used in the application (reachability analysis).",
+      "reachabilityShowIgnored": "Show them",
+      "reachabilityHideIgnored": "Hide them"
+    }
+  }
+}

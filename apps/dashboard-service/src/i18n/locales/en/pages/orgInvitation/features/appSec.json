@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "features": {
+        "appSec": {
+          "title": "Integrated Application Security",
+          "description": "Leverage a unified SaaS platform combining SAST, DAST, IaC, and AI for proactive vulnerability management."
+        }
+      }
+    }
+  }
+}

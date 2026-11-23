@@ -1,0 +1,13 @@
+{
+  "components": {
+    "analysisRow": {
+      "neverScanned": "Jamais scanné",
+      "viewResults": "Voir",
+      "issueCount_one": "{{count}} problème",
+      "issueCount_other": "{{count}} problèmes",
+      "scanSource": {
+        "manual": "Manuel"
+      }
+    }
+  }
+}

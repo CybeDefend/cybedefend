@@ -1,0 +1,15 @@
+{
+  "components": {
+    "settingsWrapper": {
+      "tabs": {
+        "organization": "Organisation",
+        "teams": "Équipes",
+        "integrations": "Intégrations",
+        "allIntegrations": "Toutes les intégrations",
+        "billing": "Facturation et abonnement",
+        "usage": "Utilisation et droits",
+        "licenses": "Licences"
+      }
+    }
+  }
+}

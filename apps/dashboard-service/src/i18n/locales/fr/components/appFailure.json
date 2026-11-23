@@ -1,0 +1,20 @@
+{
+  "components": {
+    "appFailure": {
+      "workspace": {
+        "title": "Votre espace n'a pas pu se charger",
+        "message": "Votre profil et votre organisation n'ont pas pu être chargés pour le moment. Patientez un instant, puis réessayez."
+      },
+      "session": {
+        "title": "Votre session n'a pas pu être restaurée",
+        "message": "Il s'agit en général d'un incident réseau passager. Patientez un instant, puis réessayez, ou reconnectez-vous si cela se reproduit."
+      },
+      "crash": {
+        "title": "Cette page s'est interrompue",
+        "message": "Une erreur est survenue pendant son affichage. Réessayez pour la recharger, ou reconnectez-vous si cela se reproduit."
+      },
+      "retry": "Réessayer",
+      "signIn": "Se reconnecter"
+    }
+  }
+}

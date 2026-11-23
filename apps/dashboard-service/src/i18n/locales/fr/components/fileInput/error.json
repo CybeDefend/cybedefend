@@ -1,0 +1,10 @@
+{
+  "components": {
+    "fileInput": {
+      "error": {
+        "zipOnly": "Veuillez télécharger un fichier ZIP.",
+        "invalidImageUrl": "URL d’image invalide"
+      }
+    }
+  }
+}

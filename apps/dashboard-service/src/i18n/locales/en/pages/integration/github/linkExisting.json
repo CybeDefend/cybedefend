@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "linkExisting": {
+          "title": "Link Existing Project",
+          "subtitle": "Link your GitHub repositories to already created projects.",
+          "quickAssociation": "Quick Association",
+          "quickDescription": "Easily attach your GitHub repos to your defined projects.",
+          "pageTitle": "Link Existing Project",
+          "pageSubtitle": "Select a project and then choose a repository to link to it.",
+          "noProjects": "No projects available to link.",
+          "alreadyLinked": "Already linked",
+          "notLinked": "Not linked",
+          "noReposToLink": "No available repositories to link.",
+          "successfullyLinked": "Repository successfully linked!",
+          "linkError": "Error linking repository",
+          "linkedToOtherProvider": "Linked to {{provider}}"
+        }
+      }
+    }
+  }
+}

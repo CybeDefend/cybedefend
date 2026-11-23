@@ -1,0 +1,11 @@
+{
+  "components": {
+    "communityMcpModal": {
+      "title": "Connect a coding agent",
+      "start": "This instance's MCP server starts with the rest of the stack:",
+      "url": "It answers at the MCP server's public address followed by /mcp (CYBEDEFEND_MCP_PUBLIC_URL, http://localhost:3010/mcp by default).",
+      "token": "Agents authenticate with a personal access token, sent as a bearer token (Authorization: Bearer cdp_…).",
+      "tokenButton": "Create a personal access token"
+    }
+  }
+}

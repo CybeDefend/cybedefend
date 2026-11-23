@@ -1,0 +1,91 @@
+# CybeDefend Community Edition: the front of the stack.
+#
+# Rendered by the nginx image's 20-envsubst-on-templates.sh into /tmp/conf.d
+# (NGINX_ENVSUBST_OUTPUT_DIR). It reads two variables, which the compose sets:
+#   GATEWAY_UPSTREAM               host:port of the gateway (gateway:3000)
+#   CYBEDEFEND_STORAGE_PUBLIC_URL  origin the browser uses for signed storage URLs
+# nginx's own variables ($uri, $remote_addr, ...) are left alone by envsubst,
+# which only replaces variables defined in the environment.
+#
+# The dashboard is served from /usr/share/nginx/html, where the image's
+# entrypoint has written config.js; the API is the gateway under /api/
+# (same origin, so the CSP's connect-src needs only 'self' plus the storage).
+
+# $cd_trusted_proxy: 1 when the connection comes from one of
+# CYBEDEFEND_TRUSTED_PROXIES (a geo block on the peer's own address, rendered
+# at start by /docker-entrypoint.d/15-cybedefend-trusted-proxies.sh), else 0.
+include /tmp/cybedefend/trusted-proxy.conf;
+
+# The scheme the user sees: what a trusted TLS proxy in front of this one says
+# in X-Forwarded-Proto, else the scheme of the connection. A client that is not
+# one of those proxies cannot choose it: it decides Strict-Transport-Security
+# and the scheme the gateway is told.
+map "$cd_trusted_proxy:$http_x_forwarded_proto" $cd_forwarded_proto {
+    default   $scheme;
+    "1:https" https;
+    "1:http"  http;
+}
+
+# Strict-Transport-Security only when the public URL is https. An empty value
+# sends no header.
+
+map $cd_forwarded_proto $cd_hsts {
+    https   "max-age=31536000; includeSubDomains";
+    default "";
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # The TLS proxies in front of this one (CYBEDEFEND_TRUSTED_PROXIES),
+    # rendered at start by /docker-entrypoint.d/15-cybedefend-trusted-proxies.sh:
+    # set_real_ip_from per proxy, then real_ip_header X-Forwarded-For. From a
+    # listed proxy, $remote_addr becomes the client address that proxy saw;
+    # from anyone else it stays the peer's address. Empty: no proxy is trusted.
+    include /tmp/cybedefend/real-ip.conf;
+
+    # An import is at most two files of 50 MB (an SCA SARIF and its SBOM); the
+    # multipart envelope needs a little more.
+    client_max_body_size 101m;
+
+    # No location below sets add_header, so these apply to every answer.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' ${CYBEDEFEND_STORAGE_PUBLIC_URL}; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Strict-Transport-Security $cd_hsts always;
+
+    location /api/ {
+        proxy_pass http://${GATEWAY_UPSTREAM}/;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $cd_forwarded_proto;
+        # The gateway keys its login limits on the client address: never pass
+        # on a chain or an address header the client wrote. $remote_addr is the
+        # address the real-ip directives above computed, a single value.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header CF-Connecting-IP "";
+        # Server-sent events and long imports: stream, and wait an hour.
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        # The gateway sets the refresh cookie's Path=/api/auth itself
+        # (AUTH_COOKIE_PATH): nothing is rewritten here.
+    }
+
+    # The runtime configuration the image's start script writes: the root
+    # filesystem is read-only, so it writes it to /tmp (CYBEDEFEND_HTML_DIR).
+    location = /config.js {
+        alias /tmp/config.js;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

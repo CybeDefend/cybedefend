@@ -1,0 +1,25 @@
+{
+  "components": {
+    "sidebar": {
+      "organization": "Organization",
+      "selectOrganization": "Select Organization",
+      "navigation": "Navigation",
+      "getStarted": "Get started",
+      "manageProjects": "Manage Projects",
+      "reports": "Security Reports",
+      "organizationOverview": "Organization Overview",
+      "organizationSettings": "Organization Members",
+      "teamsSettings": "Teams Settings",
+      "policiesSettings": "Security Policies",
+      "billing": "Billing & Subscription",
+      "usage": "Usage & Entitlements",
+      "currentProject": "Current project",
+      "recentProjects": "Recent projects",
+      "account": "Account",
+      "sections": {
+        "manage": "Manage",
+        "features": "Features"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "accountTemplate": {
+      "support": {
+        "contact": {
+          "title": "Contacter le support",
+          "description": "Besoin d'aide ? Contactez notre équipe de support."
+        }
+      }
+    }
+  }
+}

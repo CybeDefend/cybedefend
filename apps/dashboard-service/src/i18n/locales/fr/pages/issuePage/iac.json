@@ -1,0 +1,17 @@
+{
+  "pages": {
+    "issuePage": {
+      "iac": {
+        "configurationAnalysis": "Analyse de configuration",
+        "currentConfiguration": "Configuration actuelle",
+        "configurationFile": "Fichier de configuration",
+        "configurationLanguage": "Langage",
+        "riskLevel": "Niveau de risque",
+        "securityDetails": "Détails de Sécurité et Analyse",
+        "detectionTimeline": "Chronologie de détection",
+        "firstDetected": "Première détection",
+        "lastUpdated": "Dernière mise à jour"
+      }
+    }
+  }
+}

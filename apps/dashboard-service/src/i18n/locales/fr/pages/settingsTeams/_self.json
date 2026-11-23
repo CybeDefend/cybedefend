@@ -1,0 +1,8 @@
+{
+  "pages": {
+    "settingsTeams": {
+      "searchPlaceholder": "Rechercher des équipes",
+      "headerTitleDefault": "Créer ou sélectionner une équipe"
+    }
+  }
+}

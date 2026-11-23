@@ -1,0 +1,42 @@
+{
+  "components": {
+    "jiraIntegration": {
+      "title": "Intégration Jira",
+      "connected": "Connecté",
+      "connectedSince": "Connecté depuis le {{date}}",
+      "connectedDescription": "Jira est connecté à votre organisation. Vous pouvez configurer le projet Jira cible dans les paramètres de chaque projet CybeDefend.",
+      "notConnected": "Jira n'est pas connecté",
+      "notConnectedDescription": "Connectez votre espace de travail Jira Cloud pour créer des tickets à partir des vulnérabilités détectées et suivre leur résolution.",
+      "connectButton": "Connecter à Jira",
+      "disconnect": "Déconnecter",
+      "disconnectConfirmTitle": "Déconnecter Jira",
+      "disconnectConfirmMessage": "Êtes-vous sûr de vouloir déconnecter Jira ? Toutes les configurations de projets seront supprimées et la création de tickets Jira sera désactivée.",
+      "disconnectSuccess": "Jira déconnecté avec succès",
+      "disconnectError": "Échec de la déconnexion de Jira",
+      "installSuccess": "Jira connecté avec succès",
+      "installError": "Échec de la connexion à Jira",
+      "createTicket": "Créer un ticket Jira",
+      "linkTicket": "Lier à un ticket existant",
+      "linkTicketPlaceholder": "Entrez la clé du ticket Jira (ex : TRI-142)",
+      "createSuccess": "Ticket Jira créé avec succès",
+      "createError": "Échec de la création du ticket Jira",
+      "linkSuccess": "Vulnérabilité liée au ticket Jira",
+      "linkError": "Échec de la liaison au ticket Jira",
+      "branchRestricted": "La création de tickets Jira est restreinte à certaines branches pour ce projet",
+      "noProjectConfigured": "Aucun projet Jira configuré pour ce projet CybeDefend",
+      "existingTicketWarning": "Un ticket Jira existe déjà pour cette vulnérabilité :",
+      "trackingTitle": "Suivi Jira",
+      "linkedTickets": "Tickets liés",
+      "unlinkedCount": "{{count}} occurrence(s) sans ticket Jira",
+      "unlinkedLabel": "occurrence(s) sans ticket Jira",
+      "noTickets": "Aucun ticket Jira lié à ce groupe",
+      "allLinked": "Toutes les occurrences sont liées à un ticket Jira",
+      "addToExisting": "Ajouter à un ticket existant",
+      "trackingProject": "Projet",
+      "trackingPriority": "Priorité",
+      "trackingAssignee": "Assigné à",
+      "trackingUnassigned": "Non assigné",
+      "occurrencesShort": "{{count}} occ."
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "components": {
+    "patUsageGuide": {
+      "title": "Comment utiliser les jetons d'accès personnels",
+      "intro": "Les jetons d'accès personnels (PAT) vous permettent de vous authentifier à l'API CybeDefend sans passer par la connexion navigateur. Ils sont idéaux pour les pipelines CI/CD, les scripts et l'automatisation.",
+      "step1Title": "1. Récupérez votre client ID",
+      "step1Description": "Commencez par récupérer les identifiants des applications clientes disponibles. Utilisez celui correspondant à votre intégration (cli, vscode ou intellij) :",
+      "step2Title": "2. Échangez votre PAT contre un access token",
+      "step2Description": "Les PAT ne peuvent pas être utilisés directement comme Bearer tokens. Utilisez le client ID de l'étape 1 pour échanger votre PAT via l'endpoint OIDC token exchange :",
+      "step3Title": "3. utilisez l'access token",
+      "step3Description": "Utilisez l'access token retourné comme Bearer token standard dans vos appels API :",
+      "notesTitle": "Notes importantes",
+      "note1": "La valeur du PAT (pat_...) peut être affichée et copiée depuis la liste des jetons. Stockez-la en sécurité.",
+      "note2": "Si un PAT expire ou est supprimé, tout échange l'utilisant échouera immédiatement.",
+      "note3": "Chaque échange retourne un access token à durée limitée. Demandez-en un nouveau à l'expiration.",
+      "response": "Réponse :",
+      "community": {
+        "stepTitle": "Utilisez le jeton comme Bearer token",
+        "stepDescription": "Envoyez le jeton tel quel dans l'en-tête Authorization de vos appels API. Il n'y a pas d'étape d'échange :",
+        "notesTitle": "Notes importantes",
+        "note1": "Le jeton (cdp_…) n'est affiché qu'une fois, juste après sa création. Conservez-le dans un gestionnaire de secrets.",
+        "note2": "Un jeton révoqué ou expiré est refusé immédiatement.",
+        "note3": "Un jeton ne peut ni créer, lister ou révoquer des jetons, ni changer un mot de passe : il faut une session ouverte."
+      }
+    }
+  }
+}

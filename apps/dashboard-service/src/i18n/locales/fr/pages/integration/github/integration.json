@@ -1,0 +1,15 @@
+{
+  "pages": {
+    "integration": {
+      "github": {
+        "integration": {
+          "finalizing": "Finalisation de votre intégration GitHub, veuillez patienter...",
+          "failedToFinalize": "Échec de la finalisation de l'intégration GitHub",
+          "success": "L'intégration GitHub a été réalisée avec succès !",
+          "error": "Échec de la réalisation de l'intégration GitHub",
+          "missingState": "Cette installation GitHub n'a pas été lancée depuis le tableau de bord. Relancez-la depuis les paramètres d'intégration du tableau de bord."
+        }
+      }
+    }
+  }
+}

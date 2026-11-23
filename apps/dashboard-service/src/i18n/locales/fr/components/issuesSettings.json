@@ -1,0 +1,56 @@
+{
+  "components": {
+    "issuesSettings": {
+      "githubIssues": "GitHub issues",
+      "githubIssuesDescription": "Créer automatiquement des Issues GitHub pour les vulnérabilités détectées lors des scans. Les issues seront créées dans votre dépôt lié.",
+      "gitlabIssues": "GitLab issues",
+      "gitlabIssuesDescription": "Créer automatiquement des Issues GitLab pour les vulnérabilités détectées lors des scans. Les issues seront créées dans votre dépôt lié.",
+      "issueGroupingMode": "Mode de regroupement des issues",
+      "issueGroupingModeDescription": "Choisissez comment les vulnérabilités doivent être regroupées lors de la création des issues.",
+      "modeOptions": {
+        "perVulnerabilityType": "Une issue par type de vulnérabilité",
+        "perVulnerabilityTypeDesc": "Regrouper toutes les occurrences du même type de vulnérabilité dans une seule issue. Recommandé pour la plupart des projets.",
+        "perVulnerability": "Une issue par détection de vulnérabilité",
+        "perVulnerabilityDesc": "Créer une issue séparée pour chaque détection individuelle de vulnérabilité. Idéal pour les dépendances SCA.",
+        "perFile": "Une issue par fichier affecté",
+        "perFileDesc": "Regrouper toutes les vulnérabilités d'un même fichier dans une seule issue."
+      },
+      "jiraIssues": "Tickets Jira",
+      "jiraIssuesDescription": "Créer des tickets Jira pour les vulnérabilités détectées lors des scans. Sélectionnez quel projet Jira doit recevoir les tickets.",
+      "jiraProjectLabel": "Projet Jira cible",
+      "jiraProjectPlaceholder": "Sélectionnez un projet Jira...",
+      "jiraBranchLabel": "Branches autorisées pour les tickets Jira",
+      "jiraBranchPlaceholder": "Toutes les branches (par défaut)",
+      "jiraBranchInfo": "Les tickets Jira seront créés uniquement pour les scans sur {{count}} branche(s) : {{branches}}",
+      "jiraAutoCreate": "Créer automatiquement les tickets après chaque scan",
+      "jiraAutoCreateDescription": "Lorsque activé, des tickets Jira seront créés automatiquement pour les nouvelles vulnérabilités détectées lors des scans.",
+      "jiraConfigured": "Configuré : les tickets seront créés dans {{project}}",
+      "linearIssues": "Tickets Linear",
+      "linearIssuesDescription": "Créer des tickets Linear pour les vulnérabilités détectées lors des scans. Sélectionnez l'équipe Linear qui doit les recevoir.",
+      "linearTeamLabel": "Équipe Linear cible",
+      "linearTeamPlaceholder": "Sélectionnez une équipe Linear...",
+      "linearNoTeam": "Aucune équipe (ne plus créer de tickets Linear)",
+      "linearProjectLabel": "Projet Linear (facultatif)",
+      "linearProjectPlaceholder": "Aucun projet Linear",
+      "linearNoProject": "Aucun projet Linear",
+      "linearLabelsLabel": "Labels des tickets Linear",
+      "linearLabelsPlaceholder": "Aucun label",
+      "linearBranchLabel": "Branches autorisées pour les tickets Linear",
+      "linearBranchPlaceholder": "Toutes les branches (par défaut)",
+      "linearBranchInfo": "Les tickets Linear seront créés uniquement pour les scans sur {{count}} branche(s) : {{branches}}",
+      "linearAutoCreate": "Créer automatiquement les tickets après chaque scan",
+      "linearAutoCreateDescription": "Lorsque activé, des tickets Linear seront créés automatiquement pour les nouvelles vulnérabilités détectées lors des scans.",
+      "linearConfigured": "Configuré : les tickets seront créés dans {{team}}",
+      "linearConfiguredInProject": "Configuré : les tickets seront créés dans {{team}}, projet {{project}}",
+      "infoTitle": "Comment ça fonctionne",
+      "infoDescription": "Lorsque activé, les issues seront automatiquement créées après chaque scan. Les issues sont également automatiquement fermées lorsque les vulnérabilités sont résolues.",
+      "branchSelection": {
+        "title": "Sélection des branches",
+        "description": "Sélectionnez sur quelles branches les issues doivent être créées. Laissez vide pour créer des issues sur toutes les branches.",
+        "label": "Branches cibles",
+        "placeholder": "Toutes les branches (par défaut)",
+        "info": "Les issues seront créées uniquement sur {{count}} branche(s) sélectionnée(s)"
+      }
+    }
+  }
+}

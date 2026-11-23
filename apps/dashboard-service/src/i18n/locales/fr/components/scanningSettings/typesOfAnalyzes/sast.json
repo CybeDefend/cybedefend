@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "sast": {
+          "title": "Code source et CI/CD (SAST)",
+          "description": "Analyse qui examine le code source d'une application et les configurations de pipelines CI/CD."
+        }
+      }
+    }
+  }
+}

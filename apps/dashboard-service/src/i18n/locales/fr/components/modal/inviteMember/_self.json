@@ -1,0 +1,20 @@
+{
+  "components": {
+    "modal": {
+      "inviteMember": {
+        "title": "Ajouter un membre à",
+        "sendInvite": "Envoyer l'Invitation",
+        "inviteDescription": "Invitez un nouvel utilisateur dans cette organisation en entrant son adresse email et son rôle",
+        "emailPlaceholder": "Adresse e-mail",
+        "selectRole": "Sélectionnez un rôle",
+        "done": "Terminé",
+        "link": {
+          "noMailSent": "Aucun e-mail n'a été envoyé : envoyez vous-même ce lien à {{email}}. Il n'est affiché qu'une fois : une fois cette fenêtre fermée, annulez l'invitation et invitez à nouveau pour obtenir un nouveau lien.",
+          "copy": "Copier le lien d'invitation",
+          "copied": "Lien d'invitation copié",
+          "copyFailed": "Le lien n'a pas pu être copié. Sélectionnez-le et copiez-le à la main."
+        }
+      }
+    }
+  }
+}

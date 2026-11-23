@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package file;
+
+service FileService {
+  rpc UploadFile (UploadFileRequest) returns (UploadFileResponse);
+}
+
+message UploadFileRequest {
+  string scanId = 1;
+  string filename = 2;
+  bytes content = 3;
+  string projectId = 4;
+  string typeScan = 5;
+}
+
+message UploadFileResponse {
+  string url = 1;
+}

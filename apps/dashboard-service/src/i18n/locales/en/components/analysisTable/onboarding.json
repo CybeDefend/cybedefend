@@ -1,0 +1,15 @@
+{
+  "components": {
+    "analysisTable": {
+      "onboarding": {
+        "title": "Here you can see all your projects.",
+        "subtitle": "You can create a new project, review the risk level, and go to the analysis.",
+        "createProject": {
+          "title": "Create your first project",
+          "subtitle": "Import a repository from GitHub or GitLab, or add one manually, then launch your first security scan.",
+          "clickHint": "👆 Click ‘Create Project’ to continue"
+        }
+      }
+    }
+  }
+}

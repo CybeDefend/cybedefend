@@ -1,0 +1,62 @@
+{
+  "components": {
+    "modal": {
+      "createProject": {
+        "title": "Create New Project",
+        "createProject": "Create Project",
+        "projectName": "Project Name",
+        "enterProjectName": "Enter project name",
+        "selectTeam": "Select Team",
+        "selectATeam": "Select a team",
+        "teamAutoSelected": "Team automatically selected:",
+        "githubImport": "GitHub Import",
+        "gitlabImport": "GitLab Import",
+        "manualCreation": "Manual Creation",
+        "continueWithGithub": "Continue with GitHub",
+        "createFromGithub": "Create from GitHub Repository",
+        "importFromGithub": "Import an existing repository from GitHub to create a new project",
+        "continueWithGitlab": "Continue with GitLab",
+        "createFromGitlab": "Create from GitLab Repository",
+        "importFromGitlab": "Import an existing repository from GitLab to create a new project",
+        "step1Title": "Repository",
+        "step2Title": "Project basics",
+        "step3Title": "Security context",
+        "stepIndicator": {
+          "current": "Step {{current}} of {{total}}"
+        },
+        "step1": {
+          "repoStepDescriptionGithub": "Pick a GitHub repository to link to this project. The project name will be pre-filled from the repository.",
+          "repoStepDescriptionGitlab": "Pick a GitLab repository to link to this project. The project name will be pre-filled from the repository.",
+          "notConnectedGithub": "GitHub is not connected to this organization yet.",
+          "notConnectedGitlab": "GitLab is not connected to this organization yet.",
+          "connectGithub": "Connect GitHub",
+          "connectGitlab": "Connect GitLab",
+          "searchRepoPlaceholder": "Search a repository",
+          "searchRepoLabel": "Search the repositories",
+          "noReposAvailable": "No repository available for linking",
+          "repoListLabel": "Available repositories",
+          "selectedTag": "Selected"
+        },
+        "step3": {
+          "description": "Describe your project so we can score vulnerabilities against the right business context. You can skip this step. Sensible defaults will apply and you can edit the context later in the project settings."
+        },
+        "coach": {
+          "intro": "Pick how to add your project: import from GitHub/GitLab, or create it manually.",
+          "repoPicker": "Choose the repository to link.",
+          "basics": "Name your project and pick its team.",
+          "securityContext": "Add security context so we score vulnerabilities right (or skip).",
+          "success": "🎉 Project created! Copy this command to connect your AI agent.",
+          "dismiss": "Dismiss"
+        },
+        "buttons": {
+          "next": "Next",
+          "back": "Back",
+          "skipAndCreate": "Skip & Create",
+          "create": "Create Project",
+          "done": "Done",
+          "later": "Later"
+        }
+      }
+    }
+  }
+}

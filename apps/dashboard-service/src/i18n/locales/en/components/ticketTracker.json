@@ -1,0 +1,50 @@
+{
+  "components": {
+    "ticketTracker": {
+      "title": "Ticket tracking",
+      "toolChoice": "Ticket tool",
+      "linkedTickets": "Linked tickets",
+      "unlinked_one": "{{count}} occurrence without a {{tool}} ticket",
+      "unlinked_other": "{{count}} occurrences without a {{tool}} ticket",
+      "allLinked": "All occurrences are linked to a {{tool}} ticket",
+      "noTickets": "No tickets linked to this group yet",
+      "occurrencesShort": "{{count}} occ.",
+      "project": "Project",
+      "team": "Team",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "createTicket": "Create {{tool}} ticket",
+      "linkTicket": "Link to an existing ticket",
+      "confirmLink": "Link ticket",
+      "addToExisting": "Add to an existing ticket",
+      "jiraKeyLabel": "Jira issue key",
+      "linearRefLabel": "Linear identifier or link",
+      "linearRefPlaceholder": "ENG-123 or https://linear.app/…",
+      "linear": {
+        "createSuccess": "Linear ticket created",
+        "createNone": "No Linear ticket was created. These occurrences may already be linked to an open Linear ticket.",
+        "createError": "The Linear ticket could not be created. Try again.",
+        "linkSuccess": "Linked to the Linear ticket",
+        "linkError": "These occurrences could not be linked to this Linear ticket. Try again.",
+        "optionsError": "The Linear teams could not be loaded. Try again."
+      },
+      "form": {
+        "teamPlaceholder": "Choose a team",
+        "teamRequired": "Choose a team to create the ticket.",
+        "noProject": "No project",
+        "labels": "Labels",
+        "noLabels": "No labels",
+        "occurrences_one": "This ticket will cover {{count}} occurrence",
+        "occurrences_other": "This ticket will cover {{count}} occurrences",
+        "priorities": {
+          "none": "None",
+          "urgent": "Urgent",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
+      }
+    }
+  }
+}

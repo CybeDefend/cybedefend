@@ -1,0 +1,14 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "scanStatus": {
+        "completed": "Last scan completed successfully.",
+        "failedMessage": "We apologize for the error. The last scan failed.",
+        "degraded": "Last scan completed with potentially incomplete results.",
+        "cancelled": "The last scan was cancelled.",
+        "lastScanDate": "Last Scan Date:",
+        "scanTypes": "Scan Types:"
+      }
+    }
+  }
+}

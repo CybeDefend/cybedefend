@@ -1,0 +1,19 @@
+{
+  "components": {
+    "resultsScaPackagesTable": {
+      "searchPlaceholder": "Rechercher des paquets...",
+      "projectPackages": "Dépendances du projet",
+      "packageName": "Nom du paquet",
+      "version": "Version",
+      "fileName": "Nom du fichier",
+      "ecosystem": "Écosystème",
+      "createdAt": "Créé le",
+      "updatedAt": "Mis à jour le",
+      "noPackagesFound": "Aucun paquet trouvé",
+      "noPackagesDescription": "Aucun paquet n'est actuellement détecté pour ce projet.",
+      "refresh": "Rafraîchir",
+      "showing": "Affichage de {{count}} sur {{total}} paquets",
+      "reachability": "Accessibilité"
+    }
+  }
+}

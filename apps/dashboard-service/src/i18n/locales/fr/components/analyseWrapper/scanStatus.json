@@ -1,0 +1,14 @@
+{
+  "components": {
+    "analyseWrapper": {
+      "scanStatus": {
+        "completed": "La dernière analyse s'est terminée avec succès.",
+        "failedMessage": "Nous nous excusons pour l'erreur. La dernière analyse a échoué.",
+        "degraded": "La dernière analyse s'est terminée avec des résultats potentiellement incomplets.",
+        "cancelled": "La dernière analyse a été annulée.",
+        "lastScanDate": "Date de la dernière analyse :",
+        "scanTypes": "Types d'analyse :"
+      }
+    }
+  }
+}

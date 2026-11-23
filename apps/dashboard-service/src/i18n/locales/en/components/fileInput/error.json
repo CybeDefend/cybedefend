@@ -1,0 +1,10 @@
+{
+  "components": {
+    "fileInput": {
+      "error": {
+        "zipOnly": "Please upload a ZIP file.",
+        "invalidImageUrl": "Please enter a valid Docker image URL."
+      }
+    }
+  }
+}

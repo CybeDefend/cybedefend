@@ -1,0 +1,19 @@
+{
+  "components": {
+    "modal": {
+      "createApiKey": {
+        "title": "Créer une nouvelle clé API",
+        "nameInput": "Entrez le nom de la clé API",
+        "descriptionInput": "Entrez la description",
+        "expirationDuration": "Durée d'Expiration",
+        "selectDuration": "Sélectionnez la durée",
+        "authorizedIps": "IPs autorisées (optionnel)",
+        "enterIp": "Entrez une IP et appuyez sur Entrée",
+        "days7": "7 jours",
+        "days30": "30 jours",
+        "months3": "3 mois",
+        "months6": "6 mois"
+      }
+    }
+  }
+}

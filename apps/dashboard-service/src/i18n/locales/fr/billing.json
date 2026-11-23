@@ -1,0 +1,23 @@
+{
+  "billing": {
+    "upgrade_to_pro": "Passez au plan Pro pour débloquer",
+    "container_scanning_locked": "L'analyse de conteneurs nécessite au moins un plan Pro",
+    "issue_tracking_locked": "Le suivi des tickets est disponible à partir du plan Pro",
+    "read_only_scan_disabled": "Analyses désactivées : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "read_only_integration_disabled": "Modifications d'intégration désactivées : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "read_only_member_management_disabled": "Gestion des membres désactivée : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "read_only_role_change_disabled": "Changement de rôle désactivé : votre essai gratuit est épuisé. Le retrait de membres reste possible pour vous permettre de réduire votre équipe.",
+    "read_only_team_management_disabled": "Gestion des équipes désactivée : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "read_only_policy_disabled": "Gestion des politiques désactivée : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "read_only_vulnerability_disabled": "Changement d’état des vulnérabilités désactivé : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "feature_locked_slack": "L'intégration Slack nécessite au moins le plan Team.",
+    "feature_locked_pat": "Cette intégration requiert des jetons d'accès personnels, disponibles à partir du plan Team.",
+    "trial": {
+      "widget": {
+        "exhausted_title": "Essai épuisé"
+      }
+    },
+    "trial_exhausted_create_project_disabled": "Création de projet désactivée : votre essai gratuit est épuisé. Passez à un plan payant pour continuer.",
+    "trial_exhausted_report_disabled": "Génération de rapports désactivée : votre essai gratuit est épuisé. Passez à un plan payant pour continuer."
+  }
+}

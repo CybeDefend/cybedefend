@@ -1,0 +1,2927 @@
+syntax = "proto3";
+
+package cybedefend.analysis_reporting;
+
+// -------------------------------------------------------------------
+// Shared messages for scan results
+// -------------------------------------------------------------------
+
+message ImportLocation {
+  string file = 1;   // relative file path (e.g. "src/utils/helpers.ts")
+  int32 line = 2;    // line number (1-indexed)
+  string content = 3; // actual source code line content
+}
+
+message Library {
+  string name      = 1;
+  string version   = 2;
+  string file      = 3;
+  string ecosystem = 4;
+  bool is_transitive = 5;
+  bool is_dev = 6;
+  repeated string path = 7;
+  optional bool dependency_info_available = 8; // true if isDev/isTransitive are reliable, false/unset means unknown
+  optional string reachability = 9;              // "used", "test_only", "unused", "potentially_used", "unknown", or absent
+  repeated ImportLocation import_locations = 10; // files/lines where package is imported
+  repeated string licenses = 11;                 // SPDX license identifiers
+  optional string license_expression = 12;       // Original SPDX expression (e.g. "MIT OR GPL-3.0-only")
+}
+
+// -------------------------------------------------------------------
+// CybeRisk Score
+// -------------------------------------------------------------------
+//
+// Risk-based prioritization score replacing the legacy severity-only
+// `risk_score`/`risk_level`. The score is the UNBOUNDED sum of per-vuln
+// CVSS-based points (round(Σ pointsFromVuln(v))) over the project's active
+// vulnerabilities, scoped to the project reference branch (main/master
+// fallback). There is no upper cap and no business/exposure multiplier —
+// contextualisation lives inside each vuln's environmental CVSS. The score is
+// persisted per project and recomputed asynchronously by a worker; reads are
+// O(1).
+//
+// `breakdown` is OPTIONAL: omitted in lightweight listings, populated for the
+// project overview page so the UI can explain the score.
+
+message CyberRiskScore {
+  // Final score: unbounded non-negative integer (sum of CVSS-based points). Not
+  // capped at 100 — large projects can exceed it.
+  int32 score = 1;
+  // Categorical level derived from score buckets: critical|high|medium|low|none.
+  string level = 2;
+  // Per-component breakdown. Populated for detail endpoints, may be omitted in
+  // listings to keep responses light.
+  optional CyberRiskBreakdown breakdown = 3;
+  // ISO 8601 timestamp at which the persisted score was last (re)computed by the
+  // recompute worker.
+  string computed_at = 4;
+}
+
+message CyberRiskBreakdown {
+  // Sum of CVSS-based points across active vulns — equal to the final score.
+  double base = 1;
+  // Deprecated: business/exposure multipliers were removed from the score and are
+  // always 1. Contextualisation now lives in each vuln's environmental CVSS.
+  double business_multiplier = 2 [deprecated = true];
+  // Deprecated: see business_multiplier. Always 1.
+  double exposure_multiplier = 3 [deprecated = true];
+  // Per-scan-type contribution to the score.
+  map<string, CyberRiskScanTypeContribution> by_scan_type = 4;
+  // Top contributing vulnerabilities (max 5), sorted by descending contribution.
+  repeated CyberRiskTopContributor top_contributors = 5;
+  // Deprecated: no longer populated; business context is not part of
+  // the score anymore.
+  CyberRiskBusinessContext business_context = 6;
+  // Deprecated: no longer populated; exposure context is not part of
+  // the score anymore.
+  CyberRiskExposureContext exposure_context = 7;
+}
+
+message CyberRiskScanTypeContribution {
+  // Count of vulnerabilities considered per severity (active states only).
+  int32 critical = 1;
+  int32 high = 2;
+  int32 medium = 3;
+  int32 low = 4;
+  // Sum of CVSS-based points contributed by this scan type.
+  double weighted_score = 5;
+  // Deprecated: reachability no longer feeds the score. Always 0.
+  double avg_reachability_factor = 6;
+}
+
+message CyberRiskTopContributor {
+  string vulnerability_id = 1;
+  // Scan type discriminator: SAST | SCA | IAC | CICD | CONTAINER | SECRET.
+  string scan_type = 2;
+  // critical | high | medium | low
+  string severity = 3;
+  // SCA only: used | potentially_used | unused
+  string reachability = 4;
+  // SAST/IaC/CICD: not_exploitable | theoretical | proven | actively_exploited
+  string exploitability_verdict = 5;
+  // CVSS-based points contributed by this single vulnerability.
+  double contribution = 6;
+}
+
+message CyberRiskBusinessContext {
+  string business_criticality = 1; // low | medium | high | mission_critical
+  bool handles_pii = 2;
+  bool handles_payment_data = 3;
+  bool safety_critical = 4;
+  string data_classification = 5; // public | internal | confidential | regulated
+}
+
+message CyberRiskExposureContext {
+  string internet_exposure = 1; // public | internal | airgapped
+  string environment = 2;       // production | staging | development
+  string deployment_type = 3;   // saas | onprem | embedded | mobile
+}
+
+message ProjectDeleteRequest {
+  string projectId = 1;
+  // Org of the deleted project, captured by global-management before the
+  // hard delete. Lets analysis-reporting mark the org's persisted KPI cards dirty
+  // (markDirty by orgId) without a reverse projectId->org lookup that would fail
+  // post-delete. Optional for backward compatibility with older callers.
+  string organizationId = 2;
+}
+
+message ProjectDeleteResponse {
+  string message = 1;
+}
+
+message ScanAddScaResultRequest {
+  string project_id         = 1;
+  string scan_id            = 2;
+  string scanner_name       = 3;
+  bool   is_last_request    = 4;
+  string vulnerability_type = 5;
+  repeated Library packages = 6;
+}
+
+message ScanAddScaResultResponse {
+  string project_id = 1;
+  string scan_id    = 2;
+  string message    = 3;
+}
+
+message CodeStructure {
+  int32  line    = 1;
+  string content = 2;
+}
+
+message CodeSnippet {
+  int32                vulnerable_start_line = 1;
+  int32                vulnerable_end_line   = 2;
+  int32                start_line            = 3;
+  int32                end_line              = 4;
+  repeated CodeStructure code                 = 5;
+  string               language              = 6;
+  string               path                  = 7;
+}
+
+message DataFlowItem {
+  string        name_highlight = 1;
+  int32         line           = 2;
+  repeated CodeStructure code  = 3;
+  string        language       = 4;
+  string        path           = 5;
+  string        type           = 6;
+  int32         order          = 7;
+}
+
+// A `cybedefend-ignore` directive the scanner found on an issue's reported line
+// or on the line directly above it. The scanner never drops an
+// issue: analysis-reporting resolves (scanner, rule_id) to the catalogue rule's
+// code (`CD-<TYPE>-<NNNN>`) and does not raise the finding when a directive
+// lists that code, or when it is the bare form (all_rules).
+message InlineIgnoreDirective {
+  repeated string codes     = 1; // ids listed between brackets, trimmed, as written
+  bool            all_rules = 2; // bare form `cybedefend-ignore: reason`
+  string          reason    = 3;
+  int32           line      = 4; // 1-based source line carrying the directive
+}
+
+// Rule metadata read from a SARIF file. Set only by
+// the import; every cloud scanner leaves it unset and nothing changes for them.
+// analysis-reporting creates a catalogue row from it when (tool_name, rule_id)
+// has no correspondence.
+message RuleMetadata {
+  string          tool_name         = 1; // runs[].tool.driver.name, lower-cased, [a-z0-9._-], max 64
+  string          rule_id           = 2; // result.ruleId (or rule.id), max 255
+  string          name              = 3; // rule.name, else shortDescription.text, else rule_id, max 255
+  string          short_description = 4; // max 1000
+  string          full_description  = 5; // max 10000
+  string          help_markdown     = 6; // help.markdown, else help.text, max 20000
+  repeated string cwe               = 7; // "CWE-79", from tags "CWE-79" or "external/cwe/cwe-079" (leading zeros dropped), max 10
+  string          severity          = 8; // critical | high | medium | low: the mapped severity of the FIRST result
+                                         // of this (tool, rule) in the file; written to the catalogue, so the
+                                         // stored findings of that rule take it
+  string          help_uri          = 9; // https only, else empty
+  repeated string owasp_top10       = 10; // "A01:2021" … "A10:2021", from rule tags matching
+                                          // /\bA(0[1-9]|10):2021\b/i (Semgrep's "OWASP-A03:2021 - Injection"
+                                          // gives "A03:2021"), upper-cased, deduplicated, max 10;
+                                          // written to vulnerability.owaspTop10 by the catalogue fallback
+}
+
+message VulnerabilityDtoRequest {
+  string          rule_id       = 1;
+  string          language      = 2;
+  repeated string cwe           = 3;
+  repeated string owasp_top10   = 4;
+  string          name          = 5;
+  string          description   = 6;
+  string          severity      = 7;
+  string          confidence    = 8;
+  string          path          = 9;
+  string          file_hash     = 10;
+  CodeSnippet     code_snippet  = 11;
+  repeated DataFlowItem data_flow = 12;
+  // Directives found on the reported line, then on the line above (0 to 2).
+  repeated InlineIgnoreDirective inline_ignores = 13;
+  // SARIF import only: the rule's metadata for the catalogue fallback.
+  optional RuleMetadata rule_metadata = 14;
+  // Secret-specific fields (populated only when vulnerability_type == 'secret').
+  // The plaintext value is encrypted in analysis-reporting-service before persist.
+  optional string secret_value  = 40;
+  optional string commit_sha    = 41;
+  optional string secret_source = 42; // "head" | "history"
+  optional string secret_pass   = 43; // "head" | "history"
+}
+
+message ScanAddResultRequest {
+  string                         project_id                   = 1;
+  string                         scan_id                      = 2;
+  string                         scanner_name                 = 3;
+  string                         running_docker_image         = 4;
+  string                         running_docker_image_version = 5;
+  string                         started_at                   = 6; // ISO 8601
+  string                         finished_at                  = 7; // ISO 8601
+  bool                           is_last_request              = 8;
+  string                         vulnerability_type           = 9;
+  repeated VulnerabilityDtoRequest vulnerabilities            = 10;
+  optional string                branch                       = 11; // Branch being scanned
+  // Outcome of the git history pass: "ok" | "failed" | "none"
+  optional string history_pass_outcome = 12;
+  // Files whose findings this scanner dropped because the project's ignore
+  // file excludes them. Sent on the last batch only. The receiver resolves the
+  // findings it holds in these files, even when it would otherwise keep them.
+  repeated string ignored_paths = 13;
+}
+
+message ScanAddResultResponse {
+  string project_id = 1;
+  string scan_id    = 2;
+  string message    = 3;
+  bool   success    = 4;
+}
+
+// security-scanning hands an import scan's file to analysis-reporting.
+// Answers once the results-import job (results-import-<scan_id>) is queued; at
+// most one job per scan_id (a repeated call answers accepted = true and queues nothing).
+//   INVALID_ARGUMENT    IMPORT_INVALID_REQUEST  (format not "sarif", type not sast|iac|secret|cicd|sca|container,
+//                                               a field missing, image missing with type container or set
+//                                               with any other type)
+//   UNAVAILABLE         (the queue cannot be reached)
+message ImportResultsRequest {
+  string scan_id            = 1;
+  string project_id         = 2;
+  string organization_id    = 3;
+  string branch             = 4;
+  string vulnerability_type = 5; // sast | iac | secret | cicd | sca | container (the last two: Community only)
+  string format             = 6; // "sarif"
+  string file_key           = 7; // "import/<project_id>/<scan_id>.sarif" whatever the compression (gzip is detected
+                                 // from the first bytes); read with file-management GetImportDownloadUrl.
+                                 // With container_id: "import/<project_id>/<scan_id>/<container_id>.sarif"
+  optional string image     = 8; // container imports only: CreateScanRequest.import_image, verbatim
+  // Community cluster scans only (only the Community cluster engine sets it): the scanner
+  // container that produced the file. Set, the job is results-import-<scan_id>-<container_id>
+  // and CompleteImportScan carries it back; absent, the job stays results-import-<scan_id>.
+  optional string container_id = 9;
+  // Community cluster scans only: the severities the project keeps, comma-separated, each
+  // critical|high|medium|low. Absent: every severity is kept, as for a file import.
+  optional string severities   = 10;
+  // sca only: the CycloneDX SBOM sent with the SARIF,
+  // "import/<project_id>/<scan_id>.sbom" for a file import and
+  // "import/<project_id>/<scan_id>/<container_id>.sbom" for the sca container
+  // (trivy fs) of a Community cluster scan (gzip detected from the first
+  // bytes), read with file-management GetImportDownloadUrl. Its packages and
+  // the SARIF's vulnerabilities are one picture of the branch: one import,
+  // one finalization. Absent: the SARIF alone.
+  optional string sbom_file_key = 11;
+}
+
+message ImportResultsResponse {
+  bool accepted = 1;
+}
+
+// -------------------------------------------------------------------
+// Generic project requests
+// -------------------------------------------------------------------
+
+message ProjectGetRequest {
+  string project_id = 1;
+}
+
+// -------------------------------------------------------------------
+// Vulnerability counts
+// -------------------------------------------------------------------
+
+message CountVulnerabilitiesTypeResponse {
+  string type      = 1;
+  optional string last_scan = 2; // ISO 8601
+  string source    = 3;
+  int32  critical  = 4;
+  int32  high      = 5;
+  int32  medium    = 6;
+  int32  low       = 7;
+}
+
+message GetProjectVulnerabilitiesCountResponse {
+  string                              project_id = 1;
+  int32                               critical   = 2;
+  int32                               high       = 3;
+  int32                               medium     = 4;
+  int32                               low        = 5;
+  repeated CountVulnerabilitiesTypeResponse analyses = 6;
+  // Replaced legacy `float risk_score` (slot 7) and `string risk_level`
+  // (slot 8) with a structured CybeRisk score. Breakdown omitted in this
+  // listing-oriented response to keep payload size minimal.
+  reserved 7;
+  reserved "risk_score";
+  reserved 8;
+  reserved "risk_level";
+  CyberRiskScore cyber_risk = 10;
+  // Date of the last scan across all analysis types (ISO 8601 format)
+  optional string                     last_scan  = 9;
+  // Distinct programming languages detected across the project's
+  // SAST/IaC/CICD/Secret detections. Raw scanner spellings, deduped + sorted.
+  // Consumed by global-management to populate ProjectInformationsResponse, then
+  // by the gateway to derive codeGraphSupported.
+  repeated string detected_languages = 11;
+}
+
+// The two fields of GetProjectVulnerabilitiesCountResponse that
+// global-management's ProjectService/Get reads.
+message GetProjectRiskSummaryRequest {
+  string project_id = 1;
+}
+
+message GetProjectRiskSummaryResponse {
+  string project_id = 1;
+  // The persisted, branch-scoped CybeRisk score (breakdown omitted). A project
+  // with no persisted row reads score 0 / level "none" and gets a backfill
+  // recompute enqueued, as with GetVulnerabilitiesCount.
+  CyberRiskScore cyber_risk = 2;
+  // Same as GetProjectVulnerabilitiesCountResponse.detected_languages.
+  repeated string detected_languages = 3;
+}
+
+// -------------------------------------------------------------------
+// Batch Vulnerabilities Count (for multiple projects at once)
+// -------------------------------------------------------------------
+
+// A project's branch-scoping inputs: its configured reference branch and the
+// git default branch of its linked repository, either "" when unknown.
+message ProjectReferenceBranch {
+  string project_id = 1;
+  string reference_branch = 2;
+  string default_branch = 3;
+}
+
+message GetBatchVulnerabilitiesCountRequest {
+  repeated string project_ids = 1;
+  // Each project is counted on the branches its CybeRisk is scoped on
+  // (scopingBranchesFor): the reference branch, else the git default branch,
+  // else main/master. Never the sum of every branch; a project absent from
+  // this list gets main/master.
+  repeated ProjectReferenceBranch reference_branches = 2;
+}
+
+message GetBatchVulnerabilitiesCountResponse {
+  repeated GetProjectVulnerabilitiesCountResponse counts = 1;
+}
+
+// -------------------------------------------------------------------
+// Project overview
+// -------------------------------------------------------------------
+
+message GetProjectOverviewRequest {
+  string project_id = 1;
+  repeated string branches = 2; // Filter by branch names (e.g., ["main", "develop"])
+}
+
+message TotalBySeverity {
+  string severity = 1;
+  int32  count    = 2;
+}
+
+message TotalByState {
+  string state = 1;
+  int32  count = 2;
+}
+
+message TotalByAnalysisType {
+  string analysis_type = 1;
+  int32  count         = 2;
+}
+
+message VulnerabilitiesOverTime {
+  string date     = 1; // ISO 8601
+  string severity = 2;
+  int32  count    = 3;
+}
+
+message GetProjectOverviewResponse {
+  repeated TotalBySeverity      total_by_severity      = 1;
+  repeated TotalByState         total_by_state         = 2;
+  repeated TotalByAnalysisType  total_by_analysis_type = 3;
+  repeated VulnerabilitiesOverTime vulnerabilities_over_time = 4;
+  // Replaced legacy `float risk_score` (slot 5) and `string risk_level`
+  // (slot 6) with the CybeRisk score (unbounded sum of CVSS-based points,
+  // branch-scoped) plus a detailed breakdown (top contributors, per-scan-type
+  // contributions). Breakdown is always populated on this detail endpoint.
+  reserved 5;
+  reserved "risk_score";
+  reserved 6;
+  reserved "risk_level";
+  CyberRiskScore cyber_risk = 7;
+}
+
+// -------------------------------------------------------------------
+// Organization Overview (Enhanced with comprehensive filters)
+// -------------------------------------------------------------------
+
+message GetOrganizationOverviewRequest {
+  string organization_id = 1;
+  string user_id = 2; // Required for fetching projects from GlobalManagement
+
+  // === Project & Team Filters ===
+  repeated string project_ids = 3; // Filter by specific project IDs (empty = all projects)
+  repeated string team_ids = 4; // Filter by specific team IDs (empty = all teams)
+  string project_name_search = 5; // Search projects by name (partial match)
+  string team_name_search = 6; // Search teams by name (partial match)
+
+  // === Severity & Status Filters ===
+  repeated string severity_filter = 7; // Filter by severity: CRITICAL, HIGH, MEDIUM, LOW
+  repeated string status_filter = 8; // Filter by status: open, in_review, resolved, not_exploitable, ignored
+  repeated string priority_filter = 9; // Filter by priority: urgent, high, medium, low
+
+  // === Analysis Type Filters ===
+  repeated string analysis_types = 10; // Filter by type: SAST, SCA, IAC, CONTAINER, CICD, SECRET
+
+  // === Date Range Filters ===
+  optional string date_from = 11; // Start date (ISO 8601) for vulnerability creation
+  optional string date_to = 12; // End date (ISO 8601) for vulnerability creation
+
+  // === Risk Level Filters ===
+  // Renamed from `risk_levels` to align with CybeRisk score terminology.
+  // Same valid values: critical, high, medium, low, none.
+  reserved 13;
+  reserved "risk_levels";
+  repeated string cyber_risk_levels = 31;
+
+  // === Code Filters ===
+  repeated string languages = 14; // Filter by programming language
+  repeated string branches = 15; // Filter by Git branches (e.g., ["main", "develop"])
+
+  // === Trend & Comparison Options ===
+  optional int32 trend_period_days = 16; // Period for trends (default: 7, options: 7, 14, 30, 60, 90)
+  optional bool include_resolved = 17; // Include resolved vulnerabilities in counts (default: false)
+  optional string comparison_period = 18; // Comparison: "week", "month", "quarter" for period-over-period
+
+  // === Pagination & Sorting for Summaries ===
+  optional int32 projects_page = 19; // Page number for projects summary (default: 1)
+  optional int32 projects_page_size = 20; // Page size for projects summary (default: 50)
+  optional int32 teams_page = 21; // Page number for teams summary (default: 1)
+  optional int32 teams_page_size = 22; // Page size for teams summary (default: 50)
+  optional string sort_by = 23; // Sort by: total_vulnerabilities, critical_count, risk_level, name
+  optional string sort_order = 24; // Sort order: ASC, DESC
+
+  // === Grouping & Aggregation ===
+  optional string group_by = 25; // Group results by: team, project, analysis_type, severity
+
+  // === Output Options ===
+  optional bool include_projects_summary = 26; // Include per-project summary (default: true)
+  optional bool include_teams_summary = 27; // Include per-team summary (default: true)
+  optional bool include_over_time_data = 28; // Include vulnerabilities over time (default: true)
+  optional int32 top_vulnerable_limit = 29; // Limit for top vulnerable projects (default: 10, max: 50)
+
+  // === Autofix Filter ===
+  optional bool has_autofix = 30; // Filter vulnerabilities with/without autofix records
+}
+
+// Extended project summary with additional metrics
+message ProjectOverviewSummary {
+  string project_id = 1;
+  string project_name = 2;
+  string team_id = 3;
+  string team_name = 4;
+  // Renamed from `risk_level`. Same values (critical|high|medium|low|none)
+  // but now derived from the CybeRisk score (unbounded sum of CVSS-based points).
+  reserved 5;
+  reserved "risk_level";
+  string cyber_risk_level = 24;
+  int32 cyber_risk_score = 25; // unbounded (sum of points), optional sibling for sorting/UI
+  int32 critical_count = 6;
+  int32 high_count = 7;
+  int32 medium_count = 8;
+  int32 low_count = 9;
+  int32 total_vulnerabilities = 10;
+  int32 sast_count = 11;
+  int32 sca_count = 12;
+  int32 iac_count = 13;
+  int32 container_count = 14;
+  // New fields for enhanced summary
+  int32 cicd_count = 15; // CICD vulnerabilities count
+  int32 secret_count = 16; // Secret vulnerabilities count
+  int32 open_count = 17; // Open (unresolved) vulnerabilities
+  int32 resolved_count = 18; // Resolved vulnerabilities
+  int32 new_last7_days = 19; // New vulnerabilities in last 7 days
+  int32 resolved_last7_days = 20; // Resolved in last 7 days
+  optional string last_scan_date = 21; // Last scan date for this project
+  int32 autofix_available_count = 22; // Vulnerabilities with autofix available
+  repeated string detected_languages = 23; // Languages detected in the project
+}
+
+// Extended team summary with additional metrics
+message TeamOverviewSummary {
+  string team_id = 1;
+  string team_name = 2;
+  int32 project_count = 3;
+  int32 critical_count = 4;
+  int32 high_count = 5;
+  int32 medium_count = 6;
+  int32 low_count = 7;
+  int32 total_vulnerabilities = 8;
+  // New fields for enhanced summary
+  int32 critical_risk_projects = 15; // Projects with critical risk
+  int32 high_risk_projects = 9; // Projects with high risk
+  int32 medium_risk_projects = 10; // Projects with medium risk
+  int32 low_risk_projects = 11; // Projects with low risk
+  int32 new_last7_days = 12; // New vulnerabilities in last 7 days
+  int32 resolved_last7_days = 13; // Resolved in last 7 days
+  double avg_vulnerabilities_per_project = 14; // Average vulnerabilities per project
+}
+
+// Extended top vulnerable project with more details
+message TopVulnerableProject {
+  string project_id = 1;
+  string project_name = 2;
+  string team_name = 3;
+  int32 vulnerability_count = 4;
+  int32 critical_count = 5;
+  int32 high_count = 6;
+  // Renamed from `risk_level`. Same values derived from CybeRisk score.
+  reserved 7;
+  reserved "risk_level";
+  string cyber_risk_level = 11;
+  int32 cyber_risk_score = 12; // unbounded (sum of points), not capped at 100
+  int32 open_count = 8;
+  int32 new_last7_days = 9;
+  optional string team_id = 10;
+}
+
+// New message for language distribution
+message LanguageDistribution {
+  string language = 1;
+  int32 vulnerability_count = 2;
+  int32 project_count = 3;
+}
+
+// New message for comparison data
+message PeriodComparison {
+  int32 current_period_count = 1;
+  int32 previous_period_count = 2;
+  double change_percentage = 3;
+  string trend = 4; // "up", "down", "stable"
+}
+
+// New message for severity comparison
+message SeverityComparison {
+  string severity = 1;
+  PeriodComparison comparison = 2;
+}
+
+// Pagination metadata for summaries
+message PaginationMeta {
+  int32 current_page = 1;
+  int32 page_size = 2;
+  int32 total_items = 3;
+  int32 total_pages = 4;
+}
+
+// Applied filters for client reference
+message AppliedFilters {
+  repeated string project_ids = 1;
+  repeated string team_ids = 2;
+  repeated string severity_filter = 3;
+  repeated string status_filter = 4;
+  repeated string analysis_types = 5;
+  optional string date_from = 6;
+  optional string date_to = 7;
+  repeated string languages = 8;
+  repeated string branches = 9; // Changed from optional string branch to repeated string branches
+  optional int32 trend_period_days = 10;
+  optional bool include_resolved = 11;
+}
+
+message GetOrganizationOverviewResponse {
+  string organization_id = 1;
+  int32 total_projects = 2;
+  int32 total_teams = 3;
+
+  // Severity/state distribution arrays, the over-time series and the
+  // period comparisons moved to dedicated lazy endpoints
+  // (GetOrganizationSeverityDistribution / GetOrganizationStateDistribution /
+  // GetOrganizationVulnerabilitiesOverTime). Scalars critical_issues..low_issues
+  // (18-21) remain here for the always-visible KPIs.
+  reserved 4, 5, 7, 25, 26;
+  reserved "total_by_severity", "total_by_state", "vulnerabilities_over_time", "severity_comparison", "total_comparison";
+
+  // Aggregated counts by analysis type across all projects
+  repeated TotalByAnalysisType total_by_analysis_type = 6;
+
+  // Summary per project
+  repeated ProjectOverviewSummary projects_summary = 8;
+
+  // Summary per team
+  repeated TeamOverviewSummary teams_summary = 9;
+
+  // Top most vulnerable projects
+  repeated TopVulnerableProject top_vulnerable_projects = 10;
+
+  // Risk distribution
+  int32 critical_risk_projects = 40;
+  int32 high_risk_projects = 11;
+  int32 medium_risk_projects = 12;
+  int32 low_risk_projects = 13;
+
+  // Trends (based on trend_period_days parameter)
+  int32 newIssuesLast7Days = 14;
+  int32 solvedIssuesLast7Days = 15;
+
+  // Main statistics (same as getMainStatistics)
+  int32 solved_issues = 16;
+  int32 new_issues = 17;
+  int32 critical_issues = 18;
+  int32 high_issues = 19;
+  int32 medium_issues = 20;
+  int32 low_issues = 21;
+
+  // === New Enhanced Response Fields ===
+
+  // Language distribution across the organization
+  repeated LanguageDistribution language_distribution = 22;
+
+  // Pagination metadata for summaries
+  PaginationMeta projects_pagination = 23;
+  PaginationMeta teams_pagination = 24;
+
+  // Applied filters echo (for client reference)
+  AppliedFilters applied_filters = 27;
+  
+  // Additional aggregated statistics
+  int32 total_vulnerabilities = 28; // Grand total across all projects
+  int32 open_vulnerabilities = 29; // Total open (unresolved)
+  int32 autofix_available_count = 30; // Total with autofix available
+  
+  // Analysis type breakdown with details
+  int32 sast_total = 31;
+  int32 sca_total = 32;
+  int32 iac_total = 33;
+  int32 container_total = 34;
+  int32 cicd_total = 35;
+  int32 secret_total = 36;
+  
+  // Trend period used (echoed from request or default)
+  int32 trend_period_days = 37;
+  
+  // Mean time to remediate (in days)
+  optional double mean_time_to_remediate = 38;
+  
+  // Vulnerabilities by branch (if branch data available)
+  repeated BranchVulnerabilityCount vulnerabilities_by_branch = 39;
+
+  // License distribution across all SCA packages
+  int32 license_total_packages = 41;
+  int32 license_packages_with_licenses = 42;
+  int32 license_permissive_count = 43;
+  int32 license_weak_copyleft_count = 44;
+  int32 license_strong_copyleft_count = 45;
+  int32 license_unknown_count = 46;
+}
+
+// === Dedicated lazy endpoints carved out of the org overview ===
+
+// Shared filter surface for the 3 split endpoints. Carries exactly the filter
+// fields consumed by the severity/state/over-time aggregations (i.e. those that
+// feed FilterContext). Intentionally omits GetOrganizationOverviewRequest's
+// project_name_search, team_name_search, priority_filter, languages,
+// cyber_risk_levels and has_autofix — none of those affect these aggregations —
+// as well as all pagination/sort/output-shaping flags.
+message OrganizationOverviewFilter {
+  string organization_id = 1;
+  string user_id = 2; // Required for fetching accessible projects from GlobalManagement
+  repeated string project_ids = 3;
+  repeated string team_ids = 4;
+  repeated string severity_filter = 5; // CRITICAL, HIGH, MEDIUM, LOW
+  repeated string status_filter = 6;   // to_verify, confirmed, in_review, resolved, not_exploitable, ignored
+  repeated string analysis_types = 7;  // SAST, SCA, IAC, CONTAINER, CICD, SECRET
+  optional string date_from = 8;       // ISO 8601
+  optional string date_to = 9;         // ISO 8601
+  repeated string branches = 10;       // supports composite keys projectId::branchName
+  optional bool include_resolved = 11;
+}
+
+message GetOrganizationSeverityDistributionRequest {
+  OrganizationOverviewFilter filter = 1;
+}
+message GetOrganizationSeverityDistributionResponse {
+  repeated TotalBySeverity total_by_severity = 1;
+}
+
+message GetOrganizationStateDistributionRequest {
+  OrganizationOverviewFilter filter = 1;
+}
+message GetOrganizationStateDistributionResponse {
+  repeated TotalByState total_by_state = 1;
+}
+
+message GetOrganizationVulnerabilitiesOverTimeRequest {
+  OrganizationOverviewFilter filter = 1;
+  optional int32 trend_period_days = 2;   // default 7
+  optional string comparison_period = 3;  // week | month | quarter
+}
+message GetOrganizationVulnerabilitiesOverTimeResponse {
+  repeated VulnerabilitiesOverTime vulnerabilities_over_time = 1;
+  repeated SeverityComparison severity_comparison = 2;
+  PeriodComparison total_comparison = 3;
+}
+
+// Vulnerabilities count by branch
+message BranchVulnerabilityCount {
+  string branch = 1;
+  int32 total_count = 2;
+  int32 critical_count = 3;
+  int32 high_count = 4;
+  int32 medium_count = 5;
+  int32 low_count = 6;
+}
+
+// -------------------------------------------------------------------
+// Statistiques principales
+// -------------------------------------------------------------------
+
+message GetMainStatisticsRequest {
+  repeated string projectIds = 1;
+}
+
+message GetOrganizationStatisticsRequest {
+  string organizationId = 1;
+  // The caller. The figures cover only the projects this user may read in the
+  // organization; the organization-wide row is served when they read them all.
+  string userId = 2;
+}
+
+message GetMainStatisticsResponse {
+  repeated string projectIds                    = 1;
+  int32           criticalRiskProjects          = 12;
+  int32           criticalRiskProjectsInLast7Days = 13;
+  int32           highRiskProjects              = 2;
+  int32           highRiskProjectsInLast7Days   = 3;
+  int32           solvedIssues                  = 4;
+  int32           solvedIssuesInLast7Days       = 5;
+  int32           newIssues                     = 6;
+  int32           newIssuesInLast7Days          = 7;
+  int32           criticalIssues                = 8;
+  int32           highIssues                    = 9;
+  int32           mediumIssues                  = 10;
+  int32           lowIssues                     = 11;
+  // --- AI analysis KPIs ---
+  int32           agentAnalysesCount            = 14;
+  int32           agentAutofixCount             = 15;
+  int32           agentTriageCount              = 16;
+  int32           agentFalsePositiveCount       = 17;
+}
+
+// -------------------------------------------------------------------
+// SAST
+// -------------------------------------------------------------------
+
+message GetProjectSastVulnerabilitiesRequest {
+  string          project_id       = 1;
+  string          sort             = 2;
+  string          order            = 3;
+  repeated string severity         = 4;
+  repeated string status           = 5;
+  repeated string language         = 6; // Multi-value language filter (exact match)
+  repeated string priority         = 7;
+  int32           page_number      = 8;
+  int32           page_size_number = 9;
+  string          search_query     = 10;
+  optional string branch           = 11; // Filter by branch (for GitHub/GitLab integrations)
+  optional bool   has_autofix      = 12; // Filter by autofix status: true = has autofix records, false = no autofix records, unset = all
+  repeated string exploitability_verdict = 13; // Filter by exploitability verdict (not_exploitable|theoretical|proven|actively_exploited)
+  optional string scoring_source   = 14; // Filter by scoring source ("static" or "agent"); omit to return all.
+  optional string source_path      = 15; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 16; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+  optional bool   slim             = 17; // The MCP list asks for the page only (no project Get, no scan status, no counters, no languages facet, no history); unset = the dashboard's full answer.
+}
+
+message ScanProjectInfo {
+  string scan_id   = 1;
+  string state     = 2;
+  string create_at = 3; // ISO 8601
+  string scan_type = 4;
+}
+
+message CountVulnerabilitiesCountByType {
+  int32 sast = 1;
+  int32 iac  = 2;
+  int32 sca  = 3;
+  int32 container = 4;
+  int32 cicd = 5;
+  int32 secret = 6;
+  // Number of AI-BOM components (EU AI Act Annex IV inventory).
+  // Optional: present once the analysis-reporting service has indexed any AI
+  // component for the project. Surfaced on every result listing so the
+  // dashboard's AI-BOM tab can render the purple count badge on every page.
+  int32 aibom = 7;
+}
+
+// Autofix statistics for a specific vulnerability type
+message AutofixStats {
+  int32 with_autofix = 1; // Number of vulnerabilities that have autofix records
+  int32 without_autofix = 2; // Number of vulnerabilities without autofix records
+}
+
+// Autofix counts by vulnerability type (SAST, IAC, CICD, Secret, SCA)
+message AutofixCountByType {
+  AutofixStats sast = 1;
+  AutofixStats iac = 2;
+  AutofixStats cicd = 3;
+  AutofixStats secret = 4;
+  AutofixStats sca = 5;
+}
+
+message VulnerabilitySast {
+  VulnerabilitySastIacResponse base            = 1;
+  repeated DataFlowItem    data_flow_items = 2;
+}
+
+message GetProjectSastVulnerabilitiesResponse {
+  string                          project_id          = 1;
+  string                          project_name        = 2;
+  int32                           page                = 3;
+  int32                           limit               = 4;
+  int32                           total_pages         = 5;
+  string                          sort                = 6;
+  string                          order               = 7;
+  repeated string                severity            = 8;
+  repeated string                status              = 9;
+  repeated string                priority            = 10;
+  repeated VulnerabilitySast  vulnerabilities      = 11;
+  int32                           total               = 12;
+  ScanProjectInfo             scan_project_info   = 13;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 14;
+  bool                            is_project_parsed   = 15; // True if project has been parsed by Potpie (code graph available)
+  AutofixCountByType              autofix_count_by_type = 16; // Autofix statistics by vulnerability type
+  repeated string                 languages           = 17; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+// -------------------------------------------------------------------
+// IaC
+// -------------------------------------------------------------------
+
+message GetProjectIacVulnerabilitiesRequest {
+  string          project_id       = 1;
+  string          sort             = 2;
+  string          order            = 3;
+  repeated string severity         = 4;
+  repeated string status           = 5;
+  repeated string language         = 6; // Multi-value language filter (exact match)
+  repeated string priority         = 7;
+  int32           page_number      = 8;
+  int32           page_size_number = 9;
+  string          search_query     = 10;
+  optional string branch           = 11; // Filter by branch (for GitHub/GitLab integrations)
+  optional bool   has_autofix      = 12; // Filter by autofix status: true = has autofix records, false = no autofix records, unset = all
+  repeated string exploitability_verdict = 13; // Filter by exploitability verdict (not_exploitable|theoretical|proven|actively_exploited)
+  optional string scoring_source   = 14; // Filter by scoring source ("static" or "agent"); omit to return all.
+  optional string source_path      = 15; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 16; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+  optional bool   slim             = 17; // The MCP list asks for the page only (no project Get, no scan status, no counters, no languages facet, no history); unset = the dashboard's full answer.
+}
+
+message VulnerabilityIac {
+  VulnerabilitySastIacResponse base = 1;
+}
+
+message GetProjectIacVulnerabilitiesResponse {
+  string                          project_id          = 1;
+  string                          project_name        = 2;
+  int32                           page                = 3;
+  int32                           limit               = 4;
+  int32                           total_pages         = 5;
+  string                          sort                = 6;
+  string                          order               = 7;
+  repeated string                severity            = 8;
+  repeated string                status              = 9;
+  repeated string                priority            = 10;
+  repeated VulnerabilityIac   vulnerabilities      = 11;
+  int32                           total               = 12;
+  ScanProjectInfo             scan_project_info   = 13;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 14;
+  bool                            is_project_parsed   = 15; // True if project has been parsed by Potpie (code graph available)
+  AutofixCountByType              autofix_count_by_type = 16; // Autofix statistics by vulnerability type
+  repeated string                 languages           = 17; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+// -------------------------------------------------------------------
+// CICD
+// -------------------------------------------------------------------
+
+message GetProjectCicdVulnerabilitiesRequest {
+  string          project_id       = 1;
+  string          sort             = 2;
+  string          order            = 3;
+  repeated string severity         = 4;
+  repeated string status           = 5;
+  repeated string language         = 6; // Multi-value language filter (exact match)
+  repeated string priority         = 7;
+  int32           page_number      = 8;
+  int32           page_size_number = 9;
+  string          search_query     = 10;
+  optional string branch           = 11; // Filter by branch (for GitHub/GitLab integrations)
+  optional bool   has_autofix      = 12; // Filter by autofix status: true = has autofix records, false = no autofix records, unset = all
+  repeated string exploitability_verdict = 13; // Filter by exploitability verdict (not_exploitable|theoretical|proven|actively_exploited)
+  optional string scoring_source   = 14; // Filter by scoring source ("static" or "agent"); omit to return all.
+  optional string source_path      = 15; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 16; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+  optional bool   slim             = 17; // The MCP list asks for the page only (no project Get, no scan status, no counters, no languages facet, no history); unset = the dashboard's full answer.
+}
+
+message VulnerabilityCicd {
+  VulnerabilitySastIacResponse base = 1;
+}
+
+message GetProjectCicdVulnerabilitiesResponse {
+  string                          project_id          = 1;
+  string                          project_name        = 2;
+  int32                           page                = 3;
+  int32                           limit               = 4;
+  int32                           total_pages         = 5;
+  string                          sort                = 6;
+  string                          order               = 7;
+  repeated string                severity            = 8;
+  repeated string                status              = 9;
+  repeated string                priority            = 10;
+  repeated VulnerabilityCicd  vulnerabilities      = 11;
+  int32                           total               = 12;
+  ScanProjectInfo             scan_project_info   = 13;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 14;
+  AutofixCountByType              autofix_count_by_type = 15; // Autofix statistics by vulnerability type
+  repeated string                 languages           = 16; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+// -------------------------------------------------------------------
+// Secret
+// -------------------------------------------------------------------
+
+message GetProjectSecretVulnerabilitiesRequest {
+  string          project_id       = 1;
+  string          sort             = 2;
+  string          order            = 3;
+  repeated string severity         = 4;
+  repeated string status           = 5;
+  repeated string language         = 6; // Multi-value language filter (exact match)
+  repeated string priority         = 7;
+  int32           page_number      = 8;
+  int32           page_size_number = 9;
+  string          search_query     = 10;
+  optional string branch           = 11; // Filter by branch (for GitHub/GitLab integrations)
+  optional bool   has_autofix      = 12; // Filter by autofix status: true = has autofix records, false = no autofix records, unset = all
+  optional string commit_sha       = 13; // Prefix match on commitSha (e.g. "abc123")
+  optional string source           = 14; // Equality filter: "head" or "history"
+  repeated string exploitability_verdict = 15; // Filter by exploitability verdict (not_exploitable|theoretical|proven|actively_exploited)
+  optional string scoring_source   = 16; // Filter by scoring source ("static" or "agent"); omit to return all.
+  optional string source_path      = 17; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 18; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+  optional bool   slim             = 19; // The MCP list asks for the page only (no project Get, no scan status, no counters, no languages facet, no history); unset = the dashboard's full answer.
+}
+
+message VulnerabilitySecret {
+  VulnerabilitySastIacResponse base = 1;
+  bool            has_encrypted_secret = 2;
+  optional string commit_sha           = 3;
+  optional string source               = 4; // "head" | "history"
+}
+
+message GetProjectSecretVulnerabilitiesResponse {
+  string                          project_id          = 1;
+  string                          project_name        = 2;
+  int32                           page                = 3;
+  int32                           limit               = 4;
+  int32                           total_pages         = 5;
+  string                          sort                = 6;
+  string                          order               = 7;
+  repeated string                severity            = 8;
+  repeated string                status              = 9;
+  repeated string                priority            = 10;
+  repeated VulnerabilitySecret  vulnerabilities      = 11;
+  int32                           total               = 12;
+  ScanProjectInfo             scan_project_info   = 13;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 14;
+  AutofixCountByType              autofix_count_by_type = 15; // Autofix statistics by vulnerability type
+  repeated string                 languages           = 16; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+// -------------------------------------------------------------------
+// SCA (merged list)
+// -------------------------------------------------------------------
+
+message GetProjectScaVulnerabilitiesRequest {
+  string          project_id       = 1;
+  string          query            = 2;
+  int32           page             = 3;
+  int32           limit            = 4;
+  string          sort             = 5;
+  string          order            = 6;
+  repeated string severity         = 7;
+  repeated string status           = 8;
+  string          language         = 9;
+  repeated string priority         = 10;
+  int32           page_number      = 11;
+  int32           page_size_number = 12;
+  repeated string packageType      = 13;
+  string          search_query     = 14;
+  optional string imageId          = 15;
+  optional string branch           = 16; // Filter by branch (for GitHub/GitLab integrations)
+  optional bool   has_autofix      = 17; // Filter by autofix status: true = has autofix records, false = no autofix records, unset = all
+  repeated string exploitability_verdict = 18; // Filter by exploitability verdict (not_exploitable|theoretical|proven|actively_exploited)
+  optional string scoring_source   = 19; // Filter by scoring source ("static" or "agent"); omit to return all.
+  repeated string package_manager  = 20; // Filter by ecosystem (npm, maven, pip, go...)
+  repeated string package_source   = 21; // Filter by manifest file name (package.json, pom.xml...)
+  // Malware separation. Unset/false => exclude malware (the normal
+  // "Vulnerabilities" list); true => return ONLY malware (the "Malware" sub-tab).
+  optional bool   malware_only     = 22;
+  optional bool   exclude_autofix_counts = 23; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+  optional bool   slim             = 24; // The MCP list asks for the page only (no scan status, no counters, no history, and one project Get instead of two: the branch scoping still reads the project); unset = the dashboard's full answer.
+}
+
+// -------------------------------------------------------------------
+// Packages SCA
+// -------------------------------------------------------------------
+
+message ScaDetectedPackage {
+  string id              = 1;
+  string project_id      = 2;
+  string package_name    = 3;
+  string package_version = 4;
+  string file_name       = 5;
+  string ecosystem       = 6;
+  string created_at      = 7; // ISO 8601
+  string updated_at      = 8; // ISO 8601
+  bool   is_transitive   = 9;
+  bool   is_dev          = 10;
+  repeated string path   = 11;
+  optional bool dependency_info_available = 12; // true if isDev/isTransitive are reliable
+  optional string reachability = 13;             // "used", "test_only", "unused", "potentially_used", "unknown", or absent
+  repeated ImportLocation import_locations = 14; // files/lines where package is imported
+  repeated string licenses = 15;                 // SPDX license identifiers
+}
+
+message GetProjectPackagesResponse {
+  string                  project_id  = 1;
+  int32                   page        = 2;
+  int32                   limit       = 3;
+  int32                   total       = 4;
+  int32                   total_pages = 5;
+  repeated ScaDetectedPackage packages   = 6;
+}
+
+// -------------------------------------------------------------------
+// Get by ID & update
+// -------------------------------------------------------------------
+
+message GetProjectVulnerabilityByIdRequest {
+  string project_id       = 1;
+  string vulnerability_id = 2;
+}
+
+message GetProjectVulnerabilityByIdResponse {
+  string project_id       = 1;
+  string vulnerability_id = 2;
+  oneof vulnerability {
+    VulnerabilitySast sast = 3;
+    VulnerabilityIac  iac  = 4;
+    VulnerabilitySca  sca  = 5;
+    VulnerabilityCicd cicd = 6;
+    VulnerabilitySecret secret = 7;
+  }
+  optional bool is_project_parsed  = 8; // True if project has been parsed by Potpie (code graph available)
+}
+
+message UpdateResultRequest {
+  string project_id       = 1;
+  string vulnerability_id = 2;
+  string status           = 3;
+  string priority         = 4;
+  string comment          = 5;
+  string user_id          = 6;
+  // Exploitability fields (agent-produced verdict + backend-derived score)
+  // DEPRECATED: ignored on the backend — the score is derived deterministically
+  // from `exploitability_verdict`. Kept for wire compatibility.
+  double exploitability_score    = 7 [deprecated = true];
+  string exploitability_verdict  = 8;  // not_exploitable|theoretical|proven|actively_exploited
+  string exploitability_reason   = 9;  // LLM reasoning for TP/FP verdict (markdown)
+  string exploitability_source   = 10; // "agent" or "manual"
+  string cvss4_env_adjustments   = 11; // JSON: {"MAV":"N","MAC":"L",...}
+  string scoring_source          = 12; // "agent" when agent proposes scoring
+  string exploitability_score_reason = 13; // LLM reasoning for the exploitability score (markdown)
+  // Chat agent audit trail. Set by the gateway when the update is
+  // triggered by a confirmed HITL tool call. Persisted on the resulting
+  // HistoryItem so analysts can retrace which conversation produced which DB
+  // mutation.
+  string agent_tool_call_id      = 14;
+  string agent_conversation_id   = 15;
+  string agent_stream_id         = 16;
+  // Qualitative exploitability factors judged by the agent on THIS
+  // instance (never a copy of the scanner rule's CVSS vector, which the priority
+  // calculator already weighs on its own dimension). JSON:
+  // {"attack_vector":"network|adjacent|local",
+  //  "attack_complexity":"low|high",
+  //  "privileges_required":"none|low|high",
+  //  "user_interaction":"none|required"}
+  // Consumed only for a `proven` verdict on an agent-judged SAST/IaC/CI-CD
+  // finding; the numeric score is still derived on the backend, never by the LLM.
+  string exploitability_factors  = 17;
+  // GRC export — MANDATORY when `status` is "ignored": the auditable
+  // justification surfaced by GET /organization/:organizationId/findings as `dismissal_reason`. Enforced
+  // in the gateway DTO (clean 400) AND again in analysis-reporting
+  // (`assertDismissalReason`), because the batch path and any other gRPC caller
+  // never touch the DTO and a check that only exists at the edge is not a
+  // control. Deliberately a breaking change on the triage endpoint.
+  optional string dismissal_reason = 18;
+}
+
+message UpdateProjectVulnerabilityResponse {
+  string project_id       = 1;
+  string vulnerability_id = 2;
+}
+
+// -------------------------------------------------------------------
+// Batch Update Vulnerabilities
+// -------------------------------------------------------------------
+
+// Single vulnerability update item for batch operations
+message BatchUpdateVulnerabilityItem {
+  string vulnerability_id = 1; // Required: ID of the vulnerability to update
+  optional string status  = 2;  // Optional: New status (to_verify, not_exploitable, resolved, etc.)
+  optional string priority = 3; // Optional: New priority (critical_urgent, urgent, normal, low, very_low)
+  optional string comment = 4;  // Optional: Comment to add (max 512 chars)
+  // GRC export — mandatory when this item sets `status = "ignored"`.
+  // Carried all the way through the async batch job so a bulk dismissal can
+  // still satisfy `assertDismissalReason`; without it the guard would make
+  // batch-ignore impossible rather than merely audited.
+  optional string dismissal_reason = 5;
+}
+
+// Request to update multiple vulnerabilities at once
+message BatchUpdateResultRequest {
+  string project_id = 1; // Required: Project ID
+  repeated BatchUpdateVulnerabilityItem items = 2; // Required: List of vulnerabilities to update
+  string user_id = 3; // Required: User performing the update
+  // Chat agent audit trail propagated to every HistoryItem in the
+  // batch when the mutation is triggered by a confirmed HITL tool call.
+  string agent_tool_call_id      = 4;
+  string agent_conversation_id   = 5;
+  string agent_stream_id         = 6;
+}
+
+// Result of a single vulnerability update in batch
+message BatchUpdateResultItem {
+  string vulnerability_id = 1; // ID of the vulnerability
+  bool success = 2; // Whether the update was successful
+  optional string error = 3;    // Error message if update failed
+}
+
+// Response for batch update operation
+message BatchUpdateResultResponse {
+  string project_id = 1; // Project ID
+  int32 total_count = 2; // Total number of vulnerabilities processed
+  int32 success_count = 3; // Number of successful updates
+  int32 failure_count = 4; // Number of failed updates
+  repeated BatchUpdateResultItem results = 5; // Detailed results per vulnerability
+}
+
+// -------------------------------------------------------------------
+// Async tasks (background jobs surfaced in the dashboard tracker)
+// -------------------------------------------------------------------
+
+message AsyncTask {
+  string task_id = 1;
+  string type = 2;            // "vuln_batch_update"
+  string status = 3;          // queued | running | completed | failed
+  int32 total = 4;
+  int32 processed = 5;
+  int32 succeeded = 6;
+  int32 failed = 7;
+  string project_id = 8;
+  string organization_id = 9;
+  string user_id = 10;
+  int64 created_at = 11;      // ms epoch
+  int64 updated_at = 12;      // ms epoch
+  string error = 13;
+  string result_url = 14;     // PR/MR URL set by autofix tasks on completion
+}
+
+message EnqueueBatchUpdateRequest {
+  string project_id = 1;
+  string user_id = 2;
+  repeated BatchUpdateVulnerabilityItem items = 3;
+  string agent_tool_call_id = 4;
+  string agent_conversation_id = 5;
+  string agent_stream_id = 6;
+}
+message EnqueueBatchUpdateResponse {
+  string task_id = 1;
+  int32 total = 2;
+}
+
+message GetAsyncTaskRequest { string task_id = 1; }
+message ListAsyncTasksRequest { string user_id = 1; }
+message AsyncTaskList { repeated AsyncTask tasks = 1; }
+
+// Persisted dismiss of a background task. user_id is the authenticated owner
+// (owner-checked server-side); deletion is idempotent.
+message DeleteAsyncTaskRequest {
+  string user_id = 1;
+  string task_id = 2;
+}
+message DeleteAsyncTaskResponse { bool success = 1; }
+
+// -------------------------------------------------------------------
+// Common DTOs
+// -------------------------------------------------------------------
+
+message User {
+  string id         = 1;
+  string first_name = 2;
+  string last_name  = 3;
+  string email      = 4;
+  string picture    = 5;
+}
+
+message HistoryItem {
+  string id        = 1;
+  string type      = 2;
+  string value     = 3;
+  string date      = 4; // ISO 8601
+  string user_id   = 5;
+  User   user      = 6;
+}
+
+message CodeLine {
+  int32  line    = 1;
+  string content = 2;
+}
+
+message CodeSnippetDto {
+  string        id                      = 1;
+  int32         vulnerable_start_line   = 2;
+  int32         vulnerable_end_line     = 3;
+  int32         start_line              = 4;
+  int32         end_line                = 5;
+  repeated CodeLine code                 = 6;
+  string        language                = 7;
+  string        fix_analysis            = 8;
+  string        fix_analysis_description = 9;
+}
+
+message DataFlowItemDto {
+  string        id             = 1;
+  string        name_highlight = 2;
+  int32         line           = 3;
+  string        language       = 4;
+  repeated CodeLine code        = 5;
+  string        type           = 6;
+  int32         order          = 7;
+}
+
+message VulnerabilityMetadata {
+  string            id                = 1;
+  repeated string   cwe               = 2;
+  string            name              = 3;
+  string            short_description = 4;
+  string            description       = 5;
+  string            how_to_prevent    = 6;
+  repeated string   owasp_top10       = 7;
+  string            severity          = 8;
+  string            language          = 9;
+  string            vulnerability_type= 10;
+  repeated string   cwe_array         = 11;
+  repeated Reference references = 12;
+  optional Cvss3           cvss3            = 13;
+  repeated CodeExample    code_examples    = 14;
+  optional SourceMetadata source_metadata  = 15;
+  // Stable rule code `CD-<TYPE>-<NNNN>`, the id a
+  // `cybedefend-ignore[...]` directive lists.
+  optional string         code             = 16;
+}
+
+message Reference {
+  string id   = 1;
+  string name = 2;
+  string url  = 3;
+}
+
+message Cvss3 {
+  string vector = 1;
+  string base_score = 2;
+}
+
+message CodeExample {
+  string filename = 1;
+  string content = 2;
+}
+
+message SourceMetadata {
+  string category = 1;
+  repeated string subcategory = 2;
+  repeated string technology = 3;
+  string confidence = 4;
+  string impact = 5;
+  string likelihood = 6;
+  repeated string languages = 7;
+}
+
+message HistoryItemsWrapper {
+  repeated HistoryItem items = 1;
+}
+
+// Plain-language CVSS 4.0 explanation
+// Structured data; final FR/EN sentences are composed by the dashboard via i18n.
+message CvssBaseExplanation {
+  string severity            = 1; // critical|high|medium|low|none
+  double base_score          = 2;
+  string attack_origin       = 3; // network|adjacent|local|physical (from AV)
+  string attack_complexity   = 4; // low|high (from AC)
+  string auth_required       = 5; // none|low|high (from PR)
+  string user_interaction    = 6; // none|passive|active (from UI)
+  string confidentiality_impact = 7; // none|low|high (from VC)
+  string integrity_impact       = 8; // none|low|high (from VI)
+  string availability_impact    = 9; // none|low|high (from VA)
+  bool   has_subsequent_impact  = 10; // true if SC|SI|SA != N
+}
+
+message CvssEnvDriver {
+  string metric_key = 1; // CR|IR|AR|MAV|MAC|MAT|MPR|MUI|MVC|MVI|MVA|MSC|MSI|MSA
+  string value      = 2;
+  optional string base_key   = 3; // for M* metrics: corresponding base key (e.g. AV for MAV)
+  optional string base_value = 4; // value of base_key in the base vector
+  string effect     = 5; // increases|decreases|neutral
+}
+
+message CvssEnvironmentalExplanation {
+  double env_score   = 1;
+  double base_score  = 2;
+  double score_delta = 3; // env - base, rounded to 1 decimal
+  string direction   = 4; // increased|decreased|unchanged
+  repeated CvssEnvDriver drivers = 5;
+}
+
+message CvssExplanation {
+  optional CvssBaseExplanation          base          = 1;
+  optional CvssEnvironmentalExplanation environmental = 2;
+}
+
+message VulnerabilitySastIacResponse {
+  string                           id                     = 1;
+  string                           project_id             = 2;
+  string                           created_at             = 3; // ISO 8601
+  string                           update_at              = 4; // ISO 8601
+  string                           time_to_fix            = 5;
+  string                           current_state          = 6;
+  string                           current_severity       = 7;
+  string                           current_priority       = 8;
+  string                           contextual_explanation = 9;
+  string                           language               = 10;
+  string                           path                   = 11;
+  int32                            vulnerable_start_line  = 12;
+  int32                            vulnerable_end_line    = 13;
+  VulnerabilityMetadata            vulnerability          = 14;
+  HistoryItemsWrapper history_items = 15;
+  repeated CodeSnippetDto          code_snippets          = 16;
+  string                           vulnerability_type     = 17;
+  repeated AutoFixRecordDto        autofix_records        = 18;
+  bool                             has_cybe_analysis      = 19; // True if the AI analysis has analyzed this vulnerability
+  bool                             has_cybe_autofix       = 20; // True if vulnerability has autofix records
+  optional string                  branch                 = 21; // Branch where this vulnerability was detected
+  optional string                  cvss4_vector              = 22;
+  optional double                  cvss4_base_score          = 23;
+  optional double                  cvss4_environmental_score = 24;
+  optional string                  cvss4_environmental_vector = 35;
+  optional double                  epss_score                = 25;
+  optional double                  epss_percentile           = 26;
+  optional string                  epss_refreshed_at         = 27; // ISO 8601
+  string                           scoring_source            = 28; // "static" or "agent"
+  // Exploitability fields
+  optional double                  exploitability_score      = 29; // 0.0-1.0
+  optional string                  exploitability_verdict    = 30; // not_exploitable|theoretical|proven|actively_exploited
+  optional string                  exploitability_reason     = 31; // LLM reasoning for TP/FP verdict (markdown)
+  optional string                  exploitability_source     = 32; // "agent" or "manual"
+  optional string                  exploitability_updated_at = 33; // ISO 8601
+  // User-facing 0-100 priority score (compositeScore * 100, 1 decimal)
+  optional double                  priority_score            = 34;
+  // Plain-language CVSS explanation (structured, FR/EN composed dashboard-side)
+  optional CvssExplanation         cvss_explanation          = 36;
+  // Stale agent analysis flag — true when exploitabilitySource='agent'
+  // AND exploitabilityUpdatedAt < ProjectSecurityContext.updatedAt.
+  optional bool                    exploitability_stale         = 37;
+  // ISO 8601 timestamp of the project security context (used by the
+  // dashboard banner to render "the context was changed X days ago").
+  optional string                  security_context_updated_at  = 38;
+  // LLM reasoning for the exploitability score (separate from exploitability_reason which justifies the TP/FP verdict)
+  optional string                  exploitability_score_reason  = 39;
+  // The rule id of the tool that produced an IMPORTED finding (a SARIF
+  // `result.ruleId`, as written in the file). Set only for findings imported
+  // from a SARIF file; absent for every finding a built-in scanner raised.
+  optional string                  scanner_rule_id              = 40;
+}
+
+message AutoFixRecordDto {
+  string id = 1;
+  string branch = 2;
+  string pr_url = 3;
+  string status = 4;
+  string reason = 5;
+  string commit_message = 6;
+  string pr_title = 7;
+  string pr_body = 8;
+  string diff = 9; // truncated diff if large
+  string created_at = 10; // ISO 8601
+  string updated_at = 11; // ISO 8601
+}
+
+message VulnerabilityScaAlias {
+  string id    = 1;
+  string alias = 2;
+}
+
+message VulnerabilityScaCwe {
+  string id     = 1;
+  string cwe_id = 2;
+}
+
+message VulnerabilityScaReference {
+  string id   = 1;
+  string type = 2;
+  string url  = 3;
+}
+
+message VulnerabilityScaSeverity {
+  string id    = 1;
+  string type  = 2;
+  string score = 3;
+}
+
+message VulnerabilityScaPackage {
+  string id            = 1;
+  string ecosystem     = 2;
+  string package_name  = 3;
+  string introduced    = 4;
+  string fixed         = 5;
+  bool   fix_available = 6;
+}
+
+message VulnerabilityScaMetadata {
+  string                             id                   = 1;
+  string                             internal_id          = 2;
+  string                             ghsa_id              = 3;
+  string                             cve                  = 4;
+  string                             summary              = 5;
+  string                             details              = 6;
+  string                             severity_gh          = 7;
+  string                             schema_version       = 8;
+  string                             modified_at          = 9; // ISO 8601
+  string                             published_at         = 10; // ISO 8601
+  string                             github_reviewed_at   = 11; // ISO 8601
+  string                             nvd_published_at     = 12; // ISO 8601
+  string                             created_at           = 13; // ISO 8601
+  string                             updated_at           = 14; // ISO 8601
+  repeated VulnerabilityScaAlias     aliases              = 15;
+  repeated VulnerabilityScaCwe       cwes                 = 16;
+  repeated VulnerabilityScaReference references           = 17;
+  repeated VulnerabilityScaSeverity  severities           = 18;
+  repeated VulnerabilityScaPackage   packages             = 19;
+}
+
+message ScaDetectedLibraryDto {
+  string id             = 1;
+  string project_id     = 2;
+  string package_name   = 3;
+  string package_version= 4;
+  string file_name      = 5;
+  string ecosystem      = 6;
+  bool   is_transitive = 7;
+  bool   is_dev        = 8;
+  repeated string path  = 9;
+  optional bool dependency_info_available = 10; // true if isDev/isTransitive are reliable
+  optional string reachability = 11;             // "used", "test_only", "unused", "potentially_used", "unknown", or absent
+  repeated ImportLocation import_locations = 12; // files/lines where package is imported
+  repeated string licenses = 13;                 // SPDX license identifiers
+}
+
+message VulnerabilitySca {
+  VulnerabilitySastIacResponse base       = 1;
+  ScaDetectedLibraryDto        library    = 2;
+  double                       cvss_score = 3;
+  VulnerabilityScaMetadata     metadata   = 4;
+  bool                         has_autofix = 5;
+  repeated ScaAutoFixRecordDto autofix_records = 6;
+  bool                         has_cybe_analysis = 7; // True if the AI analysis has analyzed this vulnerability
+  optional string              cvss4_vector              = 8;
+  optional double              cvss4_base_score          = 9;
+  optional double              cvss4_environmental_score = 10;
+  optional string              cvss4_environmental_vector = 21;
+  optional double              epss_score                = 11;
+  optional double              epss_percentile           = 12;
+  optional string              epss_refreshed_at         = 13; // ISO 8601
+  string                       scoring_source            = 14; // "static" or "agent"
+  optional double              exploitability_score      = 15; // 0.0-1.0
+  optional string              exploitability_verdict    = 16; // not_exploitable|theoretical|proven|actively_exploited
+  optional string              exploitability_reason     = 17; // Justification for TP/FP verdict (markdown)
+  optional string              exploitability_source     = 18; // "agent" or "manual"
+  optional string              exploitability_updated_at = 19; // ISO 8601
+  // User-facing 0-100 priority score (compositeScore * 100, 1 decimal)
+  optional double              priority_score            = 20;
+  // Plain-language CVSS explanation (structured, FR/EN composed dashboard-side)
+  optional CvssExplanation     cvss_explanation          = 22;
+  // LLM reasoning for the exploitability score (separate from exploitability_reason which justifies the TP/FP verdict)
+  optional string              exploitability_score_reason = 23;
+  // True when the matched OSV advisory is a malicious-package advisory
+  // (separated from ordinary vulnerabilities into the SCA "Malware" sub-tab).
+  optional bool                is_malware                  = 24;
+}
+
+message ScaAutoFixRecordDto {
+  string id             = 1;
+  string branch         = 2;
+  string pr_url         = 3;
+  string status         = 4;
+  string reason         = 5;
+  string commit_message = 6;
+  string pr_title       = 7;
+  string pr_body        = 8;
+  string diff           = 9; // truncated diff if large
+  string created_at     = 10; // ISO 8601
+  string updated_at     = 11; // ISO 8601
+  // SCA-specific fields
+  string cve_id                       = 12;
+  string vulnerable_package           = 13;
+  string vulnerable_version           = 14;
+  string recommended_parent_package   = 15;
+  string recommended_current_version  = 16;
+  string recommended_proposed_version = 17;
+  string recommended_update_type      = 18;
+  string install_command              = 19;
+  bool   has_fix_available            = 20;
+}
+
+message GetProjectScaVulnerabilitiesResponse {
+  string                          project_id          = 1;
+  string                          project_name        = 2;
+  int32                           page                = 3;
+  int32                           limit               = 4;
+  int32                           total_pages         = 5;
+  string                          sort                = 6;
+  string                          order               = 7;
+  repeated string                severity            = 8;
+  repeated string                status              = 9;
+  repeated string                priority            = 10;
+  repeated VulnerabilitySca  vulnerabilities      = 11;
+  int32                           total               = 12;
+  ScanProjectInfo             scan_project_info   = 13;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 14;
+  bool                            is_project_parsed   = 15; // True if project has been parsed by Potpie (code graph available)
+  AutofixCountByType              autofix_count_by_type = 16; // Autofix statistics by type
+  int32                           reachability_ignored_count = 17; // Count of vulns auto-ignored due to unused reachability
+  // Total malware findings for the project/branch (independent of the
+  // current filter/pagination) — drives the "Malware" sub-tab badge + banner.
+  int32                           malware_count       = 18;
+}
+
+// -------------------------------------------------------------------
+// CONTAINER – Trivy image scan
+// -------------------------------------------------------------------
+
+message VulnerabilityCounts {
+    int32 critical = 1;
+    int32 high = 2;
+    int32 medium = 3;
+    int32 low = 4;
+    int32 unknown = 5;
+}
+
+message ContainerOS {
+  string family = 1;
+  string name   = 2;
+  bool   eosl   = 3;
+}
+
+message ContainerPackage {
+  string id               = 1;
+  string name             = 2;
+  string version          = 3;
+  string arch             = 4;
+  string src_name         = 5;
+  string src_version      = 6;
+  string digest           = 7;
+  repeated string licenses = 8;
+  repeated string depends_on = 9;
+  // Complete distribution version, `[epoch:]version[-release]`.
+  // Trivy splits deb/rpm coordinates (Version "8.30", Release "3", Epoch),
+  // and `version` keeps that split form so stored package rows do not move.
+  // OSV advisories bound their ranges with the complete form, so the
+  // backend refuses to match a deb/rpm package that lacks it.
+  string full_version     = 10;
+  // Same, for the SOURCE package (OSV keys Debian/Ubuntu/Alpine advisories
+  // on the source name: `openssl`, not `libssl3`).
+  string src_full_version = 11;
+}
+
+message CVSSInfo {
+  string v2_vector = 1;
+  string v3_vector = 2;
+  double v2_score  = 3;
+  double v3_score  = 4;
+}
+
+message DataSource {
+  string id   = 1;
+  string name = 2;
+  string url  = 3;
+}
+
+message ContainerVulnerability {
+  string  vulnerability_id   = 1;
+  string  pkg_name           = 2;
+  string  installed_version  = 3;
+  string  fixed_version      = 4;
+  string  severity           = 5;
+  string  title              = 6;
+  string  description        = 7;
+  string  primary_url        = 8;
+  string  published_date     = 9; // ISO 8601
+  string  last_modified_date = 10; // ISO 8601
+  string  layer_digest       = 11;
+  string  target             = 12;
+  string  class              = 13;
+  string  type               = 14;
+  repeated string       cwe_ids      = 15;
+  DataSource            data_source  = 16;
+  map<string, CVSSInfo> cvss         = 17;
+  repeated string       references   = 18;
+  string internal_id                 = 19; 
+}
+
+message Result {
+    string target = 1;
+    string class = 2;
+    string type = 3;
+    repeated ContainerPackage packages = 4;
+    repeated ContainerVulnerability vulnerabilities = 5;
+}
+
+
+message ChunkInfo {
+  int32 index    = 1; // starting at 1
+  bool  is_last  = 2;
+}
+
+message ScanAddContainerResultRequest {
+  string               project_id     = 1;
+  string               scan_id        = 2;
+  string               scanner_name   = 3; // "container"
+  string               started_at     = 4; // ISO 8601
+  string               finished_at    = 5; // ISO 8601
+  ChunkInfo            chunk          = 6;
+  ContainerOS          os             = 7;
+  repeated Result results             = 8; // Scan results
+  string               image_name     = 9; // Full image name (e.g., registry.gitlab.com/group/project:tag)
+}
+
+message ScanAddContainerResultResponse {
+  string project_id = 1;
+  string scan_id    = 2;
+  string message    = 3;
+  bool   success    = 4;
+}
+
+// -------------------------------------------------------------------
+// CONTAINER – queries
+// -------------------------------------------------------------------
+
+message ContainerImage {
+  string id = 1;
+  string project_id = 2;
+  string artifact_name = 3;
+  string os_family = 4;
+  string os_name = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  VulnerabilityCounts vuln_counts = 8;
+  string branch = 9; // Branch that was scanned when this image was detected
+  // The base OS is end-of-support-life (Trivy `EOSL`). The
+  // distribution no longer publishes advisories, so a 0-vulnerability result
+  // means "detection impossible", not "clean". Consumers must alert on it.
+  bool os_eosl = 10;
+}
+
+message GetProjectContainerImagesRequest {
+  string project_id = 1;
+  optional int32 page = 2;
+  optional int32 limit = 3;
+  optional string branch = 4; // Filter by branch (for GitHub/GitLab integrations)
+}
+
+message GetProjectContainerImagesResponse {
+  string project_name = 1;
+  repeated ContainerImage images = 2;
+  int32 total_images = 3;
+  int32 total_pages = 4;
+  int32 current_page = 5;
+  int32 page_size = 6;
+}
+
+// -------------------------------------------------------------------
+// CONTAINER – Grouped Images by Repository (showing all tags)
+// -------------------------------------------------------------------
+
+// A single tag within a grouped container image
+message ContainerImageTag {
+  string id = 1; // Original image entity ID
+  // Extracted tag from artifact_name (e.g., "v1.0.0", "latest"). EMPTY when the
+  // image was scanned by digest only (`repo@sha256:...`): such an image carries
+  // no tag at all, and inventing "latest" both mislabels it and makes two
+  // digests of the same repository indistinguishable.
+  string tag = 2;
+  string scan_id = 3;
+  string created_at = 4;
+  string updated_at = 5;
+  VulnerabilityCounts vuln_counts = 6; // Vulnerability counts for this specific tag
+  // Full digest extracted from artifact_name (e.g. "sha256:<64 hex>"), empty
+  // when the artifact was addressed by tag. Consumers rebuild the reference as
+  // `repository_name@digest` — a digest is only addressable with '@'.
+  string digest = 7;
+  // This tag's base OS is end-of-support-life (see ContainerImage.os_eosl).
+  bool os_eosl = 8;
+}
+
+// Grouped container image by repository name (without tag)
+message GroupedContainerImage {
+  string repository_name = 1; // Repository name without tag (e.g., "registry.gitlab.com/group/project")
+  string project_id = 2;
+  string os_family = 3;
+  string os_name = 4;
+  string branch = 5;
+  int32 tag_count = 6; // Number of different tags for this image
+  repeated ContainerImageTag tags = 7; // All tags for this repository
+  VulnerabilityCounts aggregated_vuln_counts = 8; // Total vulnerability counts across all tags
+  string latest_scan_at = 9; // Most recent scan date across all tags
+  // True when ANY tag of the repository runs an end-of-support-life
+  // base OS — conservative on purpose, the alert must not be missed.
+  bool os_eosl = 10;
+}
+
+message GetGroupedContainerImagesRequest {
+  string project_id = 1;
+  optional int32 page = 2;
+  optional int32 limit = 3;
+  optional string branch = 4; // Filter by branch
+  optional string sort = 5; // repository_name | tag_count | latest_scan_at
+  optional string order = 6; // ASC | DESC
+  optional string search_query = 7; // Search by repository name
+}
+
+message GetGroupedContainerImagesResponse {
+  string project_name = 1;
+  repeated GroupedContainerImage grouped_images = 2;
+  int32 total_repositories = 3; // Total number of unique repositories
+  int32 total_tags = 4; // Total number of tags across all repositories
+  int32 total_pages = 5;
+  int32 current_page = 6;
+  int32 page_size = 7;
+}
+
+
+message GetProjectContainerVulnerabilitiesRequest {
+  string          project_id  = 1;
+  int32           page        = 2;
+  int32           limit       = 3;
+  string          sort        = 4; // current_severity | current_priority | priority_score | created_at
+  string          order       = 5; // ASC | DESC
+  repeated string severity    = 6;
+  repeated string classType    = 7;
+  repeated string status      = 8;
+  repeated string priority    = 9;
+  string          search_query= 10;
+  string          imageId      = 11;
+  optional string branch      = 12; // Filter by branch (for GitHub/GitLab integrations)
+  optional bool   has_autofix = 13; // Filter by autofix status: true = has autofix records, false = no autofix records, unset = all
+  repeated string exploitability_verdict = 14; // Filter by exploitability verdict (not_exploitable|theoretical|proven|actively_exploited)
+  optional string scoring_source = 15; // Filter by scoring source ("static" or "agent"); omit to return all.
+  optional bool   slim        = 16; // The MCP list asks for the page only (no project Get, no scan status, no counters); unset = the dashboard's full answer.
+}
+
+message ContainerVulnerabilityDetection {
+  string  id                     = 1;
+  string  project_id             = 2;
+  string  vulnerability_identifier = 3; // CVE-XXXX-XXXX or Trivy ruleId
+  string  current_state          = 4;
+  string  current_severity       = 5;
+  string  current_priority       = 6;
+  string  fixed_version          = 7;
+  ContainerPackage  package      = 8; // null -> vuln “classique”
+  ContainerVulnerability vuln    = 9; // null -> SCA vulnerability (from a package)
+  HistoryItemsWrapper   history_items = 10;
+  string  created_at             = 11; // ISO 8601
+  string  updated_at             = 12; // ISO 8601
+  optional string branch         = 13; // Branch where this vulnerability was detected
+  optional string  cvss4_vector              = 14;
+  optional double  cvss4_base_score          = 15;
+  optional double  cvss4_environmental_score = 16;
+  optional string  cvss4_environmental_vector = 27;
+  optional double  epss_score                = 17;
+  optional double  epss_percentile           = 18;
+  optional string  epss_refreshed_at         = 19; // ISO 8601
+  string           scoring_source            = 20; // "static" or "agent"
+  optional double  exploitability_score      = 21; // 0.0-1.0
+  optional string  exploitability_verdict    = 22; // not_exploitable|theoretical|proven|actively_exploited
+  optional string  exploitability_reason     = 23; // Justification for TP/FP verdict (markdown)
+  optional string  exploitability_source     = 24; // "agent" or "manual"
+  optional string  exploitability_updated_at = 25; // ISO 8601
+  // User-facing 0-100 priority score (compositeScore * 100, 1 decimal)
+  optional double  priority_score            = 26;
+  // Plain-language CVSS explanation (structured, FR/EN composed dashboard-side)
+  optional CvssExplanation cvss_explanation  = 28;
+  // LLM reasoning for the exploitability score (separate from exploitability_reason which justifies the TP/FP verdict)
+  optional string  exploitability_score_reason = 29;
+  // Legacy CVSS v3 base score persisted at ingestion (Trivy) — SCA parity (VulnerabilitySca.cvss_score)
+  optional double  cvss_score                 = 30;
+  // "scanner" (reported by the scanner pod) or "osv" (matched by
+  // analysis-reporting against the OSV mirror from the package inventory).
+  string           detection_source          = 31;
+}
+
+message GetProjectContainerVulnerabilitiesResponse {
+  string  project_id  = 1;
+  string  project_name = 2;
+  int32   page        = 3;
+  int32   limit       = 4;
+  int32   total_pages = 5;
+  int32   total       = 6;
+  string  sort        = 7;
+  string  order       = 8;
+  repeated string severity  = 9;
+  repeated string status    = 10;
+  repeated string priority  = 11;
+  repeated ContainerVulnerabilityDetection vulnerabilities = 12;
+  ScanProjectInfo             scan_project_info   = 13;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 14;
+}
+
+message GetProjectContainerVulnerabilityByIdRequest {
+  string project_id       = 1;
+  string vulnerability_id = 2;
+}
+
+message GetProjectContainerVulnerabilityByIdResponse {
+  string project_id       = 1;
+  string vulnerability_id = 2;
+  ContainerVulnerabilityDetection detection = 3;
+  optional bool is_project_parsed  = 4;
+}
+
+message DeleteContainerImageRequest {
+  string project_id = 1;
+  string image_id = 2;
+}
+
+// -------------------------------------------------------------------
+// OWASP Top 10 Report Generation
+// -------------------------------------------------------------------
+
+message GenerateOwaspReportRequest {
+  string project_id = 1;
+  string format = 2; // "json" | "pdf" | "html"
+  optional bool detailed = 3; // Default: true. If false, excludes Factors, Overview, Description, How to Prevent, Example Attack Scenarios, and References sections
+  optional string branch = 4; // Filter vulnerabilities by branch. Empty/unset = all branches (current behavior).
+  string user_id = 5; // Owner of the async report-generation task.
+}
+
+message GenerateOwaspReportResponse {
+  string project_id = 1;
+  string format = 2;
+  // Content is dropped in favour of download_url. Kept for one
+  // release with [deprecated = true] so an out-of-sync gateway pod that
+  // still reads `content` does not crash — it just sees an empty string.
+  string content = 3 [deprecated = true];
+  string filename = 4; // Suggested filename
+  string content_type = 5; // MIME type (application/json, text/html, application/pdf)
+  string download_url = 6;       // Signed GCS read URL, 15min TTL
+  uint64 expires_at_ms = 7;      // Epoch ms when download_url expires
+  // Async generation: the report is now produced by the analysis worker.
+  // The caller gets an id + status="queued" and polls REPORT_READY realtime
+  // events, then refetches the signed URL via GetGeneratedReport.
+  string report_id = 8;
+  string status = 9; // "queued" | "ready" | "failed"
+}
+
+// -------------------------------------------------------------------
+// CWE Top 25 Report Generation
+// -------------------------------------------------------------------
+
+message GenerateCweReportRequest {
+  string project_id = 1;
+  string format = 2; // "json" | "pdf" | "html"
+  optional bool detailed = 3; // Default: true. If false, excludes detailed descriptions and statistics
+  optional string branch = 4; // Filter vulnerabilities by branch. Empty/unset = all branches (current behavior).
+  string user_id = 5; // Owner of the async report-generation task.
+}
+
+message GenerateCweReportResponse {
+  string project_id = 1;
+  string format = 2;
+  // Content is dropped in favour of download_url. Kept for one
+  // release with [deprecated = true] so an out-of-sync gateway pod that
+  // still reads `content` does not crash — it just sees an empty string.
+  string content = 3 [deprecated = true];
+  string filename = 4; // Suggested filename
+  string content_type = 5; // MIME type (application/json, text/html, application/pdf)
+  string download_url = 6;       // Signed GCS read URL, 15min TTL
+  uint64 expires_at_ms = 7;      // Epoch ms when download_url expires
+  // Async generation: see GenerateOwaspReportResponse.report_id.
+  string report_id = 8;
+  string status = 9; // "queued" | "ready" | "failed"
+}
+
+// -------------------------------------------------------------------
+// Generated report status / signed-URL refetch (async generation).
+// The worker persists reportId -> {objectPath, kind, format, ...}; this RPC
+// re-signs a fresh download URL on demand so it survives URL expiry and SSE
+// reconnects (the REPORT_READY event is IDs-only).
+// -------------------------------------------------------------------
+
+message GetGeneratedReportRequest {
+  string project_id = 1;
+  string report_id = 2;
+}
+
+message GetGeneratedReportResponse {
+  string report_id = 1;
+  string status = 2;       // "queued" | "ready" | "failed"
+  string report_kind = 3;  // "owasp" | "cwe" | "eu_ai_act" | "scanner_type"
+  string format = 4;
+  string filename = 5;
+  string content_type = 6;
+  string download_url = 7;  // Present only when status == "ready"
+  uint64 expires_at_ms = 8; // Present only when status == "ready"
+  string error = 9;         // Present only when status == "failed"
+}
+
+// -------------------------------------------------------------------
+// Aggregated Report Generation (Organization, Team, Batch)
+// -------------------------------------------------------------------
+
+message ProjectBranchSelection {
+  string project_id = 1;
+  repeated string branches = 2;
+}
+
+message GenerateOrganizationReportRequest {
+  string organization_id = 1;
+  string user_id = 2; // For permission validation and GlobalManagement calls
+  string report_type = 3; // "owasp" | "cwe" | "license"
+  string format = 4; // "json" | "pdf" | "html"
+  bool detailed = 5; // Default: true. If false, report is simplified
+  string branch_filter = 6; // "all" | "reference" | "selected" - Default: "all"
+  repeated ProjectBranchSelection project_branch_selections = 7; // Per-project branch selections when branch_filter is "selected"
+}
+
+message GenerateTeamReportRequest {
+  string team_id = 1;
+  string user_id = 2; // For permission validation and GlobalManagement calls
+  string report_type = 3; // "owasp" | "cwe" | "license"
+  string format = 4; // "json" | "pdf" | "html"
+  bool detailed = 5; // Default: true. If false, report is simplified
+  string branch_filter = 6; // "all" | "reference" | "selected" - Default: "all"
+  repeated ProjectBranchSelection project_branch_selections = 7; // Per-project branch selections when branch_filter is "selected"
+  string organization_id = 8; // Optional: for license override lookups
+}
+
+message GenerateBatchReportRequest {
+  repeated string project_ids = 1;
+  string user_id = 2; // For permission validation
+  string report_type = 3; // "owasp" | "cwe" | "license"
+  string format = 4; // "json" | "pdf" | "html"
+  bool detailed = 5; // Default: true. If false, report is simplified
+  string branch_filter = 6; // "all" | "reference" | "selected" - Default: "all"
+  repeated ProjectBranchSelection project_branch_selections = 7; // Per-project branch selections when branch_filter is "selected"
+  string organization_id = 8; // Optional: for license override lookups
+}
+
+message GenerateAggregatedReportResponse {
+  string scope_type = 1; // "organization" | "team" | "batch"
+  string scope_id = 2; // ID of organization/team or comma-separated project IDs
+  string report_type = 3; // "owasp" | "cwe" | "license"
+  string format = 4; // "json" | "pdf" | "html"
+  // Content is dropped in favour of download_url. Kept for one
+  // release with [deprecated = true] so an out-of-sync gateway pod that
+  // still reads `content` does not crash — it just sees an empty string.
+  string content = 5 [deprecated = true];
+  string filename = 6; // Suggested filename
+  string content_type = 7; // MIME type (application/json, text/html, application/pdf)
+  int32 projects_count = 8; // Number of projects included in the report
+  repeated string project_ids = 9; // List of project IDs included
+  string download_url = 10;       // Signed GCS read URL, 15min TTL
+  uint64 expires_at_ms = 11;      // Epoch ms when download_url expires
+  // Async generation (parity with GenerateOwaspReportResponse): the handler
+  // now enqueues a job and returns immediately. download_url/expires_at_ms are
+  // empty until status == "ready".
+  string report_id = 12;
+  string status = 13; // "queued" | "ready" | "failed"
+}
+
+message GetGeneratedAggregatedReportRequest {
+  string scope_type = 1;      // "organization" | "team"
+  string scope_id = 2;        // organizationId (org route) | teamId (team route)
+  string report_id = 3;
+  string organization_id = 4; // org/batch owner; empty for team route
+}
+
+message GetGeneratedAggregatedReportResponse {
+  string report_id = 1;
+  string status = 2;        // "queued" | "ready" | "failed"
+  string report_type = 3;   // "owasp" | "cwe" | "license" | "ai-act"
+  string scope_type = 4;    // "organization" | "team" | "batch"
+  string scope_id = 5;
+  string format = 6;
+  string filename = 7;
+  string content_type = 8;
+  string download_url = 9;  // present only when status == "ready"
+  uint64 expires_at_ms = 10;// present only when status == "ready"
+  string error = 11;        // present only when status == "failed"
+}
+
+// -------------------------------------------------------------------
+// User-initiated report deletion (frees a quota slot + GCS object)
+// -------------------------------------------------------------------
+
+message DeleteGeneratedReportRequest {
+  string project_id = 1; // authoritative owner; report must belong to it
+  string report_id = 2;
+}
+
+message DeleteGeneratedReportResponse {
+  bool success = 1;
+}
+
+message DeleteAggregatedReportRequest {
+  string scope_type = 1;      // "organization" | "team" | "batch"
+  string scope_id = 2;        // organizationId | teamId | CSV projectIds (batch)
+  string organization_id = 3; // owning org; report must belong to it
+  string report_id = 4;
+}
+
+message DeleteAggregatedReportResponse {
+  bool success = 1;
+}
+
+// -------------------------------------------------------------------
+// Paginated history of stored reports (no download_url; the URL is
+// re-signed on demand via GetGeneratedReport / GetGeneratedAggregatedReport).
+// Expired rows (expiresAt < now) are excluded. Two disjoint lists: per-project
+// (generated_reports) and aggregated (aggregated_reports).
+// -------------------------------------------------------------------
+
+message ListGeneratedReportsRequest {
+  string project_id = 1;
+  int32 page = 2;       // 1-based; <=0 → 1
+  int32 page_size = 3;  // default 20, clamped to [1,100]
+}
+
+message GeneratedReportSummary {
+  string report_id = 1;
+  string kind = 2;          // owasp | cwe | eu_ai_act | scanner_type
+  string format = 3;
+  string status = 4;        // queued | ready | failed
+  string filename = 5;
+  string branch = 6;
+  int64 created_at_ms = 7;
+  int64 expires_at_ms = 8;  // 0 = never expires
+}
+
+message ListGeneratedReportsResponse {
+  repeated GeneratedReportSummary items = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// Org-wide shared stored-report usage. `used` counts BOTH project and
+// org/team/batch reports owned by the org (same count enforcement uses); the
+// quota is therefore a single shared pool. Either organization_id or project_id
+// identifies the org (project_id is resolved server-side).
+message GetReportUsageRequest {
+  string organization_id = 1;
+  string project_id = 2;
+}
+message GetReportUsageResponse {
+  int32 used = 1;
+  int32 limit = 2; // maxStoredReports; -1 = unlimited / unknown
+}
+
+message ListAggregatedReportsRequest {
+  string scope_type = 1;      // org route: "organization"; team route: "team"
+  string scope_id = 2;        // teamId for the team route
+  string organization_id = 3; // org route: filter all scopes owned by the org
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message AggregatedReportSummary {
+  string report_id = 1;
+  string report_type = 2;   // owasp | cwe | license | ai-act
+  string scope_type = 3;    // organization | team | batch
+  string scope_id = 4;
+  string format = 5;
+  string status = 6;
+  string filename = 7;
+  int64 created_at_ms = 8;
+  int64 expires_at_ms = 9;
+}
+
+message ListAggregatedReportsResponse {
+  repeated AggregatedReportSummary items = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// -------------------------------------------------------------------
+// Project Branches (from vulnerability detections)
+// -------------------------------------------------------------------
+
+message GetProjectBranchesRequest {
+  string project_id = 1;
+}
+
+message GetProjectBranchesResponse {
+  string project_id = 1;
+  repeated string branches = 2; // List of distinct branch names found in SAST, SCA, IAC detections
+}
+
+// -------------------------------------------------------------------
+// SCA filter facets — distinct ecosystems & manifest files
+// -------------------------------------------------------------------
+
+message GetScaFilterOptionsRequest {
+  string project_id = 1;
+  optional string branch = 2; // restrict facets to a branch when provided
+}
+
+message GetScaFilterOptionsResponse {
+  repeated string ecosystems = 1; // distinct package managers, sorted
+  repeated string file_names = 2; // distinct manifest file names, sorted
+}
+
+// -------------------------------------------------------------------
+// Issue Integration (GitHub/GitLab issue creation after scan)
+// -------------------------------------------------------------------
+
+message CreateIssuesForScanRequest {
+  string project_id = 1;
+  string scan_id = 2;
+  string organization_id = 3;
+}
+
+message CreateIssuesForScanResponse {
+  bool success = 1;
+  string message = 2;
+  int32 github_issues_created = 3;
+  int32 gitlab_issues_created = 4;
+}
+
+// -------------------------------------------------------------------
+// Scan Complete Notification (deferred notification after agent analysis)
+// -------------------------------------------------------------------
+
+message NotifyScanCompleteRequest {
+  string scan_id = 1;
+  string project_id = 2;
+}
+
+message NotifyScanCompleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// -------------------------------------------------------------------
+// Scan Ended (every container closed)
+// -------------------------------------------------------------------
+
+message NotifyScanEndedRequest {
+  string scan_id = 1;
+  string project_id = 2;
+}
+
+message NotifyScanEndedResponse {
+  bool success = 1;
+  // What analysis-reporting made of it: dispatched, already_dispatched,
+  // deferred (the AI analysis still runs), waiting (a scanner's results are
+  // still being finalized), nothing_finalized, diff_scan.
+  string message = 2;
+}
+
+// ===================================================================
+// GROUPED VULNERABILITIES - New endpoints for consolidated view
+// Groups vulnerabilities by rule ID (SAST/IAC/CICD/Secret) or CVE+package (SCA)
+// ===================================================================
+
+// Severity breakdown for pie charts
+message SeverityBreakdown {
+  int32 critical = 1;
+  int32 high = 2;
+  int32 medium = 3;
+  int32 low = 4;
+}
+
+// Individual occurrence of a vulnerability (SAST/IAC/CICD/Secret)
+message VulnerabilityOccurrence {
+  string id = 1;
+  string path = 2;
+  int32 vulnerable_start_line = 3;
+  int32 vulnerable_end_line = 4;
+  string current_state = 5;
+  string current_severity = 6;
+  string current_priority = 7;
+  string created_at = 8;
+  repeated AutoFixRecordDto autofix_records = 9;
+  bool has_autofix = 10;
+  bool has_cybe_analysis = 11;
+  optional string source = 12; // "head" | "history" (secret only)
+  // Scoring fields
+  optional double cvss4_base_score          = 13;
+  optional double cvss4_environmental_score = 14;
+  optional double exploitability_score      = 15;
+  optional string exploitability_verdict    = 16;
+  optional double priority_score            = 17;
+  // Lets the grouped tables flag an agent analysis that dates from
+  // a previous scan, like the detailed rows do (same fields as 32/33/37 of
+  // the detailed SAST/IaC/CI-CD message).
+  optional string exploitability_source     = 18; // "agent" or "manual"
+  optional string exploitability_updated_at = 19; // ISO 8601
+  // Stale agent analysis flag — true when exploitabilitySource='agent'
+  // AND exploitabilityUpdatedAt < ProjectSecurityContext.updatedAt.
+  optional bool   exploitability_stale      = 20;
+}
+
+// Grouped vulnerability for SAST/IAC/CICD/Secret
+message GroupedVulnerability {
+  string rule_id = 1;
+  VulnerabilityMetadata vulnerability = 2;
+  int32 occurrence_count = 3;
+  SeverityBreakdown severity_breakdown = 4;
+  string highest_severity = 5;
+  string language = 6;
+  repeated VulnerabilityOccurrence occurrences = 7;
+  bool has_autofix = 8;
+  string first_seen = 9;
+  string last_seen = 10;
+  bool has_cybe_analysis = 11;
+  // Scoring fields
+  optional double highest_cvss4                    = 12;
+  optional string highest_exploitability_verdict   = 13;
+}
+
+// SCA occurrence (different from SAST as it includes package info)
+message ScaVulnerabilityOccurrence {
+  string id = 1;
+  string path = 2;
+  string package_version = 3;
+  string current_state = 4;
+  string current_severity = 5;
+  string current_priority = 6;
+  double current_cvss = 7;
+  string created_at = 8;
+  bool is_dev = 9;
+  bool is_transitive = 10;
+  bool has_autofix = 11;
+  bool has_cybe_analysis = 12;
+  // Scoring fields
+  optional double exploitability_score      = 13;
+  optional string exploitability_verdict    = 14;
+  optional double cvss4_base_score          = 15;
+  optional double cvss4_environmental_score = 16;
+  optional double epss_score                = 17;
+  optional double epss_percentile           = 18;
+  optional double priority_score            = 19;
+  optional bool   is_malware                = 20;
+  string          file_name                 = 21; // manifest file (package.json, requirements.txt, ...)
+}
+
+// Grouped SCA vulnerability (by CVE + package name)
+message GroupedScaVulnerability {
+  string cve_id = 1;
+  string package_name = 2;
+  VulnerabilityScaMetadata vulnerability = 3;
+  int32 occurrence_count = 4;
+  SeverityBreakdown severity_breakdown = 5;
+  string highest_severity = 6;
+  double highest_cvss = 7;
+  int32 dev_count = 8;
+  int32 direct_count = 9;
+  int32 transitive_count = 10;
+  repeated ScaVulnerabilityOccurrence occurrences = 11;
+  string first_seen = 12;
+  string last_seen = 13;
+  bool has_fix = 14;
+  bool has_autofix = 15;
+  bool has_cybe_analysis = 16;
+  // Scoring fields
+  optional string highest_exploitability_verdict = 17;
+  optional double highest_cvss4                  = 18;
+  // True when any occurrence in the group is malware.
+  optional bool   is_malware                     = 19;
+}
+
+// -------------------------------------------------------------------
+// Grouped Vulnerabilities Request/Response Messages
+// -------------------------------------------------------------------
+
+message GetGroupedSastVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+  string sort = 4;
+  string order = 5;
+  repeated string severity = 6;
+  repeated string status = 7;
+  repeated string priority = 8;
+  string search_query = 9;
+  optional string branch = 10;
+  optional bool has_autofix = 11;
+  optional string scoring_source = 12; // 'static' | 'agent'
+  repeated string language         = 13; // Multi-value language filter (exact match)
+  optional string source_path      = 14; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 15; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+}
+
+message GetGroupedSastVulnerabilitiesResponse {
+  string project_id = 1;
+  string project_name = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  int32 total_pages = 5;
+  string sort = 6;
+  string order = 7;
+  repeated string severity = 8;
+  repeated string status = 9;
+  repeated string priority = 10;
+  repeated GroupedVulnerability grouped_vulnerabilities = 11;
+  int32 total = 12;
+  int32 total_occurrences = 13;
+  ScanProjectInfo scan_project_info = 14;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 15;
+  optional bool is_project_parsed = 16;
+  AutofixCountByType autofix_count_by_type = 17;
+  repeated string languages = 18; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+message GetGroupedIacVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+  string sort = 4;
+  string order = 5;
+  repeated string severity = 6;
+  repeated string status = 7;
+  repeated string priority = 8;
+  string search_query = 9;
+  optional string branch = 10;
+  optional bool has_autofix = 11;
+  optional string scoring_source = 12; // 'static' | 'agent'
+  repeated string language         = 13; // Multi-value language filter (exact match)
+  optional string source_path      = 14; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 15; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+}
+
+message GetGroupedIacVulnerabilitiesResponse {
+  string project_id = 1;
+  string project_name = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  int32 total_pages = 5;
+  string sort = 6;
+  string order = 7;
+  repeated string severity = 8;
+  repeated string status = 9;
+  repeated string priority = 10;
+  repeated GroupedVulnerability grouped_vulnerabilities = 11;
+  int32 total = 12;
+  int32 total_occurrences = 13;
+  ScanProjectInfo scan_project_info = 14;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 15;
+  optional bool is_project_parsed = 16;
+  AutofixCountByType autofix_count_by_type = 17;
+  repeated string languages = 18; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+message GetGroupedCicdVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+  string sort = 4;
+  string order = 5;
+  repeated string severity = 6;
+  repeated string status = 7;
+  repeated string priority = 8;
+  string search_query = 9;
+  optional string branch = 10;
+  optional bool has_autofix = 11;
+  optional string scoring_source = 12; // 'static' | 'agent'
+  repeated string language         = 13; // Multi-value language filter (exact match)
+  optional string source_path      = 14; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 15; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+}
+
+message GetGroupedCicdVulnerabilitiesResponse {
+  string project_id = 1;
+  string project_name = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  int32 total_pages = 5;
+  string sort = 6;
+  string order = 7;
+  repeated string severity = 8;
+  repeated string status = 9;
+  repeated string priority = 10;
+  repeated GroupedVulnerability grouped_vulnerabilities = 11;
+  int32 total = 12;
+  int32 total_occurrences = 13;
+  ScanProjectInfo scan_project_info = 14;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 15;
+  AutofixCountByType autofix_count_by_type = 16;
+  repeated string languages = 17; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+message GetGroupedSecretVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+  string sort = 4;
+  string order = 5;
+  repeated string severity = 6;
+  repeated string status = 7;
+  repeated string priority = 8;
+  string search_query = 9;
+  optional string branch = 10;
+  optional bool has_autofix = 11;
+  repeated string source = 12;
+  optional string scoring_source = 13; // 'static' | 'agent'
+  repeated string language         = 14; // Multi-value language filter (exact match)
+  optional string source_path      = 15; // Filter by file path (substring "contains" match)
+  optional bool   exclude_autofix_counts = 16; // True => no autofix_count_by_type (5 queries fewer). Only the dashboard Results pages set it; unset keeps the counts.
+}
+
+message GetGroupedSecretVulnerabilitiesResponse {
+  string project_id = 1;
+  string project_name = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  int32 total_pages = 5;
+  string sort = 6;
+  string order = 7;
+  repeated string severity = 8;
+  repeated string status = 9;
+  repeated string priority = 10;
+  repeated GroupedVulnerability grouped_vulnerabilities = 11;
+  int32 total = 12;
+  int32 total_occurrences = 13;
+  ScanProjectInfo scan_project_info = 14;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 15;
+  AutofixCountByType autofix_count_by_type = 16;
+  repeated string languages = 17; // Distinct languages facet (populates the filter dropdown inline)
+}
+
+message GetGroupedScaVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+  string sort = 4;
+  string order = 5;
+  repeated string severity = 6;
+  repeated string status = 7;
+  repeated string priority = 8;
+  string search_query = 9;
+  optional string branch = 10;
+  repeated string package_type = 11; // dev, direct, transitive
+  optional string scoring_source = 12; // 'static' | 'agent'
+  repeated string exploitability_verdict = 13; // actively_exploited, proven, theoretical, not_exploitable, not_evaluated
+  optional bool has_autofix = 14;
+  repeated string package_manager = 15; // Filter by ecosystem
+  repeated string package_source  = 16; // Filter by manifest file name
+  optional bool   malware_only    = 17; // Unset/false => exclude malware; true => only malware
+}
+
+message GetGroupedScaVulnerabilitiesResponse {
+  string project_id = 1;
+  string project_name = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  int32 total_pages = 5;
+  string sort = 6;
+  string order = 7;
+  repeated string severity = 8;
+  repeated string status = 9;
+  repeated string priority = 10;
+  repeated GroupedScaVulnerability grouped_vulnerabilities = 11;
+  int32 total = 12;
+  int32 total_occurrences = 13;
+  ScanProjectInfo scan_project_info = 14;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 15;
+  optional bool is_project_parsed = 16;
+  int32 reachability_ignored_count = 17;
+  int32 malware_count = 18; // Total malware findings (drives the Malware sub-tab)
+}
+
+// Container occurrence = one CVE detection on a package (used by the grouped view)
+message ContainerVulnerabilityOccurrence {
+  string id = 1;                                    // detection id (used by the detail drawer)
+  string vulnerability_id = 2;                      // CVE-XXXX-XXXX or Trivy ruleId
+  string current_state = 3;
+  string current_severity = 4;                      // env-derived effective severity
+  string current_priority = 5;
+  string fixed_version = 6;
+  string created_at = 7;                            // ISO 8601
+  optional double cvss_score = 8;                   // legacy CVSS v3 base score
+  optional double cvss4_base_score = 9;
+  optional double cvss4_environmental_score = 10;
+  optional double epss_score = 11;
+  optional double priority_score = 12;
+  optional string exploitability_verdict = 13;
+  optional double exploitability_score = 14;
+}
+
+// Grouped container vulnerability (by package = packageName + packageVersion)
+message GroupedContainerVulnerability {
+  string package_name = 1;
+  string package_version = 2;
+  string package_class = 3;                         // lang-pkgs | os-pkgs
+  int32 occurrence_count = 4;                       // number of CVEs affecting the package
+  SeverityBreakdown severity_breakdown = 5;
+  string highest_severity = 6;
+  double highest_cvss = 7;
+  repeated ContainerVulnerabilityOccurrence occurrences = 8;
+  string first_seen = 9;
+  string last_seen = 10;
+  bool has_fix = 11;                                // at least one occurrence has a fixed version
+  bool has_cybe_analysis = 12;
+  optional string highest_exploitability_verdict = 13;
+  optional double highest_cvss4 = 14;
+}
+
+message GetGroupedContainerVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 page_number = 2;
+  int32 page_size = 3;
+  string sort = 4;
+  string order = 5;
+  repeated string severity = 6;
+  repeated string status = 7;
+  repeated string priority = 8;
+  string search_query = 9;
+  optional string branch = 10;
+  string image_id = 11;
+  repeated string class_type = 12;                  // lang-pkgs | os-pkgs
+  repeated string exploitability_verdict = 13;
+  optional string scoring_source = 14;              // 'static' | 'agent'
+  optional bool has_autofix = 15;
+}
+
+message GetGroupedContainerVulnerabilitiesResponse {
+  string project_id = 1;
+  string project_name = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  int32 total_pages = 5;
+  string sort = 6;
+  string order = 7;
+  repeated string severity = 8;
+  repeated string status = 9;
+  repeated string priority = 10;
+  repeated GroupedContainerVulnerability grouped_vulnerabilities = 11;
+  int32 total = 12;
+  int32 total_occurrences = 13;
+  ScanProjectInfo scan_project_info = 14;
+  CountVulnerabilitiesCountByType vuln_count_by_type = 15;
+}
+
+// Get vulnerability by ID with similar occurrences
+message GetVulnerabilityWithSimilarRequest {
+  string project_id = 1;
+  string vulnerability_id = 2;
+  optional string path_filter = 3; // Optional: filter similar occurrences by path
+}
+
+message GetVulnerabilityWithSimilarResponse {
+  string project_id = 1;
+  string vulnerability_id = 2;
+  oneof vulnerability {
+    VulnerabilitySast sast = 3;
+    VulnerabilityIac iac = 4;
+    VulnerabilitySca sca = 5;
+    VulnerabilityCicd cicd = 6;
+    VulnerabilitySecret secret = 7;
+  }
+  optional bool is_project_parsed = 8;
+  repeated VulnerabilityOccurrence similar_occurrences = 9;
+  int32 total_similar = 10;
+}
+
+// ===================================================================
+// POLICY EVALUATION - Get all vulnerabilities for a scan
+// ===================================================================
+
+// Request to get all vulnerabilities for a scan for policy evaluation
+message GetScanVulnerabilitiesForPolicyRequest {
+  string project_id = 1;
+  string scan_id = 2;
+}
+
+// Unified vulnerability representation for policy evaluation
+// Contains fields common across all scanner types
+message PolicyVulnerabilityItem {
+  string id = 1; // Vulnerability detection ID
+  string title = 2; // Vulnerability title/name
+  string severity = 3; // CRITICAL | HIGH | MEDIUM | LOW | INFO
+  string scanner_type = 4; // SAST | SCA | IAC | CONTAINER | SECRET | CICD
+  repeated string cwe = 5; // CWE IDs (e.g., ["CWE-79", "CWE-89"])
+  optional double cvss_score = 6;   // CVSS score if available
+  optional string file_path = 7;    // File path where vulnerability was found
+  optional int32 start_line = 8;    // Start line number in file
+  optional int32 end_line = 9;      // End line number in file
+  repeated string owasp_top10 = 10; // OWASP Top 10 categories (e.g., ["A03:2021"])
+  optional string cve_id = 11;      // CVE ID for SCA/Container vulns
+  optional string package_name = 12; // Package name for SCA/Container
+  optional string package_version = 13; // Package version for SCA/Container
+  optional string rule_id = 14;     // Scanner rule ID
+  bool is_new = 15; // Whether this was detected in current scan (not in previous)
+  string status = 16; // open | fixed | false_positive | accepted_risk
+  int64 detected_at = 17; // Timestamp of detection
+  optional string artifact_name = 18; // Container image/artifact name (for CONTAINER type)
+}
+
+// Response containing all vulnerabilities for a scan
+message GetScanVulnerabilitiesForPolicyResponse {
+  string project_id = 1;
+  string scan_id = 2;
+  repeated PolicyVulnerabilityItem vulnerabilities = 3;
+  int32 total_count = 4;
+  // Counts by scanner type
+  int32 sast_count = 5;
+  int32 sca_count = 6;
+  int32 iac_count = 7;
+  int32 container_count = 8;
+  int32 secret_count = 9;
+  int32 cicd_count = 10;
+}
+
+// ===================================================================
+// SCAN QUEUE STATUS - Check if all vulnerability processing is complete
+// ===================================================================
+
+// Request to get the processing status of a scan's vulnerability queue
+message GetScanQueueStatusRequest {
+  string scan_id = 1;
+}
+
+// Response containing the queue processing status for a scan
+message GetScanQueueStatusResponse {
+  string scan_id = 1;
+  bool is_processing_complete = 2; // True if all jobs for this scan are done
+  int32 pending_jobs = 3; // Number of jobs waiting to be processed
+  int32 active_jobs = 4; // Number of jobs currently being processed
+  int32 completed_jobs = 5; // Number of jobs completed
+  int32 failed_jobs = 6; // Number of jobs that failed
+  // Breakdown by queue type
+  int32 sca_pending = 7;
+  int32 sast_iac_pending = 8;
+  int32 container_pending = 9;
+}
+// ===================================================================
+// LICENSE SUMMARY - Aggregated license stats for a project
+// ===================================================================
+
+message GetProjectLicenseSummaryRequest {
+  string project_id = 1;
+  optional string branch = 2;
+  // Ignored: the organization whose license policy applies is
+  // resolved from project_id, never taken from the caller.
+  optional string organization_id = 3;
+  repeated string package_type = 4;
+}
+
+message LicenseSummaryItem {
+  string spdx_id = 1;
+  string name = 2;
+  string category = 3;
+  string risk = 4;
+  string risk_description = 5;
+  int32 count = 6;
+}
+
+message GetProjectLicenseSummaryResponse {
+  string project_id = 1;
+  int32 total_packages = 2;
+  int32 packages_with_licenses = 3;
+  int32 packages_without_licenses = 4;
+  int32 permissive_count = 5;
+  int32 weak_copyleft_count = 6;
+  int32 strong_copyleft_count = 7;
+  int32 unknown_count = 8;
+  repeated LicenseSummaryItem licenses = 9;
+  int32 ignored_count = 10;
+}
+
+// ===================================================================
+// LICENSE DETAIL - Packages using a specific license
+// ===================================================================
+
+message GetPackagesByLicenseRequest {
+  string project_id = 1;
+  string spdx_id = 2;
+  optional string branch = 3;
+  // Ignored: the organization whose license policy applies is
+  // resolved from project_id, never taken from the caller.
+  optional string organization_id = 4;
+  repeated string package_type = 5;
+}
+
+message LicensePackageItem {
+  string package_name = 1;
+  string package_version = 2;
+  string ecosystem = 3;
+  repeated string licenses = 4;
+  bool is_transitive = 5;
+  bool is_dev = 6;
+  string id = 7;
+  bool is_license_ignored = 8;
+}
+
+message GetPackagesByLicenseResponse {
+  string spdx_id = 1;
+  string name = 2;
+  string category = 3;
+  string risk = 4;
+  string risk_description = 5;
+  int32 total_count = 6;
+  repeated LicensePackageItem packages = 7;
+}
+
+// ===================================================================
+// LICENSE CLASSIFICATION OVERRIDES - Per-organization license settings
+// ===================================================================
+
+message LicenseClassificationItem {
+  string spdx_id = 1;
+  string name = 2;
+  string default_category = 3;
+  string current_category = 4;
+  bool is_overridden = 5;
+  bool is_custom = 6;
+}
+
+message GetLicenseClassificationsRequest {
+  string organization_id = 1;
+}
+
+message GetLicenseClassificationsResponse {
+  repeated LicenseClassificationItem licenses = 1;
+}
+
+message LicenseOverrideItem {
+  string spdx_id = 1;
+  string category = 2;
+}
+
+message UpdateLicenseClassificationsRequest {
+  string organization_id = 1;
+  repeated LicenseOverrideItem overrides = 2;
+}
+
+message UpdateLicenseClassificationsResponse {
+  bool success = 1;
+  int32 updated_count = 2;
+}
+
+message ResetLicenseClassificationsRequest {
+  string organization_id = 1;
+}
+
+message ResetLicenseClassificationsResponse {
+  bool success = 1;
+}
+
+message DeleteLicenseOverrideRequest {
+  string organization_id = 1;
+  string spdx_id = 2;
+}
+
+message DeleteLicenseOverrideResponse {
+  bool success = 1;
+}
+
+// ===================================================================
+// ASSIGN PACKAGE LICENSE - Manually assign a license to a package
+// ===================================================================
+
+message AssignPackageLicenseRequest {
+  string project_id = 1;
+  string package_id = 2;
+  string spdx_id = 3;
+}
+
+message AssignPackageLicenseResponse {
+  bool success = 1;
+}
+
+// ===================================================================
+// SET PACKAGE LICENSE IGNORED - Toggle ignore for license analysis
+// ===================================================================
+
+message SetPackageLicenseIgnoredRequest {
+  string project_id = 1;
+  string package_id = 2;
+  bool ignored = 3;
+}
+
+message SetPackageLicenseIgnoredResponse {
+  bool success = 1;
+}
+
+// ===================================================================
+// NOTIFY SECURITY CONTEXT UPDATED - Trigger CVSS env recalculation
+// ===================================================================
+
+message NotifySecurityContextUpdatedRequest {
+  string project_id = 1;
+}
+
+message NotifySecurityContextUpdatedResponse {
+  bool accepted = 1;
+}
+
+// ===================================================================
+// PRIORITY DECOMPOSITION - Transparency into algorithmic priority
+// ===================================================================
+
+message GetPriorityDecompositionRequest {
+  string project_id        = 1;
+  string vulnerability_id  = 2;
+  string vulnerability_type = 3; // sast, iac, sca, container, cicd, secret
+}
+
+message PriorityDecomposition {
+  string priority              = 1;  // computed priority label
+  double composite_score       = 2;  // raw composite score 0.0-1.0
+  double cvss4_contribution    = 3;  // w1 * normalized_cvss4_env
+  double epss_contribution     = 4;  // w2 * epss
+  double exploit_contribution  = 5;  // w3 * exploitability
+  double context_contribution  = 6;  // w4 * contextModifier
+  double w1                    = 7;  // weight for CVSS4
+  double w2                    = 8;  // weight for EPSS
+  double w3                    = 9;  // weight for exploitability
+  double w4                    = 10; // weight for context
+  bool   is_manual_override    = 11; // true if priority was manually set
+}
+
+message GetPriorityDecompositionResponse {
+  PriorityDecomposition decomposition = 1;
+}
+
+// ===================================================================
+// TOP VULNERABILITIES - Cross-type top N by composite priority score
+// ===================================================================
+
+message TopVulnerabilityItem {
+  string id = 1;
+  string vulnerability_type = 2;  // sca, sast, iac, container, cicd, secret
+  string name = 3;
+  string description = 4;
+  string severity = 5;
+  double composite_score = 6;
+  optional double cvss4_environmental_score = 7;
+  optional string exploitability_verdict = 8;
+  optional string exploitability_reason = 9;
+  optional string file_path = 10;
+  optional int32 line = 11;
+  optional string cve_id = 12;
+  repeated string cwe = 13;
+  optional string package_name = 14;
+  optional string exploitability_source = 15;  // agent | manual | static
+  // LLM reasoning for the exploitability score (separate from exploitability_reason which justifies the TP/FP verdict)
+  optional string exploitability_score_reason = 16;
+}
+
+message GetTopVulnerabilitiesRequest {
+  string project_id = 1;
+  int32 limit = 2;
+}
+
+message GetTopVulnerabilitiesResponse {
+  repeated TopVulnerabilityItem items = 1;
+}

@@ -1,0 +1,99 @@
+diff --git a/lib/archivers/zip/zip-archive-output-stream.js b/lib/archivers/zip/zip-archive-output-stream.js
+index f56cea93a76a78f382bc5989a4dfe8462c7d1eb8..9defd1ba817aa44a2f0707bf3ab7ab7ce14c1ee1 100644
+--- a/lib/archivers/zip/zip-archive-output-stream.js
++++ b/lib/archivers/zip/zip-archive-output-stream.js
+@@ -286,28 +286,38 @@ ZipArchiveOutputStream.prototype._writeCentralFileHeader = function(ae) {
+     ae.setExtra(extraBuf);
+   }
+ 
++  // The whole record is written as one chunk: _finish writes every record
++  // synchronously with no backpressure, so each chunk stays in memory until
++  // the output drains. Written field by field (19 chunks, each its own
++  // Buffer), a record holds about 8 KB until then: about 1 GB for 130,000
++  // entries.
++  var record = [];
++  var push = function(chunk) {
++    record.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
++  };
++
+   // signature
+-  this.write(zipUtil.getLongBytes(constants.SIG_CFH));
++  push(zipUtil.getLongBytes(constants.SIG_CFH));
+ 
+   // version made by
+-  this.write(zipUtil.getShortBytes((ae.getPlatform() << 8) | constants.VERSION_MADEBY));
++  push(zipUtil.getShortBytes((ae.getPlatform() << 8) | constants.VERSION_MADEBY));
+ 
+   // version to extract and general bit flag
+-  this.write(zipUtil.getShortBytes(ae.getVersionNeededToExtract()));
+-  this.write(gpb.encode());
++  push(zipUtil.getShortBytes(ae.getVersionNeededToExtract()));
++  push(gpb.encode());
+ 
+   // compression method
+-  this.write(zipUtil.getShortBytes(method));
++  push(zipUtil.getShortBytes(method));
+ 
+   // datetime
+-  this.write(zipUtil.getLongBytes(ae.getTimeDos()));
++  push(zipUtil.getLongBytes(ae.getTimeDos()));
+ 
+   // crc32 checksum
+-  this.write(zipUtil.getLongBytes(ae.getCrc()));
++  push(zipUtil.getLongBytes(ae.getCrc()));
+ 
+   // sizes
+-  this.write(zipUtil.getLongBytes(compressedSize));
+-  this.write(zipUtil.getLongBytes(size));
++  push(zipUtil.getLongBytes(compressedSize));
++  push(zipUtil.getLongBytes(size));
+ 
+   var name = ae.getName();
+   var comment = ae.getComment();
+@@ -319,34 +329,36 @@ ZipArchiveOutputStream.prototype._writeCentralFileHeader = function(ae) {
+   }
+ 
+   // name length
+-  this.write(zipUtil.getShortBytes(name.length));
++  push(zipUtil.getShortBytes(name.length));
+ 
+   // extra length
+-  this.write(zipUtil.getShortBytes(extra.length));
++  push(zipUtil.getShortBytes(extra.length));
+ 
+   // comments length
+-  this.write(zipUtil.getShortBytes(comment.length));
++  push(zipUtil.getShortBytes(comment.length));
+ 
+   // disk number start
+-  this.write(constants.SHORT_ZERO);
++  push(constants.SHORT_ZERO);
+ 
+   // internal attributes
+-  this.write(zipUtil.getShortBytes(ae.getInternalAttributes()));
++  push(zipUtil.getShortBytes(ae.getInternalAttributes()));
+ 
+   // external attributes
+-  this.write(zipUtil.getLongBytes(ae.getExternalAttributes()));
++  push(zipUtil.getLongBytes(ae.getExternalAttributes()));
+ 
+   // relative offset of LFH
+-  this.write(zipUtil.getLongBytes(fileOffset));
++  push(zipUtil.getLongBytes(fileOffset));
+ 
+   // name
+-  this.write(name);
++  push(name);
+ 
+   // extra
+-  this.write(extra);
++  push(extra);
+ 
+   // comment
+-  this.write(comment);
++  push(comment);
++
++  this.write(Buffer.concat(record));
+ };
+ 
+ ZipArchiveOutputStream.prototype._writeDataDescriptor = function(ae) {

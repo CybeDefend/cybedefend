@@ -1,0 +1,7 @@
+{
+  "errors": {
+    "authorization": {
+      "notAuthorized": "Vous n'êtes pas autorisé à accéder à cette page."
+    }
+  }
+}

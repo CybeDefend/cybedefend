@@ -1,0 +1,27 @@
+{
+  "components": {
+    "modal": {
+      "confirmation": {
+        "title": "Are you sure?",
+        "seatChange": {
+          "title": "Confirm Seat Update",
+          "message": "Changing the number of seats from {oldSeats} to {newSeats} will be reflected in your next billing cycle. This change will be billed immediately. Do you want to proceed?",
+          "confirm": "Yes, Update Seats",
+          "cancel": "Cancel"
+        },
+        "confirm_billing_change": {
+          "title": "Confirm Billing Change",
+          "message": "You are about to change the number of seats from {{currentSeats}} to {{newSeats}}.",
+          "billing_warning": {
+            "title": "Billing Impact",
+            "description": "This change will be reflected in your next billing cycle and may affect your subscription cost."
+          }
+        },
+        "actions": {
+          "cancel": "Cancel",
+          "confirm": "Confirm Changes"
+        }
+      }
+    }
+  }
+}

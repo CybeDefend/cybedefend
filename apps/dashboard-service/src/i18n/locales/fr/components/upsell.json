@@ -1,0 +1,11 @@
+{
+  "components": {
+    "upsell": {
+      "opensInNewTab": "(s'ouvre dans un nouvel onglet)",
+      "aiAnalysis": {
+        "sentence": "CybeDefend Cloud et Enterprise ajoutent Cybe Analysis, qui réduit les faux positifs, et plus de 5 000 règles managées avec des noms et descriptions de vulnérabilités clairs, le dédoublonnage automatique et la résolution automatique.",
+        "link": "Voir les offres"
+      }
+    }
+  }
+}

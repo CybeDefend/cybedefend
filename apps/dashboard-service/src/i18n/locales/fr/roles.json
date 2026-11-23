@@ -1,0 +1,82 @@
+{
+  "roles": {
+    "creator": "Créateur",
+    "teamManager": "Chef d'Équipe",
+    "analystDeveloper": "Analyste Développeur",
+    "developer": "Développeur",
+    "readOnly": "Lecture Seule",
+    "administrator": "Administrateur",
+    "manager": "Gestionnaire",
+    "billingManager": "Gestionnaire de Facturation",
+    "member": "Membre",
+    "explanations": {
+      "ariaLabel": "Permissions du rôle",
+      "triggerLabel": "Afficher les permissions du rôle",
+      "empty": "Sélectionnez un rôle pour voir les permissions qu'il accorde.",
+      "creator": {
+        "title": "Créateur",
+        "description": "Contrôle total de l'organisation, incluant la facturation, les intégrations, les équipes, les utilisateurs et les politiques.",
+        "communityDescription": "Contrôle total de l'organisation : intégrations, équipes, utilisateurs et politiques."
+      },
+      "administrator": {
+        "title": "Administrateur",
+        "description": "Contrôle total de l'organisation identique à un Créateur, incluant la facturation, les intégrations, les équipes, les utilisateurs et les politiques.",
+        "communityDescription": "Contrôle total de l'organisation identique à un Créateur : intégrations, équipes, utilisateurs et politiques."
+      },
+      "manager": {
+        "title": "Gestionnaire",
+        "description": "Peut gérer les intégrations, inviter ou retirer des membres et créer des équipes. Aucun accès à la facturation et ne peut pas supprimer de politiques.",
+        "communityDescription": "Peut gérer les intégrations, inviter ou retirer des membres et créer des équipes. Ne peut pas supprimer de politiques."
+      },
+      "billing_manager": {
+        "title": "Gestionnaire de Facturation",
+        "description": "Accès en lecture à l'organisation, plus le contrôle complet des paramètres de facturation."
+      },
+      "member": {
+        "title": "Membre",
+        "description": "Accès en lecture à l'organisation, à ses utilisateurs et à ses politiques."
+      },
+      "team_manager": {
+        "title": "Chef d'Équipe",
+        "description": "Gère l'équipe : membres, rôles, projets, rapports et violations de politiques."
+      },
+      "analyst_developer": {
+        "title": "Analyste Développeur",
+        "description": "Lance des scans, traite les vulnérabilités et crée ou consulte des rapports sur les projets de l'équipe."
+      },
+      "developer": {
+        "title": "Développeur",
+        "description": "Lance des scans et met à jour l'état des vulnérabilités sur les projets de l'équipe."
+      },
+      "read_only": {
+        "title": "Lecture Seule",
+        "description": "Accès en lecture à l'équipe, à ses politiques effectives et à son historique de conformité."
+      }
+    },
+    "permissions": {
+      "read": "Consulter l'organisation, ses équipes et ses projets",
+      "billing": "Consulter et gérer la facturation, les plans et les factures",
+      "manage_integration": "Connecter et gérer les intégrations (GitHub, GitLab, Jira, Slack, registres)",
+      "manage": "Modifier les paramètres et les données administratives de l'organisation",
+      "read_user": "Consulter les membres de l'organisation",
+      "update_user_role": "Modifier les rôles des autres membres",
+      "add_user": "Inviter de nouveaux membres dans l'organisation",
+      "remove_user": "Retirer des membres de l'organisation",
+      "create_team": "Créer et organiser des équipes",
+      "read_policy": "Consulter les politiques de l'organisation",
+      "manage_policy": "Créer, modifier et assigner les politiques",
+      "delete_policy": "Supprimer des politiques de l'organisation",
+      "create_project": "Créer de nouveaux projets dans l'équipe",
+      "read_log": "Consulter les journaux d'audit de l'équipe",
+      "read_scan_result": "Consulter les résultats de scan des projets de l'équipe",
+      "change_vulnerability_state": "Traiter les vulnérabilités (confirmer, rejeter, marquer en faux positif)",
+      "read_report": "Consulter les rapports de sécurité",
+      "create_report": "Générer des rapports de sécurité",
+      "archive_report": "Archiver les rapports de sécurité",
+      "start_scan": "Lancer des scans sur les projets de l'équipe",
+      "read_effective_policy": "Consulter la politique effective appliquée à un projet",
+      "read_compliance_history": "Consulter l'historique de conformité de l'équipe",
+      "read_policy_violation": "Consulter les violations de politiques sur les projets de l'équipe"
+    }
+  }
+}

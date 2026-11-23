@@ -1,0 +1,11 @@
+{
+  "components": {
+    "communityMcpModal": {
+      "title": "Connecter un agent de code",
+      "start": "Le serveur MCP de cette instance démarre avec le reste de la stack :",
+      "url": "Il répond à l'adresse publique du serveur MCP suivie de /mcp (CYBEDEFEND_MCP_PUBLIC_URL, http://localhost:3010/mcp par défaut).",
+      "token": "Les agents s'authentifient avec un jeton d'accès personnel, envoyé en bearer (Authorization: Bearer cdp_…).",
+      "tokenButton": "Créer un jeton d'accès personnel"
+    }
+  }
+}

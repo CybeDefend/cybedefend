@@ -1,0 +1,9 @@
+{
+  "components": {
+    "filterBar": {
+      "filters": "Filtres",
+      "clearFilters": "Réinitialiser les filtres",
+      "activeOn": "Filtré sur : {{names}}"
+    }
+  }
+}

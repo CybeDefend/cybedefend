@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "notFound": {
+      "actions": {
+        "returnHome": {
+          "title": "Return Home",
+          "description": "Navigate back to the main dashboard",
+          "button": "Go to Homepage"
+        }
+      }
+    }
+  }
+}

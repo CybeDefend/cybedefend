@@ -1,0 +1,11 @@
+{
+  "pages": {
+    "accountPage": {
+      "notifications": {
+        "enabled": "Notifications enabled successfully.",
+        "disabled": "Notifications disabled successfully.",
+        "updateFailed": "Failed to update notification settings."
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "components": {
+    "resultsScaTable": {
+      "cvss": "CVSS",
+      "cve": "CVE",
+      "advisory": "Advisory",
+      "packageSource": "Package Source",
+      "fixAvailable": "Fix Available",
+      "firstDetected": "First Detected",
+      "notAvailable": "N/A",
+      "yes": "Yes",
+      "no": "No",
+      "packageType": "Package Type",
+      "packageManager": "Package Manager",
+      "reachability": "Reachability",
+      "exploitability": "Exploit."
+    }
+  }
+}

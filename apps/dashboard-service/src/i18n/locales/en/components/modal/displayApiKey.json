@@ -1,0 +1,11 @@
+{
+  "components": {
+    "modal": {
+      "displayApiKey": {
+        "title": "Your New API Key",
+        "apiKey": "API Key",
+        "copySave": "Please copy your API key now. You won't be able to see it again!"
+      }
+    }
+  }
+}

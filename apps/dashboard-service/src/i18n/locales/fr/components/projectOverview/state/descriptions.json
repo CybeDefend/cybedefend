@@ -1,0 +1,15 @@
+{
+  "components": {
+    "projectOverview": {
+      "state": {
+        "descriptions": {
+          "resolved": "Vulnérabilités résolues",
+          "toVerify": "En attente de vérification",
+          "confirmed": "Vulnérabilités confirmées",
+          "notExploitable": "Non exploitable",
+          "proposedNotExploitable": "Proposée comme non exploitable"
+        }
+      }
+    }
+  }
+}

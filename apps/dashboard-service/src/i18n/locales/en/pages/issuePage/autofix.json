@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "issuePage": {
+      "autofix": {
+        "noAutofixTitle": "No AI Corrections Available",
+        "noAutofixDescription": "No automatic corrections have been generated for this vulnerability yet."
+      }
+    }
+  }
+}

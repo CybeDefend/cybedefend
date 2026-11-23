@@ -1,0 +1,14 @@
+{
+  "components": {
+    "modal": {
+      "configurationScan": {
+        "scaReachability": {
+          "priorityTitle": "Ajustement de priorité par accessibilité",
+          "priorityDescription": "Ajuster les priorités des vulnérabilités en fonction de l'analyse d'accessibilité des paquets. Les paquets utilisés obtiennent une priorité plus élevée, les paquets inutilisés une priorité très basse.",
+          "statusTitle": "Auto-Ignorer par accessibilité",
+          "statusDescription": "Définir automatiquement les vulnérabilités des paquets inutilisés au statut \"Ignoré\"."
+        }
+      }
+    }
+  }
+}

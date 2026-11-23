@@ -1,0 +1,12 @@
+{
+  "components": {
+    "scanningSettings": {
+      "typesOfAnalyzes": {
+        "container": {
+          "title": "Analyse de sécurité des conteneurs",
+          "description": "Scanne les conteneurs et les images de conteneurs pour identifier les vulnérabilités."
+        }
+      }
+    }
+  }
+}

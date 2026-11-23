@@ -1,0 +1,8 @@
+{
+  "components": {
+    "detectionSourceBadge": {
+      "osv": "OSV match",
+      "osvTooltip": "Matched by CybeDefend (OSV)"
+    }
+  }
+}

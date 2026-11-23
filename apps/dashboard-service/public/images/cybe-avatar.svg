@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Cybe AI agent">
+  <defs>
+    <linearGradient id="cybe-bg" x1="20%" y1="10%" x2="80%" y2="95%">
+      <stop offset="0%" stop-color="#3A2A6E"/>
+      <stop offset="55%" stop-color="#241742"/>
+      <stop offset="100%" stop-color="#13102B"/>
+    </linearGradient>
+    <radialGradient id="cybe-highlight" cx="32%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cybe-spark-bloom" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cybe-spark-fill" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E9DBFF"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="60" cy="60" r="58" fill="url(#cybe-bg)"/>
+  <circle cx="60" cy="60" r="58" fill="url(#cybe-highlight)"/>
+
+  <g transform="translate(30 30) scale(0.625)">
+    <path d="M25.7,76.64L3.65,54.58c-4.86-4.86-4.86-12.75,0-17.61L25.7,14.92c1.17-1.17,2.75-1.82,4.4-1.82h22.34s-7.05,10.57-7.05,10.57c-1.15,1.73-3.1,2.77-5.18,2.77h-3.49c-2.36,0-4.62.94-6.29,2.6h0c-9.24,9.24-9.24,24.23,0,33.48h0c1.67,1.67,3.93,2.6,6.29,2.6h5.26c.86,0,1.56.7,1.56,1.56v11.78h-13.45c-1.65,0-3.23-.66-4.4-1.82Z" fill="#FFFFFF"/>
+    <path d="M43.55,82.91l7.05-10.57c1.15-1.73,3.1-2.77,5.18-2.77h3.49c2.36,0,4.62-.94,6.29-2.6h0c9.24-9.24,9.24-24.23,0-33.48h0c-1.67-1.67-3.93-2.6-6.29-2.6h-15.71s7.05-10.57,7.05-10.57c1.15-1.73,3.1-2.77,5.18-2.77h10.12c1.65,0,3.23.66,4.4,1.82l22.06,22.06c4.86,4.86,4.86,12.75,0,17.61l-22.06,22.06c-1.17,1.17-2.75,1.82-4.4,1.82h-22.34Z" fill="#FFFFFF"/>
+    <path d="M57.86,48c0,5.51-4.77,9.9-10.4,9.28-4.27-.47-7.75-3.94-8.22-8.22-.62-5.63,3.77-10.4,9.28-10.4,1.09,0,2.14.19,3.11.52v2.59c0,1.72,1.39,3.11,3.11,3.11h2.59c.34.97.52,2.02.52,3.11Z" fill="#FFFFFF"/>
+  </g>
+
+  <g transform="translate(95 26)">
+    <circle r="13" fill="url(#cybe-spark-bloom)"/>
+    <path d="M 0,-9.5 C 0.7,-3.3 2.9,-1.1 9.5,0 C 2.9,1.1 0.7,3.3 0,9.5 C -0.7,3.3 -2.9,1.1 -9.5,0 C -2.9,-1.1 -0.7,-3.3 0,-9.5 Z" fill="url(#cybe-spark-fill)"/>
+  </g>
+
+  <g transform="translate(24 96)">
+    <path d="M 0,-4 C 0.3,-1.4 1.2,-0.5 4,0 C 1.2,0.5 0.3,1.4 0,4 C -0.3,1.4 -1.2,0.5 -4,0 C -1.2,-0.5 -0.3,-1.4 0,-4 Z" fill="#FFFFFF" opacity="0.7"/>
+  </g>
+</svg>

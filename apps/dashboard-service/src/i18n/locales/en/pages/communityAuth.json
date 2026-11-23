@@ -1,0 +1,105 @@
+{
+  "pages": {
+    "communityAuth": {
+      "product": "Open Source",
+      "brand": "CybeDefend Open Source",
+      "loading": "Loading…",
+      "fields": {
+        "email": "E-mail address",
+        "password": "Password",
+        "newPassword": "New password",
+        "name": "Your name",
+        "organizationName": "Organization name",
+        "setupToken": "Setup token"
+      },
+      "passwordHint": "12 to 128 characters.",
+      "passwordLength": "The password must be 12 to 128 characters long.",
+      "backToLogin": "Back to sign-in",
+      "login": {
+        "title": "Sign in",
+        "subtitle": "Sign in with your e-mail address and your password.",
+        "submit": "Sign in",
+        "submitting": "Signing in…",
+        "forgotPassword": "Forgot your password?",
+        "noAccount": "No account yet?",
+        "signUp": "Create an account",
+        "signoutIncomplete": "The sign-out did not complete on the server. Close this browser to end the session, or sign in and sign out again."
+      },
+      "setup": {
+        "title": "Set up this instance",
+        "subtitle": "Create the administrator account and the first organization.",
+        "setupTokenHint": "The value of CYBEDEFEND_SETUP_TOKEN on the server.",
+        "submit": "Create the administrator",
+        "submitting": "Setting up…"
+      },
+      "signup": {
+        "title": "Create an account",
+        "subtitle": "Create your account on this instance.",
+        "submit": "Create the account",
+        "submitting": "Creating…",
+        "haveAccount": "Already have an account?",
+        "signIn": "Sign in"
+      },
+      "forgot": {
+        "title": "Reset your password",
+        "subtitle": "Enter your e-mail address. If an account uses it, a reset link is sent to it.",
+        "submit": "Send the link",
+        "submitting": "Sending…",
+        "sent": "If an account uses this address, a reset link has been sent to it. The link is valid 30 minutes.",
+        "byAdministrator": "This instance sends no e-mail. Ask an administrator to reset your password with the command auth:reset-password."
+      },
+      "reset": {
+        "title": "Choose a new password",
+        "subtitle": "Enter the password you will sign in with.",
+        "submit": "Change the password",
+        "submitting": "Changing…",
+        "done": "Your password has been changed. Sign in with the new one.",
+        "signIn": "Sign in",
+        "requestNew": "Ask for a new link"
+      },
+      "invitation": {
+        "title": "Join the organization",
+        "subtitle": "Create your account to accept this invitation.",
+        "submit": "Create the account and join",
+        "submitting": "Joining…",
+        "signIn": "Sign in, then come back to this invitation",
+        "signedInSubtitle": "You have been invited to join an organization on this instance."
+      },
+      "refusals": {
+        "INVALID_CREDENTIALS": "The e-mail address or the password is incorrect.",
+        "RATE_LIMITED": "Too many attempts. Wait a few minutes, then try again.",
+        "REFRESH_RACE": "Your session was being renewed in another tab. Try again.",
+        "REFRESH_INVALID": "Your session has ended. Sign in again.",
+        "SETUP_TOKEN_INVALID": "The setup token is incorrect.",
+        "SETUP_CLOSED": "This instance is already set up. Sign in.",
+        "SETUP_REQUIRED": "This instance is not set up yet. Its administrator must finish the setup first.",
+        "SIGNUP_DISABLED": "Sign-up is closed on this instance. Ask an administrator for an invitation.",
+        "ACCOUNT_EXISTS": "An account already exists for this e-mail address. Sign in instead.",
+        "PASSWORD_POLICY": "The password must be 12 to 128 characters long.",
+        "CURRENT_PASSWORD_INVALID": "The current password is incorrect.",
+        "RESET_TOKEN_INVALID": "This reset link is invalid, expired or already used. Ask for a new one.",
+        "INVITATION_INVALID": "This invitation link is invalid, expired or already used. Ask for a new one.",
+        "PAT_INVALID": "This personal access token is invalid.",
+        "PAT_NOT_FOUND": "This personal access token no longer exists.",
+        "PAT_NAME_INVALID": "Give the token a name of 1 to 100 characters.",
+        "PAT_EXPIRY_INVALID": "The expiry date must be in the future.",
+        "PAT_NAME_TAKEN": "A token with this name already exists.",
+        "PAT_LIMIT_REACHED": "You have reached the maximum number of tokens. Revoke one first.",
+        "PAT_NOT_ALLOWED": "This action needs a signed-in session, not a personal access token.",
+        "PAT_FORBIDDEN_FOR_PAT_MANAGEMENT": "Managing tokens needs a signed-in session, not a personal access token.",
+        "AUTH_UNAVAILABLE": "The sign-in service cannot be reached. Try again in a moment.",
+        "AUTH_ERROR": "Something went wrong on the server. Try again.",
+        "GENERIC": "The request could not be completed. Check the fields and try again."
+      },
+      "changePassword": {
+        "title": "Password",
+        "subtitle": "Changing your password signs out your other sessions.",
+        "current": "Current password",
+        "submit": "Change password",
+        "submitting": "Changing…",
+        "done": "Your password was changed. Your other sessions were signed out.",
+        "currentRequired": "Enter your current password."
+      }
+    }
+  }
+}

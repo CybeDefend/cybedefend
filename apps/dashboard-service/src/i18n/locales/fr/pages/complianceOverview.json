@@ -1,0 +1,86 @@
+{
+  "pages": {
+    "complianceOverview": {
+      "title": "Vue d'ensemble de la conformité",
+      "description": "Surveillez le statut de conformité de tous les projets de votre organisation",
+      "backToPolicies": "Retour aux politiques",
+      "managePolicies": "Gérer les politiques",
+      
+      "status": {
+        "compliant": "Conforme",
+        "nonCompliant": "Non conforme",
+        "pending": "En attente"
+      },
+      
+      "stats": {
+        "totalProjects": "Total des projets",
+        "compliant": "Conformes",
+        "nonCompliant": "Non conformes",
+        "pending": "En attente",
+        "complianceRate": "Taux de conformité",
+        "activePolicies": "Politiques actives",
+        "pointsOverPeriod": "pts sur la période",
+        "overPeriod": "sur la période",
+        "points": "{{value}} pts",
+        "trendCompliant": "Projets conformes sur la période",
+        "trendNonCompliant": "Projets non conformes sur la période",
+        "trendRate": "Taux de conformité sur la période"
+      },
+      
+      "charts": {
+        "trendTitle": "Tendance de conformité",
+        "trendDescription": "Conformité des projets dans le temps",
+        "breakdownTitle": "Répartition des violations",
+        "breakdownDescription": "Violations par type de règle",
+        "noData": "Aucune donnée de tendance disponible",
+        "noViolations": "Aucune violation trouvée",
+        "total": "Total",
+        "blocked": "Bloquées",
+        "warned": "Avertissements"
+      },
+      
+      "filters": {
+        "searchPlaceholder": "Rechercher des projets...",
+        "filters": "Filtres",
+        "refresh": "Actualiser",
+        "export": "Exporter",
+        "status": "Statut",
+        "allStatuses": "Tous les statuts",
+        "startDate": "Date de début",
+        "endDate": "Date de fin",
+        "sortBy": "Trier par",
+        "sortByBlocked": "Nombre de blocages",
+        "sortByWarned": "Nombre d'avertissements",
+        "sortByTotal": "Total des violations",
+        "sortByLastEvaluated": "Dernière évaluation",
+        "sortByName": "Nom du projet",
+        "clearAll": "Effacer tous les filtres"
+      },
+      
+      "table": {
+        "title": "Conformité des projets",
+        "description": "Statut de conformité de tous les projets",
+        "projectName": "Projet",
+        "status": "Statut",
+        "blocked": "Bloquées",
+        "warnings": "Avertissements",
+        "totalViolations": "Total",
+        "lastEvaluated": "Dernière évaluation",
+        "actions": "Actions",
+        "view": "Voir",
+        "noProjects": "Aucun projet trouvé",
+        "never": "Jamais"
+      },
+      
+      "error": {
+        "title": "Échec du chargement des données",
+        "retry": "Réessayer"
+      },
+      
+      "allCompliant": {
+        "title": "Tous les projets sont conformes !",
+        "description": "Excellent travail ! Tous vos projets respectent les exigences des politiques de sécurité."
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+**/src/core/grpc/*/
+.env
+.env.*
+!.env.example
+*.log

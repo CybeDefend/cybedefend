@@ -1,0 +1,23 @@
+{
+  "pages": {
+    "integration": {
+      "gitlab": {
+        "linkExisting": {
+          "title": "Lier à GitLab",
+          "subtitle": "Associez vos projets existants aux dépôts GitLab",
+          "pageTitle": "Lier les projets existants",
+          "pageSubtitle": "Sélectionnez un projet à lier avec un dépôt GitLab",
+          "successfullyLinked": "Dépôt lié avec succès !",
+          "linkError": "Erreur lors de la liaison du dépôt",
+          "noReposToLink": "Aucun dépôt disponible à lier",
+          "noProjects": "Aucun projet disponible",
+          "alreadyLinked": "Déjà lié",
+          "notLinked": "Non lié",
+          "quickAssociation": "Association rapide",
+          "quickDescription": "Liez vos projets existants aux dépôts GitLab",
+          "linkedToOtherProvider": "Lié à {{provider}}"
+        }
+      }
+    }
+  }
+}

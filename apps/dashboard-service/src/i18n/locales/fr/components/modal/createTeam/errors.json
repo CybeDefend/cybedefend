@@ -1,0 +1,16 @@
+{
+  "components": {
+    "modal": {
+      "createTeam": {
+        "errors": {
+          "nameRequired": "Le nom de l'équipe est requis",
+          "nameLength": "Le nom de l'équipe doit comporter 255 caractères ou moins",
+          "nameInvalidCharacter": "Le nom de l'équipe contient un caractère non autorisé",
+          "descriptionRequired": "La description de l'équipe est requise",
+          "descriptionLength": "La description doit comporter 255 caractères ou moins",
+          "descriptionInvalidCharacter": "La description contient un caractère non autorisé"
+        }
+      }
+    }
+  }
+}

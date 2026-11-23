@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "projectOverview": {
+      "team": "Team:",
+      "noData": "No data found or error occurred.",
+      "noVulnerabilitiesTitle": "No vulnerabilities on this project",
+      "noVulnerabilitiesDescription": "Nothing was found in the latest analysis. New results appear here as soon as a scan completes.",
+      "errorFetchingProject": "Error fetching project",
+      "errorFetchingOverview": "Error fetching overview",
+      "filteringByBranch": "Filtering by branch:"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "components": {
+    "pagination": {
+      "perPage": "par page",
+      "showing": "Affichage",
+      "of": "sur",
+      "page": "page"
+    }
+  }
+}

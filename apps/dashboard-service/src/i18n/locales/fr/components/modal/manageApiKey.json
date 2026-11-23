@@ -1,0 +1,14 @@
+{
+  "components": {
+    "modal": {
+      "manageApiKey": {
+        "title": "Gérer la Clé API :",
+        "regenerateKey": "Régénérer la clé",
+        "deleteKey": "Supprimer la clé",
+        "managementDescription": "Voulez-vous gérer la Clé API pour",
+        "managementInstructions": "Vous pouvez régénérer ou supprimer la clé ci-dessous.",
+        "confirmDeleteKey": "Êtes-vous sûr de vouloir supprimer cette clé API ? Cette action est irréversible."
+      }
+    }
+  }
+}

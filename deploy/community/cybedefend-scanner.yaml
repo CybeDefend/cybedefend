@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cybedefend-scanner
+  # cybedefend-ignore[CD-IAC-0325]: a namespace of its own, one per instance; the Role below grants nothing outside it
+  namespace: cybedefend-scans
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cybedefend-scanner
+  namespace: cybedefend-scans
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "delete"] # cybedefend-ignore[CD-IAC-1337]: one pod per scan; the namespace enforces the restricted Pod Security Standard, so no privileged or host pod is admitted
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cybedefend-scanner
+  namespace: cybedefend-scans
+subjects:
+  - kind: ServiceAccount
+    name: cybedefend-scanner
+    namespace: cybedefend-scans
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cybedefend-scanner
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  # cybedefend-ignore[CD-IAC-2468]: the long-lived token the kubeconfig carries; it may only manage pods and Secrets in this namespace, and deleting this Secret revokes it
+  name: cybedefend-scanner-token
+  namespace: cybedefend-scans
+  annotations:
+    kubernetes.io/service-account.name: cybedefend-scanner
+type: kubernetes.io/service-account-token

@@ -1,0 +1,95 @@
+{
+  "pages": {
+    "editions": {
+      "title": "Éditions",
+      "subtitle": "Vous utilisez CybeDefend Open Source, auto-hébergé. Cloud désigne les offres Pro et Team ; Enterprise, l'offre Enterprise.",
+      "highlights": {
+        "title": "Pourquoi Cloud",
+        "subtitle": "Ce que CybeDefend Cloud ajoute à vos résultats SAST.",
+        "reachability": {
+          "title": "Analyse d'atteignabilité SAST",
+          "body": "Chaque résultat reçoit son exploitabilité, tracée à partir du flux de données."
+        },
+        "falsePositives": {
+          "title": "Moins de faux positifs",
+          "body": "Cybe Analysis trie chaque résultat : vous examinez ceux qui comptent."
+        },
+        "rules": {
+          "title": "5 000+ règles propriétaires",
+          "body": "Nos propres règles, dont beaucoup écrites en interne, en plus des jeux de règles open source."
+        },
+        "languagesLabel": "Langages couverts"
+      },
+      "tableLabel": "Ce que comprend chaque édition",
+      "feature": "Fonctionnalité",
+      "columns": {
+        "community": "Open Source",
+        "cloud": "Cloud",
+        "enterprise": "Enterprise"
+      },
+      "included": "Inclus",
+      "notIncluded": "Non inclus",
+      "cta": {
+        "cloud": "Essayer CybeDefend Cloud",
+        "enterprise": "Nous contacter pour Enterprise"
+      },
+      "opensInNewTab": "(s'ouvre dans un nouvel onglet)",
+      "rows": {
+        "sarifImport": "Import SARIF des résultats de scanners",
+        "sastResults": "Résultats SAST",
+        "iacResults": "Résultats IaC",
+        "secretResults": "Résultats secrets",
+        "cicdResults": "Résultats CI/CD",
+        "scaResults": "Résultats SCA",
+        "containerResults": "Résultats conteneurs",
+        "codeScans": "Scans du code (SAST, IaC, secrets, CI/CD, SCA)",
+        "pushScans": "Scans à chaque push et pull request",
+        "containerImageScans": "Scans d'images de conteneurs",
+        "containerRegistries": "Registres de conteneurs",
+        "advisoryFeeds": "Flux d'avis de sécurité (correspondance OSV, EPSS, malwares, alertes zero-day)",
+        "triage": "Triage et historique",
+        "policies": "Politiques",
+        "owaspReport": "Rapport OWASP Top 10",
+        "cweReport": "Rapport CWE",
+        "aggregatedReport": "Rapport agrégé",
+        "licenseReport": "Rapport de licences",
+        "sbomReport": "Rapport SBOM",
+        "aiBom": "AI-BOM",
+        "euAiActReport": "Rapport EU AI Act",
+        "scannerReport": "Rapport par scanner",
+        "githubIntegration": "Intégration GitHub",
+        "gitlabIntegration": "Intégration GitLab",
+        "jiraIntegration": "Intégration Jira",
+        "linearIntegration": "Intégration Linear",
+        "slackIntegration": "Intégration Slack",
+        "mcpServer": "Serveur MCP pour les agents de code",
+        "grcExport": "Export GRC des findings (Comp AI)",
+        "pats": "Jetons d'accès personnels",
+        "reachabilityAnalysis": "Analyse d'atteignabilité (SAST)",
+        "falsePositiveReduction": "Réduction des faux positifs",
+        "proprietaryRules": "Règles propriétaires",
+        "cybeAnalysis": "Cybe Analysis",
+        "autofix": "Cybe AutoFix",
+        "cybeChat": "Chat Cybe",
+        "codeMap": "Carte du code",
+        "localAccounts": "Comptes par e-mail et mot de passe",
+        "sso": "SSO / SAML",
+        "mfa": "Authentification multifacteur",
+        "selfHosted": "Auto-hébergé sur votre infrastructure",
+        "support": "Support"
+      },
+      "notes": {
+        "ownCluster": "Sur votre propre cluster Kubernetes",
+        "managedScanners": "Scanners gérés",
+        "withCluster": "Avec un cluster connecté",
+        "importOnly": "Résultats par import",
+        "teamPlan": "Offre Team",
+        "patAuth": "Avec des jetons d'accès personnels",
+        "localInstance": "Comptes locaux sur votre instance",
+        "socialSignIn": "Connexion avec GitHub, GitLab, Microsoft ou Google",
+        "composePostgres": "Docker Compose et PostgreSQL",
+        "proprietaryRuleCount": "5 000+ règles"
+      }
+    }
+  }
+}

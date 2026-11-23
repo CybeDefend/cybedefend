@@ -1,0 +1,13 @@
+{
+  "components": {
+    "projectsTable": {
+      "searchPlaceholder": "Rechercher des projets",
+      "name": "Nom",
+      "createdAt": "Créé le",
+      "manage": "Gérer",
+      "noProjectsFound": "Aucun projet trouvé",
+      "noProjectsDescription": "Nous n'avons trouvé aucun utilisateur.",
+      "showing": "Affichage de {{count}} sur {{total}} résultats"
+    }
+  }
+}

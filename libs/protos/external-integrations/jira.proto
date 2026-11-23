@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package cybedefend.external_integrations;
+
+// ========== Jira OAuth URL Generation ==========
+
+message GenerateJiraOAuthUrlRequest {
+  string redirect_uri = 1;
+  string state = 2;
+}
+
+message GenerateJiraOAuthUrlResponse {
+  string install_url = 1;
+}
+
+// ========== Jira OAuth Installation ==========
+
+message JiraCallbackInstallRequest {
+  string organization_id = 1;
+  string user_id = 2;
+  string code = 3;        // OAuth2 authorization code from Jira
+  string redirect_uri = 4;
+}
+
+message JiraCallbackInstallResponse {
+  string return_uri = 1;
+}
+
+message GetJiraInstallationForOrgaRequest {
+  string organization_id = 1;
+}
+
+message GetJiraInstallationForOrgaResponse {
+  // false => no Jira installation for this organization. See
+  // GetSlackInstallationForOrgaResponse.is_configured in slack.proto for the
+  // full rationale.
+  bool is_configured = 9;
+  string id = 1;
+  string cloud_id = 2;          // Jira Cloud site ID
+  string site_name = 3;         // e.g. "mycompany.atlassian.net"
+  string site_url = 4;          // Full URL to Jira instance
+  string organization_id = 5;
+  string installed_by_user_id = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message DisconnectJiraRequest {
+  string organization_id = 1;
+}
+
+message JiraGenericResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ========== Jira Project Listing ==========
+
+message ListJiraProjectsRequest {
+  string organization_id = 1;
+}
+
+message JiraProjectDto {
+  string project_id = 1;    // Jira project ID
+  string key = 2;           // e.g. "TRI"
+  string name = 3;          // e.g. "Triage"
+  string avatar_url = 4;    // Project avatar URL
+}
+
+message ListJiraProjectsResponse {
+  repeated JiraProjectDto projects = 1;
+}
+
+// ========== Per-Project Jira Config ==========
+
+message SetProjectJiraConfigRequest {
+  string organization_id = 1;
+  string project_id = 2;          // CybeDefend project ID
+  string jira_project_id = 3;     // Jira project ID
+  string jira_project_key = 4;    // e.g. "TRI"
+  string jira_project_name = 5;
+  repeated string allowed_branches = 6; // Empty = all branches allowed
+  bool auto_create_enabled = 7;   // Auto-create tickets after scans
+}
+
+message SetProjectJiraConfigResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RemoveProjectJiraConfigRequest {
+  string organization_id = 1;
+  string project_id = 2;
+}
+
+message GetProjectJiraConfigRequest {
+  string project_id = 1;
+  string organization_id = 2;
+}
+
+message GetProjectJiraConfigResponse {
+  string jira_project_id = 1;
+  string jira_project_key = 2;
+  string jira_project_name = 3;
+  repeated string allowed_branches = 4;
+  bool is_configured = 5;
+  bool auto_create_enabled = 6;
+}
+
+// ========== Jira Webhook ==========
+
+message JiraWebhookEventRequest {
+  string raw_body = 1;        // Raw JSON body for processing
+  string secret = 2;          // Webhook secret token for authentication
+}
+
+message JiraWebhookResponse {
+  bool success = 1;
+  string message = 2;
+}

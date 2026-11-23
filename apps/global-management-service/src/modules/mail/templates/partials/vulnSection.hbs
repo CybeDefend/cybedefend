@@ -1,0 +1,30 @@
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:25px;border-collapse:collapse;">
+  <tr>
+    <td style="font-family:Arial;font-size:16px;font-weight:700;padding:6px 0;color:#222;">
+      {{title}}
+    </td>
+  </tr>
+  {{#if items.length}}
+    {{#each items}}
+      <tr style="background:#fafafa;">
+        <td style="padding:8px 10px;border:1px solid #e5e5e5;font-family:Arial;font-size:13px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-weight:600;color:#333;max-width:320px;display:inline-block;">{{title}}</span>
+            <span style="background:#{{severityColor severity}};color:#fff;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">{{severity}}</span>
+            {{#if cvss}}
+              {{> cvssBadge score=cvss bg=(cvssColor cvss)}}
+            {{/if}}
+            <span style="font-size:11px;color:#555;">State: {{state}}</span>
+            {{#if packageName}}<span style="font-size:11px;color:#555;">Pkg: {{packageName}}</span>{{/if}}
+            {{#if image}}<span style="font-size:11px;color:#555;">Image: {{image}}</span>{{/if}}
+            <span style="font-size:11px;color:#777;">{{createdAt}}</span>
+          </div>
+        </td>
+      </tr>
+    {{/each}}
+  {{else}}
+    <tr>
+      <td style="font-family:Arial;font-size:13px;color:#666;padding:8px 10px;border:1px solid #e5e5e5;">No vulnerabilities listed.</td>
+    </tr>
+  {{/if}}
+</table>

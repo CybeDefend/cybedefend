@@ -1,0 +1,9 @@
+{
+  "pages": {
+    "projectSetting": {
+      "globalSettingsTitle": "Paramètres du projet",
+      "errorFetchingProject": "Erreur lors de la récupération du projet",
+      "globalSettingsSubtitle": "Ces réglages ne s’appliquent qu’à ce projet."
+    }
+  }
+}

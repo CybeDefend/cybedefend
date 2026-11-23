@@ -1,0 +1,12 @@
+{
+  "pages": {
+    "orgInvitation": {
+      "features": {
+        "collab": {
+          "title": "Streamlined Collaboration",
+          "description": "Empower your team with real-time vulnerability insights and automated remediation tools within CI/CD pipelines."
+        }
+      }
+    }
+  }
+}

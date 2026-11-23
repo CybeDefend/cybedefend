@@ -1,0 +1,7 @@
+apps/mcp-service/node_modules
+apps/mcp-service/dist
+apps/mcp-service/.env
+apps/mcp-service/.env.*
+apps/mcp-service/coverage
+apps/mcp-service/*.log
+apps/mcp-service/.DS_Store

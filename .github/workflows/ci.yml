@@ -1,0 +1,144 @@
+name: CI
+
+# Builds and tests every service and both shared libraries, the way the
+# maintainers check a release before it is published here. Runs on every pull
+# request and on main. It uses no secret: a pull request from a fork runs it
+# with a read-only token.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libs:
+    name: ${{ matrix.lib }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lib:
+          - libs/realtime-publisher
+          - libs/db-dialect
+    defaults:
+      run:
+        working-directory: ${{ matrix.lib }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ matrix.lib }}/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      # The live database spec of db-dialect stays opt-in: it needs a database.
+      - name: Unit tests
+        run: pnpm exec jest --ci --runInBand
+
+  services:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: gateway-service
+            realtime-publisher: false
+            db-dialect: false
+          - service: global-management-service
+            realtime-publisher: true
+            db-dialect: true
+          - service: security-scanning-service
+            realtime-publisher: true
+            db-dialect: true
+          - service: analysis-reporting-service
+            realtime-publisher: true
+            db-dialect: true
+          - service: file-management-service
+            realtime-publisher: false
+            db-dialect: true
+          - service: external-integrations-service
+            realtime-publisher: false
+            db-dialect: true
+          - service: policy-management-service
+            realtime-publisher: true
+            db-dialect: false
+          - service: mcp-service
+            realtime-publisher: false
+            db-dialect: false
+          - service: dashboard-service
+            realtime-publisher: false
+            db-dialect: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: apps/${{ matrix.service }}/pnpm-lock.yaml
+
+      - name: Install protoc
+        if: matrix.service != 'dashboard-service'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      # A service depends on the libraries as file:../../libs/<lib>, which it
+      # resolves to their built dist: build them before the service install.
+      - name: Build libs/realtime-publisher
+        if: matrix.realtime-publisher
+        working-directory: libs/realtime-publisher
+        run: pnpm install --frozen-lockfile && pnpm run build
+
+      - name: Build libs/db-dialect
+        if: matrix.db-dialect
+        working-directory: libs/db-dialect
+        run: pnpm install --frozen-lockfile && pnpm run build
+
+      - name: Install
+        working-directory: apps/${{ matrix.service }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate the gRPC code
+        if: matrix.service != 'dashboard-service'
+        working-directory: apps/${{ matrix.service }}
+        run: pnpm run proto:generate
+
+      - name: Build
+        working-directory: apps/${{ matrix.service }}
+        run: pnpm build
+
+      - name: Unit tests
+        if: matrix.service != 'dashboard-service'
+        working-directory: apps/${{ matrix.service }}
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: pnpm exec jest --ci --runInBand --passWithNoTests
+
+      - name: Unit tests (dashboard)
+        if: matrix.service == 'dashboard-service'
+        working-directory: apps/${{ matrix.service }}
+        run: pnpm exec vitest run

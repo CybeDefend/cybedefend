@@ -1,0 +1,11 @@
+{
+    "pages": {
+        "issuePage": {
+            "container": {
+                "targetImage": "Target image",
+                "targetImageDescription": "Image and operating system where the package was found",
+                "sourcePackage": "Source package"
+            }
+        }
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "components": {
+    "appShell": {
+      "toggleNavigation": "Toggle navigation",
+      "sidebar": "Sidebar",
+      "signedInAs": "Signed in as",
+      "userMenu": "User menu",
+      "orgId": "Org ID:",
+      "copyOrgId": "Copy organization ID",
+      "orgIdCopied": "Organization ID copied to clipboard",
+      "orgIdCopyFailed": "Failed to copy organization ID",
+      "ipDuplicate": "This IP address is already added.",
+      "ipInvalid": "Enter a valid IPv4 or IPv6 address, or a CIDR range."
+    }
+  }
+}

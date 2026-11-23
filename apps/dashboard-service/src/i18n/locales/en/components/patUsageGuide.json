@@ -1,0 +1,27 @@
+{
+    "components": {
+        "patUsageGuide": {
+            "title": "How to use Personal Access Tokens",
+            "intro": "Personal Access Tokens (PATs) let you authenticate with the CybeDefend API without going through the browser login flow. They are ideal for CI/CD pipelines, scripts, and automation.",
+            "step1Title": "1. Retrieve your client ID",
+            "step1Description": "First, fetch the available client application IDs. Use the one matching your integration (cli, vscode, or intellij):",
+            "step2Title": "2. Exchange your PAT for an access token",
+            "step2Description": "PATs cannot be used directly as Bearer tokens. Use the client ID from step 1 to exchange your PAT via the OIDC token exchange endpoint:",
+            "step3Title": "3. Use the access token",
+            "step3Description": "Use the returned access token as a standard Bearer token in your API calls:",
+            "notesTitle": "Important notes",
+            "note1": "The PAT value (pat_...) can be displayed and copied from the token list. Store it securely.",
+            "note2": "If a PAT expires or is deleted, any exchange using it will fail immediately.",
+            "note3": "Each exchange returns a short-lived access token. Request a new one when it expires.",
+            "response": "Response:",
+            "community": {
+                "stepTitle": "Use the token as a Bearer token",
+                "stepDescription": "Send the token as it is in the Authorization header of your API calls. There is no exchange step:",
+                "notesTitle": "Important notes",
+                "note1": "The token (cdp_…) is shown only once, right after its creation. Store it in a secret manager.",
+                "note2": "A revoked or expired token is refused at once.",
+                "note3": "A token cannot create, list or revoke tokens, nor change a password: that takes a signed-in session."
+            }
+        }
+    }
+}

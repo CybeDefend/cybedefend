@@ -1,0 +1,20 @@
+{
+  "components": {
+    "modal": {
+      "addMember": {
+        "title": "Ajouter un membre à",
+        "addMember": "Ajouter un membre",
+        "searchDescription": "Recherchez et sélectionnez un utilisateur à ajouter à l'équipe.",
+        "searchPlaceholder": "Rechercher des membres par email",
+        "selectRole": "Sélectionnez un rôle",
+        "noUsers": "Aucun utilisateur trouvé",
+        "step1": "1. Choisissez la personne",
+        "step2": "2. Attribuez-lui un rôle",
+        "emptyPrompt": "Saisissez un e-mail pour trouver un membre de votre organisation.",
+        "selected": "Sélectionné",
+        "roleLocked": "Choisissez d’abord une personne.",
+        "selectedName": "Sélectionné : {{name}}"
+      }
+    }
+  }
+}

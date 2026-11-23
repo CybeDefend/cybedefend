@@ -1,0 +1,12 @@
+{
+  "components": {
+    "modal": {
+      "inviteMember": {
+        "errors": {
+          "validEmail": "Veuillez entrer une adresse email valide.",
+          "selectRole": "Veuillez sélectionner un rôle."
+        }
+      }
+    }
+  }
+}

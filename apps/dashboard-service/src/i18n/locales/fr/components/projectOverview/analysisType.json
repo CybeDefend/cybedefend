@@ -1,0 +1,10 @@
+{
+  "components": {
+    "projectOverview": {
+      "analysisType": {
+        "title": "Vulnérabilités par type d'analyse",
+        "subtitle": "Distribution des méthodes de détection"
+      }
+    }
+  }
+}

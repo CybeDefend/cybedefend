@@ -1,0 +1,10 @@
+{
+    "components": {
+        "modal": {
+            "deletePat": {
+                "title": "Supprimer le jeton",
+                "confirm": "Êtes-vous sûr de vouloir supprimer ce jeton d'accès personnel ? Toute application l'utilisant perdra immédiatement l'accès."
+            }
+        }
+    }
+}

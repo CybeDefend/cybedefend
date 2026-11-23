@@ -1,0 +1,10 @@
+{
+  "components": {
+    "gitHistoryCoverage": {
+      "partial": "Historique git volumineux : les commits sont analysés depuis le {{date}}. Chaque nouveau commit est analysé à chaque scan.",
+      "none": "Historique git non analysé (trop volumineux ou indisponible) : seul le code actuel a été scanné. Chaque nouveau commit est analysé à chaque scan.",
+      "gaps": "Certains commits n'ont pas été analysés, entre le {{from}} et le {{to}}.",
+      "failed": "La dernière analyse de l'historique git a échoué. Elle sera relancée au prochain scan."
+    }
+  }
+}

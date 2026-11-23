@@ -1,0 +1,9 @@
+{
+  "pages": {
+    "notFound": {
+      "title": "Oups ! Page non trouvée",
+      "subtitle1": "La page que vous cherchez semble s'être volatilisée dans le vide numérique.",
+      "subtitle2": "Ne vous inquiétez pas, remettons-nous sur la bonne voie !"
+    }
+  }
+}
