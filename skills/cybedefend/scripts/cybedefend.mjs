@@ -66,7 +66,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ─── Arguments ──────────────────────────────────────────────────────────────
 
 /** Flags that never take a value, so the word after them stays positional. */
-const BOOLEAN_FLAGS = new Set(['audit', 'add-to-run', 'check']);
+const BOOLEAN_FLAGS = new Set(['policy', 'audit', 'add-to-run', 'check']);
 
 export function parseArgs(argv) {
   const positional = [];
@@ -2855,6 +2855,36 @@ export const counted = (n, one, many = `${one}s`) => `${n} ${Number(n) === 1 ? o
 /** The last line of finish, so an output cut short still says the verdict. */
 export const verdictLine = (verdict, blocking) => `VERDICT: ${verdict === 'SHIP' ? 'SHIP (exit 0)' : `NOT YET, ${counted(blocking, 'finding blocks', 'findings block')} (exit 1)`}`;
 
+/**
+ * The verdict the user reads: three outcomes (Nov 24, 2026). NOT YET only
+ * when the AI scanner proved a flaw at high or critical severity with an
+ * exploit test, or when a secret sits in the code (it is exposed whatever
+ * the code does). Otherwise SHIP, and « SHIP, N to fix » when the policies
+ * still list something: what blocks under them (flaws in the code and its
+ * configuration, packages to upgrade) and the flaws proven below high.
+ * `policy` keeps the team's policies as the only judge (--policy, or
+ * CYBEDEFEND_VERDICT=policy, for a CI gate that must fail on any blocking
+ * finding).
+ */
+export function publicVerdict({ policy, triage = [], blocks, secrets = 0, unseen = 0, mode = 'proof' }) {
+  const provenHigh = triage.filter((g) => g.byAiScanner && g.proven && !g.setAside && ['critical', 'high'].includes(g.severity)).length;
+  const provenBelow = triage.filter((g) => g.byAiScanner && g.proven && !g.setAside && !g.blocks && !['critical', 'high'].includes(g.severity)).length;
+  const toFix = (blocks?.code?.length ?? 0) + (blocks?.dependencies?.packages ?? 0) + provenBelow;
+  if (mode === 'policy') return { verdict: policy === 'SHIP' ? 'SHIP' : 'NOT YET', ship: policy === 'SHIP', toFix, provenHigh, secrets, mode };
+  // A critical or high result the dashboard keeps closed while the scan still reports it cannot be judged: no SHIP.
+  const notYet = provenHigh > 0 || secrets > 0 || unseen > 0;
+  return { verdict: notYet ? 'NOT YET' : toFix ? 'SHIP, TO FIX' : 'SHIP', ship: !notYet, toFix, provenHigh, secrets, unseen, mode };
+}
+
+/** The last line of finish under the three verdicts. */
+export const publicVerdictLine = (pv, blocking) => {
+  if (pv.mode === 'policy') return verdictLine(pv.ship ? 'SHIP' : 'BLOCK', blocking);
+  if (pv.verdict === 'SHIP') return 'VERDICT: SHIP (exit 0)';
+  if (pv.verdict === 'SHIP, TO FIX') return `VERDICT: SHIP, ${counted(pv.toFix, 'thing', 'things')} to fix (exit 0)`;
+  const why = [pv.provenHigh ? `${counted(pv.provenHigh, 'flaw')} proven by an exploit test` : '', pv.secrets ? `${counted(pv.secrets, 'secret')} in the code` : '', pv.unseen ? `${counted(pv.unseen, 'critical or high result')} the dashboard closed while the scan still reports it` : ''].filter(Boolean).join(', ');
+  return `VERDICT: NOT YET, ${why} (exit 1)`;
+};
+
 /** What blocks, by where it is: in the code and its configuration, then the packages to upgrade. */
 export const blocksWords = (blocks) => `${blocks.findings ?? blocks.code.length} in the code and its configuration${(blocks.findings ?? 0) > blocks.code.length ? ` (${counted(blocks.code.length, 'flaw')}: several tools report the same one)` : ''}, ${counted(blocks.dependencies.advisories, 'advisory', 'advisories')} on ${counted(blocks.dependencies.packages, 'package')} to upgrade`;
 
@@ -3719,8 +3749,10 @@ async function main(argv) {
       // fix, and for a package the dependency that brings it in.
       const blocks = markBlocking({ merged, blocking: v.blocking, dashboard });
       writeTriage({ out, root, merged });
-      writeFileSync(join(out, 'verdict.json'), `${JSON.stringify({ ...v, exit: v.verdict === 'SHIP' ? 0 : 1, blockingCount, blocks, closedByDashboard }, null, 2)}\n`);
-      say(`  ${v.verdict === 'SHIP' ? '✓ SHIP' : `✗ NOT YET: ${counted(blockingCount, 'finding blocks', 'findings block')}, under ${v.blocking.map((b) => `"${b.rule}"`).join(', ')}`}`);
+      const pv = publicVerdict({ policy: v.verdict, triage: merged.triage, blocks, secrets: locatedSecrets(out, root).places.length, unseen: unseen.length, mode: flags.policy === true || process.env.CYBEDEFEND_VERDICT === 'policy' ? 'policy' : 'proof' });
+      writeFileSync(join(out, 'verdict.json'), `${JSON.stringify({ ...v, exit: pv.ship ? 0 : 1, public: pv, blockingCount, blocks, closedByDashboard }, null, 2)}\n`);
+      say(`  policies: ${v.verdict === 'SHIP' ? 'nothing blocks' : `${counted(blockingCount, 'finding blocks', 'findings block')}, under ${v.blocking.map((b) => `"${b.rule}"`).join(', ')}`}`);
+      say(`  ${pv.ship ? '✓' : '✗'} ${publicVerdictLine(pv, blockingCount).replace(/^VERDICT: /, '').replace(/ \(exit \d\)$/, '')}`);
       if (blockingCount) {
         say(`     ${blocksWords(blocks)}`);
         if (blocks.elsewhere) say(`     ${blocks.elsewhere} more are open elsewhere in the project (another branch, or an earlier scan this run did not repeat): the policies count them too`);
@@ -3768,7 +3800,7 @@ async function main(argv) {
         }
         for (const p of fresh) if (p.note) addFeed(w, { kind: 'live', text: located.values.reduce((x, val) => x.split(val).join('REDACTED'), `${p.note}${p.response?.status ? ` (HTTP ${p.response.status})` : ''}`), where: p.finding ?? '' });
         // The numbers of the report's opening sentence: they add up to what blocks.
-        w.verdict = { ship: v.verdict === 'SHIP', blocking: blockingCount, flaws: blocks.code.length, findings: blocks.findings ?? blocks.code.length, advisories: blocks.dependencies.advisories, packages: blocks.dependencies.packages };
+        w.verdict = { ship: pv.ship, toFix: pv.verdict === 'SHIP, TO FIX' ? pv.toFix : 0, provenHigh: pv.provenHigh, blocking: blockingCount, flaws: blocks.code.length, findings: blocks.findings ?? blocks.code.length, advisories: blocks.dependencies.advisories, packages: blocks.dependencies.packages };
         w.links = { dashboard: link, report: reportFile ? pathToFileURL(reportFile).href : null };
         for (const n of [1, 2, 3, 4, 5]) setStep(w, n, { state: 'done', note: '' });
         w.endedAt = new Date().toISOString();
@@ -3806,8 +3838,13 @@ async function main(argv) {
         return l;
       };
       const doc = {
-        verdict: v.verdict,
-        exit: v.verdict === 'SHIP' ? 0 : 1,
+        // Under --policy the policies' own word, as before (SHIP or BLOCK).
+        verdict: pv.mode === 'policy' ? v.verdict : pv.verdict,
+        exit: pv.ship ? 0 : 1,
+        // The three verdicts: what to fix while it ships, and why it does not.
+        toFix: pv.toFix,
+        provenHighOrCritical: pv.provenHigh,
+        policyVerdict: v.verdict,
         blockingCount,
         blockingRules: v.blocking.map((b) => ({ rule: b.rule, message: b.message, findings: b.findings.length })),
         blocks: {
@@ -3857,8 +3894,8 @@ async function main(argv) {
         } else say(liveLine);
       }
       // The last line on the screen, so a truncated output still says it.
-      say(verdictLine(v.verdict, blockingCount));
-      return v.verdict === 'SHIP' ? 0 : 1;
+      say(publicVerdictLine(pv, blockingCount));
+      return pv.ship ? 0 : 1;
     }
     case 'open': {
       // What the last run left to look at, opened again: the project in the dashboard (the administrator's password in the clipboard) and the audit page.
