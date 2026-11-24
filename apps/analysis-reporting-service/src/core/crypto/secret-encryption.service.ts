@@ -87,8 +87,9 @@ export class SecretEncryptionService implements OnModuleInit {
     if (tag.length !== AUTH_TAG_LENGTH_BYTES) {
       throw new Error('invalid auth tag length');
     }
-    // cybedefend-ignore[CD-SAST-1457]: the tag length is checked to be 16 bytes just above, so a truncated tag is refused before decryption
-    const decipher = crypto.createDecipheriv(ALGORITHM, this.key, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, this.key, iv, {
+      authTagLength: AUTH_TAG_LENGTH_BYTES,
+    });
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([
       decipher.update(ciphertext),
