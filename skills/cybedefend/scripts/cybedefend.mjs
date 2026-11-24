@@ -2858,10 +2858,12 @@ export const verdictLine = (verdict, blocking) => `VERDICT: ${verdict === 'SHIP'
 /**
  * The verdict the user reads: three outcomes (Nov 24, 2026). NOT YET only
  * when the AI scanner proved a flaw at high or critical severity with an
- * exploit test, or when a secret sits in the code (it is exposed whatever
- * the code does). Otherwise SHIP, and « SHIP, N to fix » when the policies
+ * exploit test. Otherwise SHIP, and « SHIP, N to fix » when the policies
  * still list something: what blocks under them (flaws in the code and its
- * configuration, packages to upgrade) and the flaws proven below high.
+ * configuration, secrets, packages to upgrade, critical or high results the
+ * dashboard keeps closed) and the flaws proven below high. A secret is to
+ * fix, not NOT YET by itself: on large applications the secrets a scan
+ * finds are mostly test fixtures and examples (91 of 103 on Odoo).
  * `policy` keeps the team's policies as the only judge (--policy, or
  * CYBEDEFEND_VERDICT=policy, for a CI gate that must fail on any blocking
  * finding).
@@ -2869,10 +2871,9 @@ export const verdictLine = (verdict, blocking) => `VERDICT: ${verdict === 'SHIP'
 export function publicVerdict({ policy, triage = [], blocks, secrets = 0, unseen = 0, mode = 'proof' }) {
   const provenHigh = triage.filter((g) => g.byAiScanner && g.proven && !g.setAside && ['critical', 'high'].includes(g.severity)).length;
   const provenBelow = triage.filter((g) => g.byAiScanner && g.proven && !g.setAside && !g.blocks && !['critical', 'high'].includes(g.severity)).length;
-  const toFix = (blocks?.code?.length ?? 0) + (blocks?.dependencies?.packages ?? 0) + provenBelow;
+  const toFix = (blocks?.code?.length ?? 0) + (blocks?.dependencies?.packages ?? 0) + provenBelow + unseen;
   if (mode === 'policy') return { verdict: policy === 'SHIP' ? 'SHIP' : 'NOT YET', ship: policy === 'SHIP', toFix, provenHigh, secrets, mode };
-  // A critical or high result the dashboard keeps closed while the scan still reports it cannot be judged: no SHIP.
-  const notYet = provenHigh > 0 || secrets > 0 || unseen > 0;
+  const notYet = provenHigh > 0;
   return { verdict: notYet ? 'NOT YET' : toFix ? 'SHIP, TO FIX' : 'SHIP', ship: !notYet, toFix, provenHigh, secrets, unseen, mode };
 }
 
@@ -2881,7 +2882,7 @@ export const publicVerdictLine = (pv, blocking) => {
   if (pv.mode === 'policy') return verdictLine(pv.ship ? 'SHIP' : 'BLOCK', blocking);
   if (pv.verdict === 'SHIP') return 'VERDICT: SHIP (exit 0)';
   if (pv.verdict === 'SHIP, TO FIX') return `VERDICT: SHIP, ${counted(pv.toFix, 'thing', 'things')} to fix (exit 0)`;
-  const why = [pv.provenHigh ? `${counted(pv.provenHigh, 'flaw')} proven by an exploit test` : '', pv.secrets ? `${counted(pv.secrets, 'secret')} in the code` : '', pv.unseen ? `${counted(pv.unseen, 'critical or high result')} the dashboard closed while the scan still reports it` : ''].filter(Boolean).join(', ');
+  const why = `${counted(pv.provenHigh, 'flaw')} proven by an exploit test`;
   return `VERDICT: NOT YET, ${why} (exit 1)`;
 };
 
