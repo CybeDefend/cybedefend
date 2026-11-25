@@ -5,7 +5,6 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
-import * as unzipper from 'unzipper';
 import archiver from 'archiver';
 import * as yauzl from 'yauzl';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -13,7 +12,7 @@ import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'node:fs';
-import { Transform } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Span } from 'nestjs-otel';
 import { Logger } from 'nestjs-pino';
@@ -72,6 +71,7 @@ import {
   SCAN_SERVICE_NAME,
   ScanServiceClient,
 } from '@grpc/security-scanning/security_scanning';
+import type { UploadFilterSummary } from '@grpc/security-scanning/scan';
 import { safeGrpcCall } from '@grpc/wrapper-grpc.module';
 import SecretsService from 'src/core/secrets/secrets.service';
 import { currentEdition, isCommunityEdition } from '../edition/edition';
@@ -82,10 +82,8 @@ import {
   InflateMeter,
   ScannerArchiveLimits,
   ZipLimits,
-  assertZipWithinLimits,
   formatBytes,
   forwardedZipLimits,
-  quoteName,
   resolveZipLimits,
   scannerArchiveLimits,
 } from './zip-limits.util';
@@ -95,11 +93,100 @@ import {
   gitEntryDecision,
 } from './scan-archive-git.util';
 import { isSecretScanFile } from '../core/data/secret-scan-files';
+import { isScannerConfigurationFile } from './scanner-config-files';
+import { UploadFilterSummaryBuilder } from './upload-filter-summary';
+import {
+  CheckedZip,
+  ZipEntryRecord,
+  assertScannableZip,
+  isSystemError,
+  openCheckedZip,
+} from './zip-archive.util';
 
 /** What filterZipFile uses of an archiver instance (the package ships no types). */
 interface ZipWriter extends NodeJS.EventEmitter {
   append(source: NodeJS.ReadableStream | Buffer, data: { name: string }): void;
 }
+
+/** The filtered archive's writer: entries in, a ZIP stream out. */
+interface ArchiveWriter extends ZipWriter {
+  pipe(destination: NodeJS.WritableStream): NodeJS.WritableStream;
+  finalize(): Promise<void>;
+  abort(): void;
+}
+
+/**
+ * Times an upload is put back for a later tick after a failure of this
+ * service's file system (too many open files, no space, an I/O error) before
+ * its scan is failed: such a failure says nothing of the archive, and usually
+ * passes once other uploads have released their files and disk.
+ */
+export const MAX_SYSTEM_FAILURE_RETRIES = 3;
+
+/**
+ * How long one archive may take to be read and rewritten before it is
+ * stopped and its upload failed (FILE_SCAN_ARCHIVE_DEADLINE_MS). The largest
+ * archive the limits accept inflates to 5 GiB; read, inflated and deflated
+ * again at a conservative 10 MiB/s on a throttled pod, that is about
+ * 512 s. Ten minutes covers it, and stays under the 15-minute processing
+ * timeout after which the scan is failed anyway.
+ */
+export const DEFAULT_ARCHIVE_DEADLINE_MS = 10 * 60 * 1000;
+
+/**
+ * An archive stopped at its processing deadline. It is this service's limit,
+ * not a fault of the archive: the scan fails as a processing error naming the
+ * time limit, without an archive failure code.
+ */
+export class ProcessingDeadlineError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProcessingDeadlineError';
+  }
+}
+
+/**
+ * The entries of an uploaded archive left out of the archive forwarded to
+ * the scanners, by reason. An archive past a limit is refused whole, so no
+ * entry is left out for a limit.
+ */
+export interface DroppedEntryCounts {
+  /** A scanner's own configuration file (SCANNER_CONFIGURATION_FILES). */
+  scannerConfiguration: number;
+  /** An excluded folder or name pattern (dependencies, build output, …). */
+  excludedPath: number;
+  /** A binary or media file, a file type no scanner reads, or documentation below the root. */
+  excludedType: number;
+  /** A name that is absolute or climbs out of the archive's folder. */
+  unsafeName: number;
+  /** Git metadata git would execute (hooks, attributes, nested repositories). */
+  gitMetadata: number;
+}
+
+/**
+ * The filtered archive written for the scanners, and what it left out: the
+ * counts by reason, and the bounded summary sent to security-scanning with
+ * the start of the scan (see UploadFilterSummaryBuilder).
+ */
+export interface FilteredArchive {
+  path: string;
+  dropped: DroppedEntryCounts;
+  summary: UploadFilterSummary;
+}
+
+function formatDuration(ms: number): string {
+  if (ms >= 60_000 && ms % 60_000 === 0) return `${ms / 60_000} min`;
+  if (ms >= 1000) return `${Math.round(ms / 100) / 10} s`;
+  return `${ms} ms`;
+}
+
+/**
+ * Uploads of one project registered and not yet received
+ * (FILE_SCAN_MAX_PENDING_UPLOADS_PER_PROJECT). An upload is normally pending
+ * for the few seconds its archive takes to arrive: twenty leaves room for a
+ * project that starts scans of many branches at once.
+ */
+export const DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT = 20;
 
 /** Attempts of the filtered archive upload to S3 (see uploadFilteredArchive). */
 const FILTERED_UPLOAD_ATTEMPTS = 3;
@@ -337,6 +424,8 @@ export class FileService implements OnModuleInit {
 
   // Track files under processing
   processingFiles: Map<string, boolean> = new Map();
+  // File-system failures of each upload put back for a retry (scanId -> count).
+  private readonly systemFailures = new Map<string, number>();
 
   constructor(
     @InjectRepository(FileScan)
@@ -517,6 +606,35 @@ export class FileService implements OnModuleInit {
   }
 
   /**
+   * Refuse a new upload of a project that already holds
+   * FILE_SCAN_MAX_PENDING_UPLOADS_PER_PROJECT pending ones: each is checked
+   * in storage by the one upload processor until its deadline. The count and
+   * the insert are not one transaction, so concurrent starts may pass the
+   * bound by a few; the processor's per-tick bounds still hold.
+   */
+  private async assertPendingUploadRoom(projectId: string): Promise<void> {
+    const max = this.maxPendingUploadsPerProject();
+    const pending = await this.fileScanRepository.count({
+      where: { projectId, status: FileStatus.PENDING_UPLOAD },
+    });
+    if (pending >= max) {
+      throw new RpcException({
+        code: status.RESOURCE_EXHAUSTED,
+        message: `The project already has ${max} scans waiting for their archive: upload those archives, or wait for them to time out, before starting another scan`,
+      });
+    }
+  }
+
+  private maxPendingUploadsPerProject(): number {
+    const raw = Number(
+      this.configService.get('FILE_SCAN_MAX_PENDING_UPLOADS_PER_PROJECT'),
+    );
+    return Number.isFinite(raw) && raw > 0
+      ? Math.floor(raw)
+      : DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT;
+  }
+
+  /**
    * Generate a signed URL for upload and record pending upload
    */
   @Span()
@@ -538,6 +656,7 @@ export class FileService implements OnModuleInit {
     console.log(
       `UploadFile called for scanId=${request.scanId}, projectId=${request.projectId}`,
     );
+    if (!isHistory) await this.assertPendingUploadRoom(request.projectId);
     if (this.backend) {
       // Generate signed URL for upload
       // If bucket is inaccessible, this will fail with appropriate error
@@ -749,6 +868,9 @@ export class FileService implements OnModuleInit {
     objectPath: string;
     isDiffScan: boolean;
   }): Promise<void> {
+    // Held to the same per-project bound as an upload registered by
+    // uploadFile: the processor checks every pending upload alike.
+    await this.assertPendingUploadRoom(row.projectId);
     const fileRecord = this.fileScanRepository.create({
       scanId: row.scanId,
       fileName: path.basename(row.objectPath),
@@ -808,10 +930,12 @@ export class FileService implements OnModuleInit {
         { lazyEntries: true, autoClose: true },
         (err, zipfile) => {
           if (err || !zipfile) {
+            // The reader's error is logged; the caller gets a stable message.
+            this.logger.warn({ err, msg: 'Unreadable diff archive' });
             return fail(
               new RpcException({
                 code: status.INVALID_ARGUMENT,
-                message: `Unreadable diff archive: ${err?.message ?? 'open failed'}`,
+                message: 'Unreadable diff archive',
               }),
             );
           }
@@ -851,6 +975,8 @@ export class FileService implements OnModuleInit {
             // never expanded) and matches selectDiffFiles dropping excluded
             // files before the caps.
             if (shouldExcludeFile(normalized)) return readNext();
+            // A scanner configuration file is never forwarded either.
+            if (isScannerConfigurationFile(normalized)) return readNext();
 
             zipfile.openReadStream(entry, (streamErr, readStream) => {
               if (streamErr || !readStream)
@@ -925,12 +1051,30 @@ export class FileService implements OnModuleInit {
   }
 
   /**
-   * Extract supported files from ZIP and create filtered ZIP
+   * Extract supported files from ZIP and create filtered ZIP; the path of the
+   * filtered archive (see {@link filterArchive}).
    */
   private async filterZipFile(
     zipFilePath: string,
     tempDir: string,
+    checked?: CheckedZip,
   ): Promise<string> {
+    return (await this.filterArchive(zipFilePath, tempDir, checked)).path;
+  }
+
+  /**
+   * Write the entries of the uploaded archive the scanners read to
+   * `tempDir/filtered.zip`, and count the entries left out, by reason.
+   *
+   * `checked` is the archive as opened and checked by the caller: the filter
+   * reads those same entries from that same open file, so what is forwarded
+   * is what was checked. Without it, the archive is opened and checked here.
+   */
+  private async filterArchive(
+    zipFilePath: string,
+    tempDir: string,
+    checked?: CheckedZip,
+  ): Promise<FilteredArchive> {
     // Prevent path traversal
     if (zipFilePath.includes('..') || tempDir.includes('..')) {
       this.logger.error('Invalid path provided to filterZipFile');
@@ -944,28 +1088,44 @@ export class FileService implements OnModuleInit {
     await fs.promises.access(zipFilePath, fs.constants.F_OK);
     await fs.promises.access(tempDir, fs.constants.F_OK);
 
-    // Open ZIP
-    const directory = await unzipper.Open.file(zipFilePath);
+    const zip =
+      checked ?? (await openCheckedZip(zipFilePath, this.declaredLimits()));
+    try {
+      return await this.writeFilteredZip(zip, tempDir);
+    } finally {
+      if (!checked) zip.close();
+    }
+  }
 
+  /** Write the entries of `zip` the scanners read to `tempDir/filtered.zip`. */
+  private async writeFilteredZip(
+    zip: CheckedZip,
+    tempDir: string,
+  ): Promise<FilteredArchive> {
+    const leftOut = new UploadFilterSummaryBuilder();
     // Every read of an entry goes through one meter, whoever reads it: the
     // sizes the archive declares were checked before filtering, but they are
     // written by whoever built it, so the bytes really inflated are counted
     // too and the read aborts past a limit.
     const meter = new InflateMeter(this.forwardedLimits());
-    for (const file of directory.files) {
-      const open = file.stream.bind(file);
-      file.stream = (password?: string) =>
-        meter.wrap(open(password), file.path);
-    }
+    // The entry streams being read, so the deadline can stop them.
+    const reading = new Set<Readable>();
+    const entryOf = (record: ZipEntryRecord) => ({
+      open: async () => {
+        const stream = meter.wrap(
+          await zip.openEntry(record),
+          record.name,
+        ) as Readable;
+        reading.add(stream);
+        stream.once('close', () => reading.delete(stream));
+        return stream;
+      },
+    });
 
     // Prepare output
     const outPath = path.join(tempDir, 'filtered.zip');
     const output = fs.createWriteStream(outPath);
-    // Compression level 6 = zlib default. The previous level 9 ate ~5×
-    // more CPU for only ~5-8% smaller output — a bad trade on a
-    // CPU-throttled cron pod (intra-cluster network shrugs off the
-    // extra MB but throttle-time is what bottlenecks the scan).
-    const archive = archiver('zip', { zlib: { level: 6 } });
+    const archive = this.createArchiveWriter();
     // Listened from the start: an entry that fails makes the archiver emit
     // 'error', possibly after the entry's own promise has settled, and an
     // unlistened 'error' would crash the process.
@@ -983,174 +1143,230 @@ export class FileService implements OnModuleInit {
     archive.pipe(output);
     // A refused or broken entry: stop writing (the caller removes the
     // temporary directory, the partial output with it).
+    // Settled when the writing is stopped (a deadline, a refused or broken
+    // entry): every wait on the writer is raced against it, since a writer
+    // aborted once its finalisation has started never settles.
+    let stop: (reason: Error) => void = () => undefined;
+    const stopped = new Promise<never>((_resolve, reject) => {
+      stop = reject;
+    });
+    stopped.catch(() => undefined);
     const abort = () => {
+      stop(archiveError ?? new Error('The filtered archive was not written'));
       archive.abort();
       output.destroy();
     };
     meter.onLimit(abort);
 
-    // Helper: Check if file is at root level (no subdirectories)
-    const isAtRoot = (filePath: string): boolean => {
-      const normalized = filePath.replaceAll('\\', '/');
-      const parts = normalized.split('/').filter((p) => p.length > 0);
-      return parts.length === 1;
-    };
+    // One archive may not hold the processing slot for longer than its
+    // deadline: past it, the entry being read and the output are stopped
+    // through the same abort path, and this upload alone fails.
+    const deadlineMs = this.archiveDeadlineMs();
+    const overDeadline = new ProcessingDeadlineError(
+      `The archive took longer than ${formatDuration(deadlineMs)} to filter on this service: the scan was stopped`,
+    );
+    let expired = false;
+    const timer = setTimeout(() => {
+      expired = true;
+      stop(overDeadline);
+      for (const stream of reading) stream.destroy(overDeadline);
+      abort();
+    }, deadlineMs);
+    try {
+      // Helper: Check if file is at root level (no subdirectories)
+      const isAtRoot = (filePath: string): boolean => {
+        const normalized = filePath.replaceAll('\\', '/');
+        const parts = normalized.split('/').filter((p) => p.length > 0);
+        return parts.length === 1;
+      };
 
-    // The uploaded .git/config is read for two facts only (see
-    // GitConfigScanner) and never forwarded.
-    const gitConfig = new GitConfigScanner();
-    let gitHistoryKept = false;
+      // The uploaded .git/config is read for two facts only (see
+      // GitConfigScanner) and never forwarded.
+      const gitConfig = new GitConfigScanner();
+      let gitHistoryKept = false;
 
-    // Process entries
-    for (const entry of directory.files) {
-      const origName = entry.path;
-      const normalized = path.posix.normalize(origName);
+      // Process entries
+      for (const record of zip.entries) {
+        const origName = record.name;
+        const normalized = path.posix.normalize(origName);
+        const entry = entryOf(record);
+        if (expired) throw overDeadline;
 
-      // skip directories
-      if (entry.type !== 'File') continue;
+        // skip directories
+        if (record.uncompressedSize === 0 && /[/\\]$/.test(origName)) continue;
 
-      // block path traversal, judged on the name as uploaded
-      if (
-        this.isUnsafeEntryName(origName) ||
-        this.isPathTraversal(normalized)
-      ) {
-        this.logger.warn(`Blocked path traversal: ${origName}`);
-        continue;
-      }
-
-      // .git: the secret scanner reads the commit history
-      // (gitleaks --log-opts=--all), so the objects, refs and HEAD are kept,
-      // streamed and metered like any other entry. Nothing git would execute
-      // is forwarded: hooks, attributes, submodule configs and nested .git
-      // directories are skipped without being inflated, and the repository
-      // config is replaced by a minimal one once every entry is read.
-      const gitDecision = gitEntryDecision(normalized);
-      if (gitDecision === 'config') {
-        await this.scanEntry(entry, (chunk) => gitConfig.write(chunk), abort);
-        continue;
-      }
-      if (gitDecision === 'drop') {
-        this.logger.debug(`Dropped git metadata: ${normalized}`);
-        continue;
-      }
-      if (gitDecision === 'keep') {
-        await this.appendEntryStream(archive, entry, normalized, abort);
-        gitHistoryKept = true;
-        continue;
-      }
-
-      // exclude patterns
-      if (shouldExcludeFile(normalized)) {
-        this.logger.debug(`Excluded by pattern: ${normalized}`);
-        continue;
-      }
-
-      // Additional safety: double-check the path doesn't contain excluded directories
-      const pathSegments = normalized.split('/');
-      const hasExcludedDir = pathSegments.some((segment) => {
-        const lower = segment.toLowerCase();
-        return (
-          lower === 'node_modules' ||
-          lower === 'vendor' ||
-          lower === '__pycache__' ||
-          lower === '.venv' ||
-          lower === 'venv' ||
-          lower === 'dist' ||
-          lower === 'build'
-        );
-      });
-
-      if (hasExcludedDir) {
-        this.logger.debug(`Excluded by directory check: ${normalized}`);
-        continue;
-      }
-
-      // check by name or extension
-      const base = path.basename(normalized).toLowerCase();
-      const ext = path.extname(base).toLowerCase();
-      const baseName = path.basename(normalized, ext).toLowerCase();
-
-      // PRIORITY 1: Exclude binary/media files FIRST (before any other check)
-      if (this.binaryExtensions.has(ext)) {
-        this.logger.debug(
-          `Excluded binary/media file: ${normalized} (extension: ${ext})`,
-        );
-        continue;
-      }
-
-      // PRIORITY 2: Check if file should ALWAYS be kept (requirements.txt, package.json, etc.)
-      const keepByName = this.alwaysKeepNames.has(base);
-      const keepByExt = this.extensionToLanguageMap.has(ext);
-      const keepByConfigExt = this.configFileExtensions.has(ext);
-      // Configuration and data files the secret scanner reads, at any depth.
-      const keepForSecrets = isSecretScanFile(base, ext);
-      const isDockerfileVariant = base.startsWith('dockerfile');
-      const isValidFileWithoutExt = this.validFilesWithoutExtension.has(
-        path.basename(origName),
-      );
-
-      // If file matches any "always keep" criteria, keep it regardless of location
-      if (
-        keepByName ||
-        keepByExt ||
-        keepByConfigExt ||
-        keepForSecrets ||
-        isDockerfileVariant ||
-        isValidFileWithoutExt
-      ) {
-        this.logger.debug(
-          `Keeping required file: ${normalized} (keepByName=${keepByName}, keepByExt=${keepByExt}, keepByConfigExt=${keepByConfigExt}, keepForSecrets=${keepForSecrets})`,
-        );
-        await this.appendEntryStream(archive, entry, normalized, abort);
-        continue;
-      }
-
-      // PRIORITY 3: Handle documentation files - only allowed at root
-      if (this.rootOnlyDocExtensions.has(ext)) {
-        if (isAtRoot(normalized)) {
-          this.logger.debug(`Keeping root documentation: ${normalized}`);
-          await this.appendEntryStream(archive, entry, normalized, abort);
-          continue;
-        } else {
-          this.logger.debug(
-            `Excluded non-root documentation: ${normalized} (extension: ${ext})`,
-          );
+        // block path traversal, judged on the name as uploaded
+        if (
+          this.isUnsafeEntryName(origName) ||
+          this.isPathTraversal(normalized)
+        ) {
+          this.logger.warn(`Blocked path traversal: ${origName}`);
+          leftOut.unsafeName();
           continue;
         }
-      }
 
-      // PRIORITY 4: Handle documentation files by name (LICENSE, README, etc.)
-      if (this.rootOnlyDocNames.has(baseName)) {
-        if (isAtRoot(normalized)) {
+        // .git: the secret scanner reads the commit history
+        // (gitleaks --log-opts=--all), so the objects, refs and HEAD are kept,
+        // streamed and metered like any other entry. Nothing git would execute
+        // is forwarded: hooks, attributes, submodule configs and nested .git
+        // directories are skipped without being inflated, and the repository
+        // config is replaced by a minimal one once every entry is read.
+        const gitDecision = gitEntryDecision(normalized);
+        if (gitDecision === 'config') {
+          await this.scanEntry(entry, (chunk) => gitConfig.write(chunk), abort);
+          continue;
+        }
+        if (gitDecision === 'drop') {
+          this.logger.debug(`Dropped git metadata: ${normalized}`);
+          leftOut.gitMetadata();
+          continue;
+        }
+        if (gitDecision === 'keep') {
+          await this.appendEntryStream(archive, entry, normalized, abort);
+          gitHistoryKept = true;
+          continue;
+        }
+
+        // A scanner's own configuration file is never forwarded: committed to
+        // the repository, it could switch the scanner's detection off (see
+        // SCANNER_CONFIGURATION_FILES).
+        if (isScannerConfigurationFile(normalized)) {
+          this.logger.debug(`Dropped scanner configuration: ${normalized}`);
+          leftOut.scannerConfiguration();
+          continue;
+        }
+
+        // exclude patterns
+        if (shouldExcludeFile(normalized)) {
+          this.logger.debug(`Excluded by pattern: ${normalized}`);
+          leftOut.excludedPath(normalized);
+          continue;
+        }
+
+        // Additional safety: double-check the path doesn't contain excluded directories
+        const pathSegments = normalized.split('/');
+        const hasExcludedDir = pathSegments.some((segment) => {
+          const lower = segment.toLowerCase();
+          return (
+            lower === 'node_modules' ||
+            lower === 'vendor' ||
+            lower === '__pycache__' ||
+            lower === '.venv' ||
+            lower === 'venv' ||
+            lower === 'dist' ||
+            lower === 'build'
+          );
+        });
+
+        if (hasExcludedDir) {
+          this.logger.debug(`Excluded by directory check: ${normalized}`);
+          leftOut.excludedPath(normalized);
+          continue;
+        }
+
+        // check by name or extension
+        const base = path.basename(normalized).toLowerCase();
+        const ext = path.extname(base).toLowerCase();
+        const baseName = path.basename(normalized, ext).toLowerCase();
+
+        // PRIORITY 1: Exclude binary/media files FIRST (before any other check)
+        if (this.binaryExtensions.has(ext)) {
           this.logger.debug(
-            `Keeping root documentation file: ${normalized} (name: ${baseName})`,
+            `Excluded binary/media file: ${normalized} (extension: ${ext})`,
+          );
+          leftOut.excludedType();
+          continue;
+        }
+
+        // PRIORITY 2: Check if file should ALWAYS be kept (requirements.txt, package.json, etc.)
+        const keepByName = this.alwaysKeepNames.has(base);
+        const keepByExt = this.extensionToLanguageMap.has(ext);
+        const keepByConfigExt = this.configFileExtensions.has(ext);
+        // Configuration and data files the secret scanner reads, at any depth.
+        const keepForSecrets = isSecretScanFile(base, ext);
+        const isDockerfileVariant = base.startsWith('dockerfile');
+        const isValidFileWithoutExt = this.validFilesWithoutExtension.has(
+          path.basename(origName),
+        );
+
+        // If file matches any "always keep" criteria, keep it regardless of location
+        if (
+          keepByName ||
+          keepByExt ||
+          keepByConfigExt ||
+          keepForSecrets ||
+          isDockerfileVariant ||
+          isValidFileWithoutExt
+        ) {
+          this.logger.debug(
+            `Keeping required file: ${normalized} (keepByName=${keepByName}, keepByExt=${keepByExt}, keepByConfigExt=${keepByConfigExt}, keepForSecrets=${keepForSecrets})`,
           );
           await this.appendEntryStream(archive, entry, normalized, abort);
           continue;
-        } else {
-          this.logger.debug(
-            `Excluded non-root documentation: ${normalized} (name: ${baseName})`,
-          );
-          continue;
         }
+
+        // PRIORITY 3: Handle documentation files - only allowed at root
+        if (this.rootOnlyDocExtensions.has(ext)) {
+          if (isAtRoot(normalized)) {
+            this.logger.debug(`Keeping root documentation: ${normalized}`);
+            await this.appendEntryStream(archive, entry, normalized, abort);
+            continue;
+          } else {
+            this.logger.debug(
+              `Excluded non-root documentation: ${normalized} (extension: ${ext})`,
+            );
+            leftOut.excludedType();
+            continue;
+          }
+        }
+
+        // PRIORITY 4: Handle documentation files by name (LICENSE, README, etc.)
+        if (this.rootOnlyDocNames.has(baseName)) {
+          if (isAtRoot(normalized)) {
+            this.logger.debug(
+              `Keeping root documentation file: ${normalized} (name: ${baseName})`,
+            );
+            await this.appendEntryStream(archive, entry, normalized, abort);
+            continue;
+          } else {
+            this.logger.debug(
+              `Excluded non-root documentation: ${normalized} (name: ${baseName})`,
+            );
+            leftOut.excludedType();
+            continue;
+          }
+        }
+
+        // If we reach here, the file doesn't match any criteria - exclude it
+        this.logger.debug(`Excluded by name/extension: ${normalized}`);
+        leftOut.excludedType();
+        continue;
       }
 
-      // If we reach here, the file doesn't match any criteria - exclude it
-      this.logger.debug(`Excluded by name/extension: ${normalized}`);
-      continue;
-    }
+      if (gitHistoryKept) {
+        archive.append(Buffer.from(gitConfig.safeConfig()), {
+          name: SAFE_GIT_CONFIG_ENTRY,
+        });
+      }
 
-    if (gitHistoryKept) {
-      archive.append(Buffer.from(gitConfig.safeConfig()), {
-        name: SAFE_GIT_CONFIG_ENTRY,
-      });
+      // Finalize
+      if (expired) throw overDeadline;
+      if (archiveError) throw archiveError;
+      await Promise.race([archive.finalize(), stopped]);
+      await Promise.race([written, stopped]);
+      if (expired) throw overDeadline;
+      const summary = leftOut.summary();
+      const dropped: DroppedEntryCounts = {
+        scannerConfiguration: summary.scannerConfiguration,
+        excludedPath: summary.excludedPath,
+        excludedType: summary.excludedType,
+        unsafeName: summary.unsafeName,
+        gitMetadata: summary.gitMetadata,
+      };
+      return { path: outPath, dropped, summary };
+    } finally {
+      clearTimeout(timer);
     }
-
-    // Finalize
-    if (archiveError) throw archiveError;
-    await archive.finalize();
-    await written;
-    return outPath;
   }
 
   /**
@@ -1159,20 +1375,20 @@ export class FileService implements OnModuleInit {
    * next entry is opened only once this one is done. Rejects on the entry's
    * stream error (an inflate failure, a limit of the meter) or the archiver's.
    */
-  private appendEntryStream(
+  private async appendEntryStream(
     archive: ZipWriter,
-    entry: { stream: () => NodeJS.ReadableStream },
+    entry: { open: () => Promise<NodeJS.ReadableStream> },
     name: string,
     abort: () => void,
   ): Promise<void> {
+    let source: NodeJS.ReadableStream;
+    try {
+      source = await entry.open();
+    } catch (err) {
+      abort();
+      throw err;
+    }
     return new Promise<void>((resolve, reject) => {
-      let source: NodeJS.ReadableStream;
-      try {
-        source = entry.stream();
-      } catch (err) {
-        abort();
-        return reject(err as Error);
-      }
       const done = (err?: Error) => {
         source.removeListener('end', onEnd);
         source.removeListener('error', done);
@@ -1195,19 +1411,19 @@ export class FileService implements OnModuleInit {
    * archive. The entry's stream is the metered one, so the limits apply; on an
    * error the output is aborted, as in {@link appendEntryStream}.
    */
-  private scanEntry(
-    entry: { stream: () => NodeJS.ReadableStream },
+  private async scanEntry(
+    entry: { open: () => Promise<NodeJS.ReadableStream> },
     onChunk: (chunk: Buffer) => void,
     abort: () => void,
   ): Promise<void> {
+    let source: NodeJS.ReadableStream;
+    try {
+      source = await entry.open();
+    } catch (err) {
+      abort();
+      throw err;
+    }
     return new Promise<void>((resolve, reject) => {
-      let source: NodeJS.ReadableStream;
-      try {
-        source = entry.stream();
-      } catch (err) {
-        abort();
-        return reject(err as Error);
-      }
       source.on('data', (chunk: Buffer) => onChunk(chunk));
       source.once('end', () => resolve());
       source.once('error', (err: Error) => {
@@ -1215,6 +1431,23 @@ export class FileService implements OnModuleInit {
         reject(err);
       });
     });
+  }
+
+  /**
+   * The writer of the filtered archive. Compression level 6 = zlib default:
+   * level 9 ate ~5x more CPU for only ~5-8% smaller output, a bad trade on a
+   * CPU-throttled pod.
+   */
+  private createArchiveWriter(): ArchiveWriter {
+    return archiver('zip', { zlib: { level: 6 } }) as ArchiveWriter;
+  }
+
+  /** How long one archive may take to be read and rewritten. */
+  private archiveDeadlineMs(): number {
+    const raw = Number(this.configService.get('FILE_SCAN_ARCHIVE_DEADLINE_MS'));
+    return Number.isFinite(raw) && raw > 0
+      ? Math.floor(raw)
+      : DEFAULT_ARCHIVE_DEADLINE_MS;
   }
 
   /** The size limits of an uploaded full-scan archive. */
@@ -1230,6 +1463,19 @@ export class FileService implements OnModuleInit {
   /** The limits of what is forwarded to the scanners (the filtered archive). */
   private forwardedLimits(): ZipLimits {
     return forwardedZipLimits(this.zipLimits(), this.scannerLimits());
+  }
+
+  /**
+   * The limits the uploaded archive's central directory is held to before
+   * anything is inflated. The entry count bounds the forwarded archive too (it
+   * never holds more entries than the upload), so the scanners' own bound
+   * applies to it.
+   */
+  private declaredLimits(): ZipLimits {
+    return {
+      ...this.zipLimits(),
+      maxEntries: this.forwardedLimits().maxEntries,
+    };
   }
 
   /**
@@ -1993,26 +2239,21 @@ export class FileService implements OnModuleInit {
   }
 
   /**
-   * Validate that filePath is a well-formed, UNENCRYPTED ZIP.
+   * Open the uploaded archive once and refuse it unless it is a ZIP that can
+   * be scanned: a `.zip` file starting with a ZIP signature, with exactly one
+   * reading (see openCheckedZip), within `limits`, and holding at least one
+   * file, none encrypted and none whose path is absolute or leaves the
+   * archive's folder.
    *
-   * Rejects synchronously (Promise reject) — never via a stream 'error'
-   * event — when the file:
-   *   - is missing the `.zip` extension
-   *   - has an invalid local-file-header signature
-   *   - is malformed in a way yauzl cannot parse
-   *   - contains any entry with the encryption bit set (general-purpose
-   *     bit 0 of the local file header, also surfaced by yauzl's
-   *     `entry.isEncrypted()`)
-   *
-   * Encrypted ZIPs cannot be filtered or re-uploaded for downstream
-   * scanning, and calling `entry.stream()` on an encrypted entry raises an
-   * async stream error that would crash the cron worker. Detecting the
-   * encryption bit here, before any stream is opened, removes that crash
-   * path entirely. The error string `ENCRYPTED_ZIP_NOT_SUPPORTED`
-   * is propagated through to `processUploadedFile`'s catch block, which
-   * marks the FileScan row as `FAILED` and notifies the scan service.
+   * Every refusal is a rejection of the returned promise (never a stream
+   * 'error' event that could escape the caller), mostly an ArchiveLimitError
+   * that names the reason. The caller filters the returned archive, which
+   * holds the entries checked here, and closes it.
    */
-  private async validateZipFile(filePath: string): Promise<boolean> {
+  private async openUploadedArchive(
+    filePath: string,
+    limits: ZipLimits,
+  ): Promise<CheckedZip> {
     if (!filePath.toLowerCase().endsWith('.zip')) {
       throw new TypeError("File must have '.zip' extension");
     }
@@ -2021,7 +2262,7 @@ export class FileService implements OnModuleInit {
     await fd.read(buf, 0, 4, 0);
     await fd.close();
     // A local file header, or the end-of-central-directory record of a ZIP
-    // that holds nothing (refused below as empty, not as « not a ZIP »).
+    // that holds nothing (refused below as empty, not as not a ZIP).
     const signature = buf.toString('hex').toUpperCase();
     if (signature !== '504B0304' && signature !== '504B0506') {
       throw new ArchiveLimitError(
@@ -2029,112 +2270,14 @@ export class FileService implements OnModuleInit {
         'The uploaded file is not a ZIP archive: only .zip archives are scanned',
       );
     }
-    return new Promise<boolean>((resolve, reject) => {
-      yauzl.open(
-        filePath,
-        { lazyEntries: true, autoClose: true },
-        (err, zipfile) => {
-          if (err) {
-            return reject(this.unreadableZipError(err));
-          }
-
-          let encryptedEntry: string | null = null;
-          let files = 0;
-
-          // Bind error/end on the zipfile so unexpected internal failures
-          // (e.g. truncated central directory) reject deterministically
-          // instead of crashing the worker.
-          zipfile.on('error', (zfErr) => {
-            try {
-              zipfile.close();
-            } catch {
-              /* noop */
-            }
-            reject(this.unreadableZipError(zfErr));
-          });
-
-          zipfile.on('entry', (entry) => {
-            // General-purpose bit 0 = traditional encryption flag.
-            // Bit 6 = strong encryption. Both must be rejected.
-            const flags =
-              typeof entry.generalPurposeBitFlag === 'number'
-                ? entry.generalPurposeBitFlag
-                : 0;
-            const isEncrypted =
-              (typeof entry.isEncrypted === 'function'
-                ? entry.isEncrypted()
-                : false) ||
-              (flags & 0x01) !== 0 ||
-              (flags & 0x40) !== 0;
-
-            if (isEncrypted) {
-              encryptedEntry = entry.fileName ?? '<unknown>';
-              try {
-                zipfile.close();
-              } catch {
-                /* noop */
-              }
-              this.logger.warn(
-                `[logs-intern] Encrypted ZIP rejected: entry=${encryptedEntry}, file=${filePath}`,
-              );
-              return reject(
-                new ArchiveLimitError(
-                  'ARCHIVE_ENCRYPTED',
-                  `The archive is password-protected (entry "${quoteName(encryptedEntry)}" is encrypted): encrypted archives cannot be scanned`,
-                ),
-              );
-            }
-            if (!String(entry.fileName ?? '').endsWith('/')) files++;
-            zipfile.readEntry();
-          });
-
-          zipfile.on('end', () => {
-            if (encryptedEntry !== null) {
-              // Already handled by the entry handler above; reject is idempotent.
-              return;
-            }
-            if (files === 0) {
-              return reject(
-                new ArchiveLimitError(
-                  'ARCHIVE_EMPTY',
-                  'The archive holds no file',
-                ),
-              );
-            }
-            resolve(true);
-          });
-
-          zipfile.readEntry();
-        },
-      );
-    });
-  }
-
-  /**
-   * The refusal of a ZIP the reader stopped on: an entry whose path is
-   * absolute or climbs out of the archive's folder (refused before anything
-   * is extracted), or an archive that cannot be read.
-   */
-  private unreadableZipError(err: Error): ArchiveLimitError {
-    const unsafe = /^(?:absolute path|invalid relative path): (.*)$/.exec(
-      err.message,
-    );
-    if (unsafe) {
-      return new ArchiveLimitError(
-        'ARCHIVE_UNSAFE_PATH',
-        `An entry's path is absolute or leaves the archive's folder: "${quoteName(unsafe[1])}"`,
-      );
+    const zip = await openCheckedZip(filePath, limits);
+    try {
+      assertScannableZip(zip);
+    } catch (err) {
+      zip.close();
+      throw err;
     }
-    if (/^invalid characters in fileName/.test(err.message)) {
-      return new ArchiveLimitError(
-        'ARCHIVE_UNSAFE_PATH',
-        "An entry's path holds a backslash: it could leave the archive's folder",
-      );
-    }
-    return new ArchiveLimitError(
-      'ARCHIVE_INVALID',
-      'The uploaded file is not a ZIP archive that can be read',
-    );
+    return zip;
   }
 
   /**
@@ -2269,12 +2412,47 @@ export class FileService implements OnModuleInit {
     }
   }
 
+  /**
+   * After a failure of this service's file system, put the upload back for a
+   * later tick (its archive stays in storage, its scan is not failed), at
+   * most MAX_SYSTEM_FAILURE_RETRIES times. Returns whether it was put back.
+   */
+  private async retryAfterSystemFailure(
+    fileRecord: FileScan,
+    err: unknown,
+    tempDir: string,
+  ): Promise<boolean> {
+    if (!isSystemError(err)) {
+      this.systemFailures.delete(fileRecord.scanId);
+      return false;
+    }
+    const failures = (this.systemFailures.get(fileRecord.scanId) ?? 0) + 1;
+    if (failures > MAX_SYSTEM_FAILURE_RETRIES) {
+      this.systemFailures.delete(fileRecord.scanId);
+      return false;
+    }
+    this.systemFailures.set(fileRecord.scanId, failures);
+    this.logger.warn(
+      `File-system failure while processing ${fileRecord.scanId} (${err.code}), retry ${failures}/${MAX_SYSTEM_FAILURE_RETRIES}`,
+    );
+    await this.fileScanRepository.update(
+      { id: fileRecord.id },
+      { status: FileStatus.PENDING_UPLOAD, updatedAt: new Date() },
+    );
+    await fs.promises
+      .rm(tempDir, { recursive: true, force: true })
+      .catch(() => undefined);
+    return true;
+  }
+
   async processUploadedFile(fileRecord: FileScan): Promise<boolean> {
     const fileId = uuidv6();
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
     const tempDir = isProd
       ? path.join('/tmp', fileId)
       : path.join(__dirname, '../../uploads', fileId);
+    // The uploaded archive once opened, closed whatever happens.
+    let openZip: CheckedZip | null = null;
 
     try {
       const limits = this.zipLimits();
@@ -2290,13 +2468,17 @@ export class FileService implements OnModuleInit {
         limits.maxArchiveBytes,
       );
 
-      // validate ZIP
+      // Open the archive once: every check below and the filter read this
+      // same reading of its bytes. A refused archive ends in the catch below,
+      // which fails the scan with the reason named.
+      let zip: CheckedZip;
       try {
-        await this.validateZipFile(tempZip);
+        zip = await this.openUploadedArchive(tempZip, this.declaredLimits());
         this.logger.debug(`ZIP validation passed for ${tempZip}`);
       } catch (valErr) {
-        // A refused archive: the outer catch fails the scan with its code.
-        if (valErr instanceof ArchiveLimitError) throw valErr;
+        if (valErr instanceof ArchiveLimitError || isSystemError(valErr)) {
+          throw valErr;
+        }
         this.logger.error(`ZIP validation failed: ${valErr.message}`);
         await this.fileScanRepository.update(
           { id: fileRecord.id },
@@ -2313,18 +2495,9 @@ export class FileService implements OnModuleInit {
         await fs.promises.rm(tempDir, { recursive: true, force: true });
         return false;
       }
-
-      // Refuse an archive whose central directory exceeds the limits before
-      // anything is inflated (a refusal ends in the catch below, which fails
-      // the scan with the limit named).
-      // The entry count bounds the forwarded archive too (it never holds more
-      // entries than the upload), so the scanners' own bound applies here.
-      const declared = await assertZipWithinLimits(tempZip, {
-        ...limits,
-        maxEntries: this.forwardedLimits().maxEntries,
-      });
+      openZip = zip;
       this.logger.debug(
-        `ZIP within limits for ${fileRecord.scanId}: ${declared.entries} entries, ${declared.totalBytes} bytes uncompressed`,
+        `ZIP within limits for ${fileRecord.scanId}: ${zip.entries.length} entries, ${zip.declaredTotalBytes} bytes uncompressed`,
       );
 
       // The diff ZIP is built and uploaded by the agent — an
@@ -2375,13 +2548,29 @@ export class FileService implements OnModuleInit {
       // filter ZIP
       this.logger.debug(`Starting ZIP filtering for ${tempZip}`);
       let filteredZipPath: string;
+      let uploadFilterSummary: UploadFilterSummary;
       try {
-        filteredZipPath = await this.filterZipFile(tempZip, tempDir);
+        const filtered = await this.filterArchive(tempZip, tempDir, zip);
+        filteredZipPath = filtered.path;
+        uploadFilterSummary = filtered.summary;
+        this.logger.debug(
+          `Left out of ${fileRecord.scanId}: ${JSON.stringify(filtered.dropped)}`,
+        );
         this.logger.debug(`Filtered ZIP created at ${filteredZipPath}`);
       } catch (filterErr) {
         // An entry that inflated past a limit: the outer catch fails the
-        // scan with the limit named.
-        if (filterErr instanceof ArchiveLimitError) throw filterErr;
+        // scan with the limit named. A failure of this service's file
+        // system (a full disk on the write, an I/O error on a read): the
+        // outer catch puts the upload back for a retry.
+        // Past its processing deadline: failed as a processing error that
+        // names the time limit, not as a fault of the archive.
+        if (
+          filterErr instanceof ArchiveLimitError ||
+          filterErr instanceof ProcessingDeadlineError ||
+          isSystemError(filterErr)
+        ) {
+          throw filterErr;
+        }
         this.logger.error(`Error filtering ZIP: ${filterErr}`);
         await this.fileScanRepository.update(
           { id: fileRecord.id },
@@ -2403,6 +2592,8 @@ export class FileService implements OnModuleInit {
 
       // The original archive is no longer read: free its disk now rather than
       // at the end, while the filtered copy is uploaded and measured.
+      zip.close();
+      openZip = null;
       await fs.promises.rm(tempZip, { force: true });
 
       await this.assertForwardableSize(filteredZipPath);
@@ -2480,6 +2671,9 @@ export class FileService implements OnModuleInit {
         this.scanServiceClient.startScan({
           scanId: fileRecord.scanId,
           projectId: fileRecord.projectId,
+          // What the filter left out, recorded on the scan and shown with
+          // it, so a scan never reads as complete when files were not read.
+          uploadFilterSummary,
           ...(preComputedMetrics
             ? {
                 totalLOC: preComputedMetrics.totalLOC,
@@ -2490,9 +2684,13 @@ export class FileService implements OnModuleInit {
         }),
       );
       this.logger.log(`Scan started for ${fileRecord.scanId}`);
+      this.systemFailures.delete(fileRecord.scanId);
 
       return true;
     } catch (err) {
+      if (await this.retryAfterSystemFailure(fileRecord, err, tempDir)) {
+        return false;
+      }
       if (err instanceof ArchiveLimitError) {
         // The user's archive, not a fault of this service.
         this.logger.warn(
@@ -2535,6 +2733,8 @@ export class FileService implements OnModuleInit {
         await fs.promises.rm(tempDir, { recursive: true, force: true });
       } catch {}
       return false;
+    } finally {
+      openZip?.close();
     }
   }
 
@@ -2596,9 +2796,11 @@ export class FileService implements OnModuleInit {
       // in an RpcException so the gateway maps it to a 500 (microservices must
       // throw RpcException, never raw/HTTP errors).
       if (err instanceof RpcException) throw err;
+      // The SDK's error (bucket, key, request id) is logged, not answered.
+      this.logger.error({ err, msg: 'Failed to delete report object' });
       throw new RpcException({
         code: status.INTERNAL,
-        message: `Failed to delete report object: ${err?.message ?? 'unknown error'}`,
+        message: 'Failed to delete report object',
       });
     }
     return { success: true, message: 'ok' };

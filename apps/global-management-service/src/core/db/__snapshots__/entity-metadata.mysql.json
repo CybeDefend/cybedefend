@@ -3090,12 +3090,12 @@
     },
     {
       "table": "teams_members",
-      "name": "IDX_tm_team_user",
+      "name": "UQ_tm_team_user",
       "columns": [
         "teamId",
         "userId"
       ],
-      "unique": false
+      "unique": true
     },
     {
       "table": "user",
@@ -3115,12 +3115,12 @@
     },
     {
       "table": "users_organizations_members",
-      "name": "IDX_uom_org_user",
+      "name": "UQ_uom_org_user",
       "columns": [
         "organizationId",
         "userId"
       ],
-      "unique": false
+      "unique": true
     }
   ],
   "foreignKeys": [

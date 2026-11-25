@@ -42,7 +42,25 @@ import {
   VulnerabilityCounts,
 } from '@grpc/analysis-reporting/result';
 
-import { VulnerabilityOsv, VulnerabilityOsvSeverity } from 'src/entities/osv';
+import {
+  VulnerabilityOsv,
+  VulnerabilityOsvAlias,
+  VulnerabilityOsvReference,
+  VulnerabilityOsvSeverity,
+} from 'src/entities/osv';
+import {
+  advisoryViewOf,
+  isImportedAdvisoryView,
+  loadCatalogueCveAliases,
+  loadImportedAdvisories,
+} from '../results-import/imported-advisory.view';
+
+/** What the detail of one container finding reads of a catalogue advisory. */
+export const CONTAINER_DETAIL_LIMITS = {
+  aliases: 100,
+  severities: 20,
+  references: 100,
+} as const;
 import { calculateOsvCvssScore } from '../sca/sca.utils';
 import { lookupProjectWithScaBranches } from '../sca/sca-branch.util';
 import {
@@ -1249,6 +1267,7 @@ export class ContainerService {
       // N/A scores (0 or null) go to the end of each severity group
       const allDetections = await qb.getMany();
       total = allDetections.length;
+      await this.applyProjectAdvisories(projectId, allDetections);
 
       // Attach the severity data to compute the CVSS score
       const detectionsWithSeverities =
@@ -1323,7 +1342,11 @@ export class ContainerService {
     }
 
     // --- ENRICHMENT PIPELINE ---
-    // 3. Run the detections through our enrichment pipeline.
+    // 3. Run the detections through our enrichment pipeline. An advisory the
+    // project imported is read from the project's own row only.
+    if (safeSort !== 'cvssScore') {
+      await this.applyProjectAdvisories(projectId, initialDetections);
+    }
 
     let detectionsWithSeverities: VulnerabilityDetectionsContainer[];
 
@@ -1474,6 +1497,87 @@ export class ContainerService {
   }
 
   /**
+   * Replaces the advisory of each detection whose advisory the project
+   * imported by the project's own row; gives every other one its CVE alias
+   * (the same rule as the SCA list), so the list and the detail show one CVE.
+   */
+  private async applyProjectAdvisories(
+    projectId: string,
+    detections: VulnerabilityDetectionsContainer[],
+  ): Promise<void> {
+    const ids = [
+      ...new Set(
+        detections
+          .map((d) => d.vulnerability?.id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    if (ids.length === 0) return;
+    const manager = this.osvRepo.manager;
+    const imported = await loadImportedAdvisories(manager, projectId, ids);
+    const catalogueIds = ids.filter((id) => !imported.has(id));
+    const cves = catalogueIds.length
+      ? await loadCatalogueCveAliases(manager, catalogueIds)
+      : new Map<string, string>();
+    for (const detection of detections) {
+      const id = detection.vulnerability?.id;
+      if (!id) continue;
+      const own = imported.get(id);
+      if (own) {
+        detection.vulnerability = advisoryViewOf(own, {
+          packageName: detection.detectedPackage?.packageName ?? '',
+          ecosystem: '',
+          alternateNames: detection.detectedPackage?.srcName
+            ? [detection.detectedPackage.srcName]
+            : [],
+        });
+      } else if (!detection.vulnerability.aliases && cves.has(id)) {
+        detection.vulnerability.aliases = [
+          Object.assign(new VulnerabilityOsvAlias(), {
+            id: '',
+            alias: cves.get(id),
+          }),
+        ];
+      }
+    }
+  }
+
+  /**
+   * The aliases, severities and references of a catalogue advisory, each by
+   * its own bounded query (never one join of every collection).
+   */
+  private async loadCatalogueCollections(
+    advisory: VulnerabilityOsv,
+  ): Promise<void> {
+    const manager = this.osvRepo.manager;
+    const where = { vulnerability: { id: advisory.id } };
+    const listCve = advisory.aliases?.[0]?.alias;
+    const [aliases, severities, references] = await Promise.all([
+      manager.find(VulnerabilityOsvAlias, {
+        where,
+        order: { alias: 'ASC' },
+        take: CONTAINER_DETAIL_LIMITS.aliases,
+      }),
+      manager.find(VulnerabilityOsvSeverity, {
+        where,
+        order: { id: 'ASC' },
+        take: CONTAINER_DETAIL_LIMITS.severities,
+      }),
+      manager.find(VulnerabilityOsvReference, {
+        where,
+        order: { id: 'ASC' },
+        take: CONTAINER_DETAIL_LIMITS.references,
+      }),
+    ]);
+    if (listCve && !aliases.some((a) => a.alias === listCve)) {
+      aliases.unshift(
+        Object.assign(new VulnerabilityOsvAlias(), { id: '', alias: listCve }),
+      );
+    }
+    Object.assign(advisory, { aliases, severities, references });
+  }
+
+  /**
    * Enriches a list of detections with fixed versions from the OSV database,
    * searching through both primary vulnerabilities and their aliases.
    * This method is optimized to run a minimal number of queries for an entire list.
@@ -1485,8 +1589,13 @@ export class ContainerService {
     detections: VulnerabilityDetectionsContainer[],
   ): Promise<VulnerabilityDetectionsContainer[]> {
     // 1. Identify only the detections that need enrichment.
+    // An imported advisory's fix is what the import declared (stored on the
+    // detection): never looked up in the catalogue.
     const detectionsToEnrich = detections.filter(
-      (d) => !d.fixedVersion && d.vulnerability,
+      (d) =>
+        !d.fixedVersion &&
+        d.vulnerability &&
+        !isImportedAdvisoryView(d.vulnerability),
     );
 
     if (detectionsToEnrich.length === 0) {
@@ -1513,10 +1622,31 @@ export class ContainerService {
     }
 
     // 4. Batch-fetch the full OSV data (with 'affected' relationships) for ALL collected IDs.
-    const fullOsvRecords = await this.osvRepo.find({
-      where: { id: In(Array.from(allVulnerabilityIds)) },
-      relations: ['affected', 'affected.ranges', 'affected.ranges.events'],
-    });
+    //    Only the affected rows of the detections' own packages (name or
+    //    source name, as findFixedVersionForPackage compares them).
+    const packageNames = [
+      ...new Set(
+        detectionsToEnrich.flatMap((d) =>
+          [d.detectedPackage?.packageName, d.detectedPackage?.srcName]
+            .filter((name): name is string => !!name)
+            .map((name) => name.toLowerCase()),
+        ),
+      ),
+    ];
+    const fullOsvRecords = packageNames.length
+      ? await this.osvRepo
+          .createQueryBuilder('v')
+          .leftJoinAndSelect(
+            'v.affected',
+            'aff',
+            'LOWER(aff.packageName) IN (:...packageNames)',
+            { packageNames },
+          )
+          .leftJoinAndSelect('aff.ranges', 'rng')
+          .leftJoinAndSelect('rng.events', 'evt')
+          .where('v.id IN (:...ids)', { ids: Array.from(allVulnerabilityIds) })
+          .getMany()
+      : [];
 
     // 5. Create a map of all fetched records for fast access.
     const allOsvDataMap = new Map<string, VulnerabilityOsv>(
@@ -1576,8 +1706,14 @@ export class ContainerService {
     if (detections.length === 0) {
       return detections;
     }
+    // An imported advisory keeps the severities its import declared.
     const vulnerabilityIds = [
-      ...new Set(detections.map((d) => d.vulnerability?.id).filter(Boolean)),
+      ...new Set(
+        detections
+          .filter((d) => !isImportedAdvisoryView(d.vulnerability))
+          .map((d) => d.vulnerability?.id)
+          .filter(Boolean),
+      ),
     ];
 
     if (vulnerabilityIds.length === 0) {
@@ -1662,6 +1798,7 @@ export class ContainerService {
 
     for (const detection of detections) {
       if (detection.vulnerability) {
+        if (isImportedAdvisoryView(detection.vulnerability)) continue;
         detection.vulnerability.severities =
           severitiesMap.get(detection.vulnerability.id) || [];
       }
@@ -1765,11 +1902,6 @@ export class ContainerService {
       .innerJoinAndSelect('det.detectedPackage', 'pkg')
       .leftJoinAndSelect('det.historyItems', 'historyItems')
       .leftJoinAndSelect('det.vulnerability', 'vulnerability')
-      // Note: We don't need to deep-join 'affected' here anymore, as the enrichment function handles it.
-      // But we need aliases to find the other OSV records.
-      .leftJoinAndSelect('vulnerability.aliases', 'aliases')
-      .leftJoinAndSelect('vulnerability.severities', 'severities')
-      .leftJoinAndSelect('vulnerability.references', 'references')
       .getOne();
 
     if (!detectionRaw) {
@@ -1777,6 +1909,15 @@ export class ContainerService {
         code: status.NOT_FOUND,
         message: `Container vulnerability not found in project`,
       });
+    }
+    // The advisory's collections: the project's own row when it imported
+    // the advisory, else separate bounded reads of the catalogue.
+    await this.applyProjectAdvisories(projectId, [detectionRaw]);
+    if (
+      detectionRaw.vulnerability &&
+      !isImportedAdvisoryView(detectionRaw.vulnerability)
+    ) {
+      await this.loadCatalogueCollections(detectionRaw.vulnerability);
     }
 
     // 2. UNIFICATION: Use the exact same enrichment pipeline as the list view.

@@ -1,30 +1,8 @@
 import Pino, { Logger, LoggerOptions } from 'pino';
 import { trace, context } from '@opentelemetry/api';
-import {
-  framesOf,
-  isDriverError,
-  safeDriverFields,
-} from '../exception/driver-error';
+import { LOGGED_ERROR_LOGGER_OPTIONS } from './logged-error';
 
-/**
- * Serializes an error bound for the logs. A database driver error keeps its
- * class, its identifier-like fields and its stack frames only: its message,
- * parameters, statement and detail can quote the values of the statement (a
- * password hash, a token digest, an e-mail address, a whole user text).
- * Nest's RPC exception handler logs every unexpected error whole, as `err`;
- * a service may also pass one as the context argument.
- */
-export function serializeLoggedError(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') return value;
-  if (isDriverError(value as Record<string, unknown>)) {
-    return {
-      type: value.constructor?.name ?? 'Error',
-      ...safeDriverFields(value as Record<string, unknown>),
-      stack: framesOf(value as Error),
-    };
-  }
-  return value instanceof Error ? Pino.stdSerializers.err(value) : value;
-}
+export { createHttpLoggerOptions } from './logged-error';
 
 export function createLoggerOptions(opts?: {
   otelIngestToken?: string;
@@ -107,10 +85,9 @@ export function createLoggerOptions(opts?: {
       }
       return {};
     },
-    serializers: {
-      err: serializeLoggedError,
-      context: serializeLoggedError,
-    },
+    // Errors under any key, and the line's message, are logged without
+    // a statement, its parameters or a value an engine's message quotes.
+    ...LOGGED_ERROR_LOGGER_OPTIONS,
     // Redact sensitive information from logs
     redact: {
       paths: [

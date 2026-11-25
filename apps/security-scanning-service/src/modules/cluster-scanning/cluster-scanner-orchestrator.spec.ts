@@ -32,11 +32,13 @@ import type { ClusterScanningState } from './cluster-scanning.state';
 
 const SCAN_ID = '11111111-1111-4111-8111-111111111111';
 
-const config = (max = 2): ClusterScanningConfig =>
+const config = (max = 2, perOrganization?: number): ClusterScanningConfig =>
   readClusterScanningConfig({
     CYBEDEFEND_SCANNER_KUBECONFIG_FILE: '/run/kubeconfig',
     CYBEDEFEND_SCANNER_NAMESPACE: 'scans',
     CYBEDEFEND_SCANNER_MAX_CONCURRENT: String(max),
+    CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION:
+      perOrganization === undefined ? '' : String(perOrganization),
     FRONTEND_URL: 'https://appsec.example.com',
   });
 
@@ -75,7 +77,15 @@ const SETTINGS = {
 } as unknown as ProjectScanSettings;
 
 function harness(
-  opts: { running?: number; queued?: number; max?: number } = {},
+  opts: {
+    running?: number;
+    queued?: number;
+    max?: number;
+    /** CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION; unset when not given. */
+    perOrganization?: number;
+    /** The organization's slot-holding running scans outside this harness. */
+    orgRunning?: number;
+  } = {},
 ) {
   // The scans this harness claimed: what the post-claim recount sees.
   const tracked: Scan[] = [];
@@ -109,7 +119,30 @@ function harness(
     save: jest.fn(async (s: Scan) => s),
     count: jest.fn(async () => opts.queued ?? 0),
     find: jest.fn(async () => tracked.filter((t) => t.state === 'queued')),
-    createQueryBuilder: jest.fn(stepBackQuery),
+    // With an alias: the dequeue's list of the organizations that wait.
+    createQueryBuilder: jest.fn((alias?: string) => {
+      if (!alias) return stepBackQuery();
+      const qb = {
+        select: () => qb,
+        addSelect: () => qb,
+        where: () => qb,
+        groupBy: () => qb,
+        getRawMany: async () => {
+          const waiting = tracked.filter((t) => t.state === 'queued');
+          return [...new Set(waiting.map((t) => t.organizationId))].map(
+            (organizationId) => ({
+              organizationId,
+              waiting: String(
+                waiting.filter((t) => t.organizationId === organizationId)
+                  .length,
+              ),
+              oldest: new Date(0),
+            }),
+          );
+        },
+      };
+      return qb;
+    }),
     manager: {
       getRepository: () => ({
         createQueryBuilder: () => {
@@ -159,8 +192,25 @@ function harness(
       total:
         (opts.running ?? 0) +
         tracked.filter((t) => t.state === 'running').length,
-      byOrganization: {},
+      byOrganization: {
+        o1:
+          (opts.orgRunning ?? 0) +
+          tracked.filter((t) => t.state === 'running').length,
+      } as Record<string, number>,
     })),
+    // The organization's stored limit is not this engine's: never read.
+    getOrganizationConcurrentScanLimit: jest.fn(async () => {
+      throw new Error('the stored limit must not be read');
+    }),
+    // The organization's slot-holding running scans plus its queued ones,
+    // against its limit (OrganizationManager.shouldQueueScan's rule).
+    shouldQueueScan: jest.fn<Promise<boolean>, [string, number]>(
+      async (_id, limit) =>
+        (opts.orgRunning ?? 0) +
+          tracked.filter((t) => ['running', 'queued'].includes(t.state))
+            .length >=
+        limit,
+    ),
   };
   const launcher = { launch: jest.fn(async () => 1) };
   const files = { deleteFile: jest.fn(async () => ({ success: true })) };
@@ -177,7 +227,7 @@ function harness(
       stateManager as unknown as ScanStateManager,
       files as unknown as FileManagementService,
     ),
-    config(opts.max ?? 2),
+    config(opts.max ?? 2, opts.perOrganization),
   );
   return {
     orchestrator,
@@ -508,6 +558,86 @@ describe('ClusterScannerOrchestrator', () => {
       await queue.tick();
       expect(running()).toBe(1);
       expect([a, b].filter((x) => x.state === 'queued')).toHaveLength(1);
+    });
+  });
+
+  describe('the per-organization limit (an instance setting)', () => {
+    it('admission: an organization at its limit is queued, not refused, even with platform capacity left', async () => {
+      const h = harness({
+        max: 10,
+        perOrganization: 1,
+        orgRunning: 1,
+        running: 1,
+      });
+      const s = newScan();
+      const answer = await h.orchestrator.startScan(s, start());
+      expect(answer).toMatchObject({
+        success: true,
+        message: 'Scan queued due to concurrent scan limits',
+      });
+      expect(s.state).toBe('queued');
+      expect(h.launcher.launch).not.toHaveBeenCalled();
+      expect(h.organizationManager.shouldQueueScan).toHaveBeenCalledWith(
+        'o1',
+        1,
+      );
+    });
+
+    it('admission: below its limit the scan starts', async () => {
+      const h = harness({
+        max: 10,
+        perOrganization: 2,
+        orgRunning: 1,
+        running: 1,
+      });
+      const s = newScan();
+      await h.orchestrator.startScan(s, start());
+      expect(s.state).toBe('running');
+      expect(h.launcher.launch).toHaveBeenCalledTimes(1);
+    });
+
+    it('unset, the limit is the instance maximum: one organization keeps the whole capacity', async () => {
+      const h = harness({ max: 4, orgRunning: 3, running: 3 });
+      const s = newScan();
+      await h.orchestrator.startScan(s, start());
+      expect(h.organizationManager.shouldQueueScan).toHaveBeenCalledWith(
+        'o1',
+        4,
+      );
+      expect(s.state).toBe('running');
+      // the organization's stored limit is not read by this engine
+      expect(
+        h.organizationManager.getOrganizationConcurrentScanLimit,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('over the organization limit after the claim: steps back to queued', async () => {
+      const h = harness({ max: 10, perOrganization: 1 });
+      // another process started a scan of the same organization meanwhile
+      h.organizationManager.getSlotHoldingScansCount.mockResolvedValueOnce({
+        total: 2,
+        byOrganization: { o1: 2 },
+      });
+      const s = newScan({ state: 'queued' });
+      await expect(h.orchestrator.launchScan(s)).resolves.toBe('requeued');
+      expect(s.state).toBe('queued');
+      expect(h.launcher.launch).not.toHaveBeenCalled();
+    });
+
+    it('two concurrent starts of one organization with a limit of 1: never two running', async () => {
+      const h = harness({ max: 10, perOrganization: 1 });
+      const a = newScan({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
+      const b = newScan({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
+      // both admissions read an empty organization
+      h.organizationManager.shouldQueueScan.mockResolvedValue(false);
+      await Promise.all([
+        h.orchestrator.startScan(a, start()),
+        h.orchestrator.startScan(b, start()),
+      ]);
+      expect(
+        [a, b].filter((x) => x.state === 'running').length,
+      ).toBeLessThanOrEqual(1);
+      expect(h.launcher.launch.mock.calls.length).toBeLessThanOrEqual(1);
     });
   });
 });

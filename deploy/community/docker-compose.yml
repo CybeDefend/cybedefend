@@ -24,9 +24,10 @@
 # Networks: `front` holds what publishes a port to users (dashboard, mcp) and
 # the gateway they talk to; `cybedefend`, the back network, holds every other
 # service, the gateway included. dashboard and mcp reach the gateway and
-# nothing behind it. The internal gRPC calls are signed besides (a key
-# init-secrets derives and hands to each service), so a container on the back
-# network that holds no key is refused too.
+# nothing behind it. The internal gRPC calls are signed besides (keys
+# init-secrets derives, one per caller and server, and hands to the two ends
+# of each pair), so a container on the back network that holds no key is
+# refused too.
 
 name: cybedefend
 
@@ -61,7 +62,7 @@ x-volumes-gateway: &volumes-gateway
     - runtime:/run/cybedefend:ro
     # cybedefend-ignore[CD-IAC-0605]: a read-only bind mount of the helper scripts shipped next to this file, the same for every service on purpose
     - ./runtime:/opt/cybedefend/runtime:ro
-    # cybedefend-ignore[CD-IAC-0605]: the gateway's own secrets (the internal gRPC signing key), read-only; only init-secrets writes this volume
+    # cybedefend-ignore[CD-IAC-0605]: the gateway's own secrets (its internal gRPC signing keys, one per server), read-only; only init-secrets writes this volume
     - secrets-gateway:/run/cybedefend-secrets:ro
 x-volumes-global-management: &volumes-global-management
     # cybedefend-ignore[CD-IAC-0605]: read-only for every service; only the one-shot init jobs write this volume (schema version)
@@ -112,9 +113,10 @@ x-volumes-policy-management: &volumes-policy-management
 # and hands each service only the ones it reads, as <KEY>_FILE.
 x-app-env: &app-env
   CYBEDEFEND_EDITION: community
-  # Signs and checks every internal gRPC call; in every service's own secrets.
-  SERVICE_AUTH_KEY_FILE: /run/cybedefend-secrets/SERVICE_AUTH_KEY
-  # Verifies each caller a server serves: SERVICE_AUTH_PEER_KEY_<CALLER>, one file each.
+  # The internal gRPC keys, in every service's own secrets: one key per
+  # (caller, server) pair. SERVICE_AUTH_KEY_FOR_<SERVER> signs this service's
+  # calls to that server; SERVICE_AUTH_PEER_KEY_<CALLER> verifies the calls of
+  # each caller it serves. A key held by one service signs calls to one server only.
   SERVICE_AUTH_PEER_KEYS_DIR: /run/cybedefend-secrets
   # Redis requires a password. The start hook (runtime/redis-auth.cjs) reads it
   # from REDIS_PASSWORD_FILE, in the service's own secrets, and hands it to
@@ -584,6 +586,7 @@ services:
       CYBEDEFEND_SCANNER_IMAGE_TAG: ${CYBEDEFEND_SCANNER_IMAGE_TAG:-}
       CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET: ${CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET:-}
       CYBEDEFEND_SCANNER_MAX_CONCURRENT: ${CYBEDEFEND_SCANNER_MAX_CONCURRENT:-}
+      CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: ${CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION:-}
       CYBEDEFEND_SCANNER_RESOURCES: ${CYBEDEFEND_SCANNER_RESOURCES:-}
       CYBEDEFEND_SCANNER_KEEP_PODS: ${CYBEDEFEND_SCANNER_KEEP_PODS:-}
       CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS: ${CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS:-}
@@ -631,6 +634,9 @@ services:
       SECRET_ENCRYPTION_KEY_FILE: /run/cybedefend-secrets/SECRET_ENCRYPTION_KEY
       NODE_PATH: /app/analysis-reporting-service/node_modules
       PERMIFY_SCHEMA_VERSION_FILE: /run/cybedefend/permify-schema-version
+      # Stored report limits, both optional: an unset variable is not passed at all.
+      REPORTS_MAX_STORED_PER_ORG:
+      REPORTS_RETENTION_DAYS:
     depends_on:
       global-management:
         condition: service_healthy
@@ -967,6 +973,8 @@ services:
       # agent arrives from the proxy's address: it takes the client's from
       # X-Forwarded-For only from the proxies the front trusts.
       TRUST_PROXY_CIDR: ${CYBEDEFEND_TRUSTED_PROXIES:-}
+      # Browser pages it answers: comma-separated origins (e.g. a browser MCP inspector's); empty: its own address only.
+      MCP_ALLOWED_ORIGINS: ${CYBEDEFEND_MCP_ALLOWED_ORIGINS:-}
     # cybedefend-ignore[CD-IAC-0626]: published on purpose: coding agents reach the MCP server on this port, on 127.0.0.1 unless CYBEDEFEND_BIND_ADDRESS is set; put your TLS proxy in front of it
     ports:
       - "${CYBEDEFEND_BIND_ADDRESS:-127.0.0.1}:${CYBEDEFEND_MCP_PORT:-3010}:3010"

@@ -1081,6 +1081,23 @@
     },
     {
       "table": "scan",
+      "property": "uploadFilterSummary",
+      "column": "uploadFilterSummary",
+      "type": "json",
+      "length": null,
+      "precision": null,
+      "scale": null,
+      "nullable": true,
+      "primary": false,
+      "generationStrategy": null,
+      "default": null,
+      "onUpdate": null,
+      "enum": null,
+      "unsigned": false,
+      "width": null
+    },
+    {
+      "table": "scan",
       "property": "vibedefendUnitClosed",
       "column": "vibedefendUnitClosed",
       "type": "Boolean",

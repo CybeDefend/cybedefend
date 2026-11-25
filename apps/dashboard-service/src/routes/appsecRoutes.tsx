@@ -3,6 +3,7 @@ import { Navigate, Route } from 'react-router-dom';
 import ShellPage from '@/components/organismes/layout/ShellPage';
 import ProtectedRouteWrapper from '@/components/molecules/protected-route/ProtectedRouteWrapper';
 import AppSecLegacyRedirect from '@/components/molecules/routing/AppSecLegacyRedirect';
+import ProjectIdGuard from '@/components/molecules/routing/ProjectIdGuard';
 import { ACTIVE_EXTENSIONS } from '@/edition/active';
 import type { ProductRouteGuardProps } from '@/edition/extensions';
 import HomePage from '@/pages/home-page/HomePage';
@@ -149,6 +150,21 @@ const PROJECT_OVERVIEW_ALIASES: readonly string[] = [
  * in a static segment and outrank every former AppSec pattern here, which
  * never ends a project URL with a dynamic one.
  */
+/**
+ * A page whose URL carries a `:projectId` renders only for a UUID id: the
+ * pages put the id in request paths, and anything else is sent to the list.
+ * The guard goes inside the shell, so the shell stays mounted from one page to
+ * the next.
+ */
+const withProjectIdGuard = (path: string, element: React.ReactElement): React.ReactElement => {
+  if (!path.includes(':projectId')) return element;
+  if (element.type === ShellPage) {
+    const { children } = element.props as { children: React.ReactNode };
+    return React.cloneElement(element, undefined, <ProjectIdGuard fallback={APPSEC_PROJECTS_PATH}>{children}</ProjectIdGuard>);
+  }
+  return <ProjectIdGuard fallback={APPSEC_PROJECTS_PATH}>{element}</ProjectIdGuard>;
+};
+
 /** The AppSec pages an edition serves. */
 const pagesFor = (edition: Edition): readonly AppSecPage[] =>
   edition === 'community' ? APPSEC_PAGES.filter(({ path }) => path !== LICENSE_DETAIL_PATH) : APPSEC_PAGES;
@@ -166,7 +182,7 @@ export const appsecRoutesFor = (edition: Edition): React.ReactElement => (
     />
     <Route path={APPSEC_PROJECTS_PATH} element={guarded(inShell('Projects', <HomePage />))} />
     {pagesFor(edition).map(({ path, element }) => (
-      <Route key={path} path={appsecPath(path)} element={guarded(element)} />
+      <Route key={path} path={appsecPath(path)} element={guarded(withProjectIdGuard(path, element))} />
     ))}
     {/* The Platform's « Usage & billing » and its former URL belong to the
         billing area of the edition (`eeRoutes`). */}

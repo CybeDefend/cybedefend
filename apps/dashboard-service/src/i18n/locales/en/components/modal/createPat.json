@@ -14,8 +14,11 @@
                 "year1": "1 year",
                 "never": "Never",
                 "errors": {
-                    "nameRequired": "Token name is required"
-                }
+                    "nameRequired": "Token name is required",
+                    "passwordRequired": "Enter your password to create a token"
+                },
+                "passwordLabel": "Your password",
+                "passwordHint": "A token keeps working after you sign out, so creating one needs your password."
             }
         }
     }

@@ -308,6 +308,25 @@ function triageAuthority(detection: TriageBearing): 0 | 1 | 2 {
 }
 
 /**
+ * Whether a person or the agent took a decision on this row. Such a decision
+ * belongs to the occurrence it was taken on: a scan never moves it to another
+ * live occurrence, and never deletes the row that carries it.
+ */
+export function carriesTriageDecision(detection: TriageBearing): boolean {
+  return triageAuthority(detection) === 2;
+}
+
+/**
+ * A dismissal a person or the agent took on this row (`ignored`). It hides the
+ * finding, so it is never adopted by another occurrence of the same code.
+ */
+export function holdsDismissal(detection: TriageBearing): boolean {
+  return (
+    detection.currentState === 'ignored' && carriesTriageDecision(detection)
+  );
+}
+
+/**
  * A verdict the AI agent reached on its own: filed as the agent with nobody
  * accountable in `triaged_by`. A chat write a person approved names that
  * person there, so it is their decision relayed by the agent.

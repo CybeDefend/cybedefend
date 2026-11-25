@@ -3,6 +3,9 @@ import { render, screen, fireEvent, createEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import SafeMarkdown, { isSafeInternalPath } from './SafeMarkdown';
+import { PRODUCT_SPACES } from '@/utils/product';
+
+const UUID = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -328,24 +331,58 @@ describe('SafeMarkdown internal link whitelist', () => {
         expect(screen.getByText('Rel')).toBeInTheDocument();
     });
 
-    it('preserves query strings on internal paths', () => {
+    // A page may act on what its query holds: only the keys a finding link
+    // uses are kept, with checked values, and never a fragment.
+    it('renders an internal link with another query key as plain text', () => {
         render(
             <MemoryRouter>
                 <SafeMarkdown content="[Q](/project/p1?tab=overview)" />
             </MemoryRouter>,
         );
-        const link = screen.getByRole('link', { name: 'Q' });
-        expect(link).toHaveAttribute('href', '/project/p1?tab=overview');
+        expect(screen.queryByRole('link')).toBeNull();
     });
 
-    it('preserves fragments on internal paths', () => {
+    it('renders an internal link with a fragment as plain text', () => {
         render(
             <MemoryRouter>
                 <SafeMarkdown content="[F](/project/p1#section)" />
             </MemoryRouter>,
         );
-        const link = screen.getByRole('link', { name: 'F' });
-        expect(link).toHaveAttribute('href', '/project/p1#section');
+        expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('keeps a finding link with its issue and branch', () => {
+        const href = `/appsec/project/p1/sast?issue=${UUID}&branch=main`;
+        render(
+            <MemoryRouter>
+                <SafeMarkdown content={`[Finding](${href})`} />
+            </MemoryRouter>,
+        );
+        expect(screen.getByRole('link', { name: 'Finding' })).toHaveAttribute('href', href);
+    });
+
+    // The visible text of an internal link never names another address.
+    it.each([
+        ['https://docs.cybedefend.com/x', '/appsec/project/p1/sast'],
+        ['/appsec/projects', '/appsec/project/p1/settings'],
+        ['www.example.com', '/appsec'],
+    ])('renders [%s](%s) as plain text', (text, href) => {
+        render(
+            <MemoryRouter>
+                <SafeMarkdown content={`[${text}](${href})`} />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('link')).toBeNull();
+        expect(screen.getByText(text)).toBeInTheDocument();
+    });
+
+    it('keeps an internal link whose text is its own target', () => {
+        render(
+            <MemoryRouter>
+                <SafeMarkdown content="[/appsec/projects](/appsec/projects)" />
+            </MemoryRouter>,
+        );
+        expect(screen.getByRole('link', { name: '/appsec/projects' })).toHaveAttribute('href', '/appsec/projects');
     });
 
     it('rejects overly long hrefs (>2048 chars)', () => {
@@ -400,16 +437,25 @@ describe('SafeMarkdown internal links never leave the application', () => {
         expect(screen.getByText('Evil')).toBeInTheDocument();
     });
 
-    it('keeps an encoded slash further down the path a link', () => {
+    // An encoded separator in the path becomes one as soon as anything decodes
+    // it (the router hands parameters decoded), so such a link is plain text.
+    it('renders a link with an encoded slash in its path as plain text', () => {
         render(
             <MemoryRouter>
                 <SafeMarkdown content="[Vuln](/appsec/project/p%2F1/sast?issue=v%2F1#h)" />
             </MemoryRouter>,
         );
-        expect(screen.getByRole('link', { name: 'Vuln' })).toHaveAttribute(
-            'href',
-            '/appsec/project/p%2F1/sast?issue=v%2F1#h',
+        expect(screen.queryByRole('link')).toBeNull();
+        expect(screen.getByText('Vuln')).toBeInTheDocument();
+    });
+
+    it('renders a link whose issue is not a UUID as plain text', () => {
+        render(
+            <MemoryRouter>
+                <SafeMarkdown content="[Vuln](/appsec/project/p1/sast?issue=v%2F1)" />
+            </MemoryRouter>,
         );
+        expect(screen.queryByRole('link')).toBeNull();
     });
 });
 
@@ -436,16 +482,68 @@ describe('isSafeInternalPath', () => {
         'https://evil.example',
         'evil.example',
         '',
+        // A path that leaves its route once resolved or decoded.
+        '/appsec/project/../../organization/x/settings',
+        '/appsec/project/x/..',
+        '/appsec/./project',
+        '/appsec/project/%2e%2e/x',
+        '/appsec/project/%2E%2E/x',
+        '/appsec/project/p%2F1/sast',
+        '/appsec/project/p%2f..%2fx',
+        '/appsec/project/p%5C1',
+        // Not a page of the application.
+        '/logout',
+        '/login?returnTo=/x',
+        '/callback',
+        '/api/project/x',
+        '/not-a-page/x',
+        '/Project/x',
+        '/v1/realtime/x',
+        // Pages that act on open, wherever the segment is.
+        '/integrations/github/callback?code=x&installation_id=1&state=s',
+        '/integrations/gitlab/callback',
+        '/integrations/slack/callback?code=x',
+        '/integrations/jira/callback',
+        '/integrations/linear/callback',
+        '/appsec/callback',
+        '/organization/logout',
+        '/x/invite',
+        '/appsec/setup',
+        // A one-word root that is not a page of the edition.
+        '/trial',
+        '/health',
+        // A query other than a finding link, or a fragment.
+        '/appsec/project/p1/sast?issue=x',
+        '/appsec/project/p1/sast?issue=v%2F1',
+        '/appsec/project/p1/sast?returnTo=/x',
+        `/appsec/project/p1/sast?issue=${UUID}&code=x`,
+        `/appsec/project/p1/sast?branch=x%26calc`,
+        '/appsec/projects#x',
+        '/appsec/projects?',
     ])('refuses %j', (href) => {
         expect(isSafeInternalPath(href)).toBe(false);
     });
 
-    it.each(['/', '/appsec', '/appsec/project/p%2F1/sast?issue=v%2F1#h', '/project/p1/sast/issue/v42'])(
+    it.each([
+        '/',
+        '/appsec',
+        `/appsec/project/p1/sast?issue=${UUID}`,
+        `/appsec/project/${UUID}/sca?issue=${UUID}&branch=release/1.2`,
+        '/project/p1/sast/issue/v42',
+        '/organization/settings/policies',
+        '/reports',
+        '/appsec/project/p1/sca/license/GPL-2.0+',
+    ])(
         'accepts %j',
         (href) => {
             expect(isSafeInternalPath(href)).toBe(true);
         },
     );
+
+    // Every product space of the edition is a page of the application.
+    it.each(PRODUCT_SPACES.map((space) => space.prefix))('accepts a project page under %s', (prefix) => {
+        expect(isSafeInternalPath(`${prefix}/project/p1/settings`)).toBe(true);
+    });
 });
 
 /**

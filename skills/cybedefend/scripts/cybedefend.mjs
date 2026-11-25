@@ -9,9 +9,9 @@
 //   node cybedefend.mjs board                what each tool of the scan did, one line per tool
 //   node cybedefend.mjs progress [--of <n>] [--reviewed <n>] [--flaw "..." --where <file:line>] [--lead "..."]  the AI scanner's count, on the screen and on the live page
 //   node cybedefend.mjs write-audit          the audit's findings, from .cybedefend/out/findings.json to audit.sarif
-//   node cybedefend.mjs finish [--no-open] [--no-set-aside]  check, triage, send, merge, verdict, dashboard
-//   node cybedefend.mjs assess               apply the triage of .cybedefend/out/assessments.json alone
-//   node cybedefend.mjs assess --check [--wait [seconds]]  the triage against this scan's findings, nothing sent
+//   node cybedefend.mjs finish [--no-open] [--no-set-aside] [--accept-verdicts <digest>]  check, triage, send, merge, verdict, dashboard
+//   node cybedefend.mjs assess --save <file> [--part <name>] | assess [--accept-verdicts <digest>]  save the triage you wrote; apply it alone
+//   node cybedefend.mjs assess --check [--wait [seconds]] [--accept-verdicts <digest>]  the triage against this scan's findings, nothing sent
 //   node cybedefend.mjs keep --reviewed a,b  bring back the last audit's findings in files this run did not review
 //   node cybedefend.mjs keep --fixed <test>,<file:line>  after a fix: the last audit without the findings that were fixed
 //   node cybedefend.mjs blocks               what blocks, short: the working list of /cybedefend fix
@@ -33,7 +33,7 @@
 // 3 the instance cannot be used (not reachable, token missing or refused),
 // 4 no project for this repository, 64 usage error.
 
-import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync, readdirSync, copyFileSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync, lstatSync, mkdirSync, readdirSync, copyFileSync, rmSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
@@ -41,7 +41,8 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SCANNED, openCommand } from './os.mjs';
-import { writeReport, printPdf, shownUpgrade } from './report.mjs';
+import { insideRoot, readNote, realOr, remember, remembered, runGit, sha256, trustedRoot, TreeRefused, within } from './trust.mjs';
+import { writeReport, printPdf, shownUpgrade, fromFilesNote } from './report.mjs';
 import { startWatch, updateWatch, readWatch, setTool, setStep, addFeed, setFindings, sayFinding, counterLine, openWatch, pageFile, toolLabel, toolArea, whyNot, replayTimeline, replayWatch, replayFile, replaySource, keepReplay } from './watch.mjs';
 
 export const IMPORT_TYPES = ['sast', 'iac', 'secret', 'cicd', 'sca', 'container'];
@@ -66,7 +67,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ─── Arguments ──────────────────────────────────────────────────────────────
 
 /** Flags that never take a value, so the word after them stays positional. */
-const BOOLEAN_FLAGS = new Set(['audit', 'add-to-run', 'check']);
+const BOOLEAN_FLAGS = new Set(['policy', 'audit', 'add-to-run', 'check']);
 
 export function parseArgs(argv) {
   const positional = [];
@@ -86,15 +87,17 @@ export function parseArgs(argv) {
 
 // ─── The repository ─────────────────────────────────────────────────────────
 
+// Every git command goes through runGit (trust.mjs): the repository's own configuration runs no program.
 function git(args, cwd = process.cwd()) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  return runGit(args, { cwd, encoding: 'utf8' }).trim();
 }
 
+/** The repository's root, with its .cybedefend tree checked before anything there is read or written (trust.mjs). */
 export function repoRoot(cwd = process.cwd()) {
   try {
-    // resolve(): git answers C:/x/y on Windows, where the paths compared with it read C:\x\y.
-    return resolve(git(['rev-parse', '--show-toplevel'], cwd));
-  } catch {
+    return trustedRoot(cwd);
+  } catch (e) {
+    if (e instanceof TreeRefused) throw new Exit(3, e.message);
     throw new Exit(64, 'Not inside a git repository: run this from the repository you work on.');
   }
 }
@@ -114,23 +117,38 @@ export function currentBranch(root, given) {
 /**
  * The project of this repository on this dashboard, from .cybedefend/config.json:
  * "appsec" (written by setup.mjs, with the dashboard's address) first, then the
- * top-level "projectId" (what create_project writes).
+ * top-level "projectId" (what create_project writes). The file comes with the
+ * repository: when this machine knows another project for this repository on
+ * this dashboard (setup.mjs created, found or was told it), nothing is sent and
+ * the user is asked. The dashboard's address itself never comes from the file.
  */
-export function projectId(root, inst) {
+export function projectId(root, inst, env = process.env) {
+  const isId = (v) => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v);
+  // The user's own choice, from the environment (a CI runner, where setup never ran): the file has no say.
+  if (env.CYBEDEFEND_PROJECT_ID !== undefined) {
+    if (!isId(env.CYBEDEFEND_PROJECT_ID)) throw new Exit(4, 'CYBEDEFEND_PROJECT_ID is not a project id.');
+    return env.CYBEDEFEND_PROJECT_ID;
+  }
+  const known = inst ? readNote(root, 'project.json')?.[inst.url] : undefined;
+  if (!isId(known)) {
+    throw new Exit(4, `This machine has no record of this repository's project on ${inst?.url ?? 'this dashboard'}: run node scripts/setup.mjs from it (it finds or creates the project, and asks when .cybedefend/config.json names another one), or set CYBEDEFEND_PROJECT_ID. A project id read from the repository is never used on its own: the repository decides what that file says.`);
+  }
   const file = join(root, '.cybedefend', 'config.json');
-  if (!existsSync(file)) {
-    throw new Exit(4, 'This repository has no CybeDefend project yet: run node scripts/setup.mjs from it.');
+  let config = {};
+  if (existsSync(file)) {
+    try {
+      config = JSON.parse(readFileSync(file, 'utf8')) ?? {};
+    } catch {
+      throw new Exit(4, '.cybedefend/config.json is not valid JSON.');
+    }
   }
-  let id;
-  try {
-    const config = JSON.parse(readFileSync(file, 'utf8'));
-    const local = config.appsec;
-    id = local?.projectId && (!inst || !local.url || local.url === inst.url) ? local.projectId : config.projectId;
-  } catch {
-    throw new Exit(4, '.cybedefend/config.json is not valid JSON.');
+  // Both ids of the file name this project, or nothing is sent: the top-level one is what the MCP server reads.
+  const named = [config.appsec?.url === inst.url ? config.appsec?.projectId : undefined, config.projectId].filter((v) => v !== undefined && v !== null);
+  const other = named.find((v) => v !== known);
+  if (other !== undefined) {
+    throw new Exit(4, `.cybedefend/config.json names project ${other}, and this repository's project on this dashboard is ${known}. The file comes with the repository: it does not choose where the results go, and nothing was sent. Ask the user which project to use, then run setup.mjs again with --project <id>.`);
   }
-  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) throw new Exit(4, '.cybedefend/config.json has no valid projectId.');
-  return id;
+  return known;
 }
 
 // ─── The SARIF check ────────────────────────────────────────────────────────
@@ -1009,7 +1027,7 @@ export function zipStore(files) {
 
 /** The working tree as git sees it: tracked and new files, without the ignored ones or .cybedefend/out. */
 export function workingTreeFiles(root) {
-  const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+  const out = runGit(['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
   return out
     .toString('utf8')
     .split('\0')
@@ -1017,11 +1035,25 @@ export function workingTreeFiles(root) {
     .filter((p) => !p.startsWith('.cybedefend/out/'))
     .filter((p) => {
       try {
-        return statSync(join(root, p)).isFile();
+        // lstat: a symbolic link is skipped, it can point anywhere on the machine (a key in the user's home).
+        return lstatSync(join(root, p)).isFile() && insideRoot(root, p) !== null;
       } catch {
         return false; // deleted in the working tree
       }
     });
+}
+
+/**
+ * The repository as the archive the dashboard scans: each file read from its
+ * real path, which stays in the repository (workingTreeFiles).
+ */
+export function repositoryArchive(root, { withList = false } = {}) {
+  const files = workingTreeFiles(root).flatMap((p) => {
+    const real = insideRoot(root, p);
+    return real ? [{ name: p.split(sep).join('/'), data: readFileSync(real) }] : [];
+  });
+  const archive = zipStore(files);
+  return withList ? { archive, files } : archive;
 }
 
 export async function instanceScan(inst, { root, project, branch, pollMs }) {
@@ -1033,8 +1065,7 @@ export async function instanceScan(inst, { root, project, branch, pollMs }) {
   if (![200, 201, 202].includes(start.status) || !start.data?.url || !start.data?.scanId) {
     throw new Exit(2, `The instance did not start the scan: HTTP ${start.status}${codeOf(start) ? ` ${codeOf(start)}` : ''}.`);
   }
-  const files = workingTreeFiles(root).map((p) => ({ name: p.split(sep).join('/'), data: readFileSync(join(root, p)) }));
-  const archive = zipStore(files);
+  const { archive, files } = repositoryArchive(root, { withList: true });
   say(`Uploading ${files.length} files (${Math.round(archive.length / 1024)} KiB) for scan ${start.data.scanId}.`);
   let put;
   try {
@@ -2408,7 +2439,7 @@ const NOT_CODE = /(^|\/)\.cybedefend\/|(^|\/)skills\/cybedefend\/|(^|\/)skills-l
 export function lastCodeChange(root) {
   let fields;
   try {
-    fields = execFileSync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 }).split('\0');
+    fields = runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).split('\0');
   } catch {
     return 0;
   }
@@ -2437,9 +2468,9 @@ export function lastCodeChange(root) {
 function codeCommittedSince(root, head) {
   if (!head) return false;
   try {
-    const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
+    const git = (args) => runGit(args, { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
     if (git(['rev-parse', 'HEAD']).trim() === head) return false;
-    return git(['diff', '--name-only', '-z', head, 'HEAD']).split('\0').filter(Boolean).some((name) => !NOT_CODE.test(name));
+    return git(['diff', '--no-ext-diff', '--no-textconv', '--name-only', '-z', head, 'HEAD']).split('\0').filter(Boolean).some((name) => !NOT_CODE.test(name));
   } catch {
     return true;
   }
@@ -2458,7 +2489,8 @@ export function liveProbes(out, root) {
   let probes;
   try {
     const doc = JSON.parse(readFileSync(join(out, 'live.json'), 'utf8'));
-    probes = Array.isArray(doc.probes) ? doc.probes : [];
+    // live.mjs numbers each probe and keeps the HTTP status it got: an entry with anything else there was not written by it.
+    probes = (Array.isArray(doc.probes) ? doc.probes : []).filter((p) => Number.isSafeInteger(p?.id) && Number.isSafeInteger(p?.response?.status) && p?.request && typeof p.request === 'object');
   } catch {
     return [];
   }
@@ -2555,8 +2587,8 @@ function sourceLines(root, uri, cache) {
   if (!cache.has(uri)) {
     let lines = null;
     try {
-      const path = resolve(root, uri);
-      if (path.startsWith(resolve(root) + sep) && statSync(path).size <= 5_000_000) lines = readFileSync(path, 'utf8').split('\n');
+      const path = insideRoot(root, resolve(root, uri));
+      if (path && statSync(path).size <= 5_000_000) lines = readFileSync(path, 'utf8').split('\n');
     } catch {
       /* not there */
     }
@@ -2641,30 +2673,80 @@ export function assessmentFiles(out) {
  * a list of packages or a rule, then what comes in through a dependency, then
  * a folder or a lockfile.
  */
-export function readAssessments(out, { root = null } = {}) {
-  const files = assessmentFiles(out);
+export function readAssessments(out, { root = null, accept = undefined } = {}) {
+  const files = [];
   const problems = [];
-  // The verdicts of the last run that still stand come first: at the same precision, an entry of this run wins.
-  const last = root ? lastTriage(root) : null;
-  const list = last ? [...last.list] : [];
   const text = (v) => (typeof v === 'string' ? v.trim() : '');
-  let entry = 0;
-  for (const name of files) {
-    let doc;
+  // Verdicts nobody gave on this machine: listed with a digest of what they are, and applied only when the user
+  // gives that digest back (--accept-verdicts <digest>), at the lowest precision, and never on everything.
+  const fromFiles = { applied: 0, refused: 0, held: [], digest: null, accepted: false, files: [] };
+  const last = root ? lastTriage(root) : null;
+  // Each triage file, read once: what is read is what is judged, and what the digest names.
+  const docs = assessmentFiles(out).map((name) => {
+    let content = null;
     try {
-      doc = JSON.parse(readFileSync(join(out, name), 'utf8'));
+      content = readFileSync(join(out, name), 'utf8');
     } catch {
-      problems.push(`${name} is not JSON`);
-      continue;
+      /* gone since it was listed */
     }
-    const raw = Array.isArray(doc) ? doc : doc?.assessments;
+    // The agent's triage reaches the skill through `assess --save`, which remembers it: any other content came from elsewhere.
+    return { name, content, ours: !root || (content !== null && remembered(root, `out/${name}`, content)) };
+  });
+  const parse = (d) => {
+    try {
+      const doc = JSON.parse(d.content);
+      return Array.isArray(doc) ? doc : doc?.assessments;
+    } catch {
+      return null;
+    }
+  };
+  const label = (a) => text(a?.where) || text(a?.package) || (Array.isArray(a?.packages) ? a.packages.join(', ') : '') || text(a?.through) || text(a?.lockfile) || (typeof a?.under === 'string' ? `under "${a.under}"` : '') || text(a?.rule) || '(nothing named)';
+  if (last?.held) fromFiles.held.push(last.held);
+  for (const d of docs.filter((x) => !x.ours && x.content !== null)) {
+    const raw = parse(d);
+    fromFiles.held.push(heldFile(`.cybedefend/out/${d.name}`, (Array.isArray(raw) ? raw : []).map((a) => ({ what: label(a), verdict: String(a?.verdict ?? '') })), sha256(d.content)));
+  }
+  if (fromFiles.held.length) fromFiles.digest = sha256(JSON.stringify(fromFiles.held.map((h) => [h.file, h.sha256]).sort())).slice(0, 16);
+  if (accept !== undefined && accept !== false && fromFiles.held.length) {
+    if (accept === true || typeof accept !== 'string') problems.push(`--accept-verdicts takes the digest printed with the list of verdicts it applies (--accept-verdicts ${fromFiles.digest}): nothing of them is applied without it`);
+    else if (accept !== fromFiles.digest) problems.push(`--accept-verdicts ${accept}: the verdicts found in files this machine did not write changed since that digest was printed (it is ${fromFiles.digest} now): nothing of them is applied. Show the user the new list before they accept it.`);
+    else fromFiles.accepted = true;
+  }
+  const list = [];
+  // The verdicts of the last run that still stand come first: at the same precision, an entry of this run wins.
+  if (last && !last.held) list.push(...last.list);
+  // Then what the user accepted from files this machine did not write: below every entry of this run, whatever their shape.
+  const foreignList = [];
+  if (fromFiles.accepted) {
+    fromFiles.files = fromFiles.held.map((h) => h.file);
+    fromFiles.held = [];
+    if (last?.held) {
+      const accepted = lastTriage(root, { accept: true });
+      foreignList.push(...accepted.list.map((a) => ({ ...a, rank: FOREIGN_RANK })));
+      fromFiles.applied += accepted.stand;
+    }
+  }
+  const ownList = [];
+  let entry = 0;
+  for (const d of docs) {
+    if (!d.ours && !fromFiles.accepted) continue;
+    if (d.content === null) continue;
+    files.push(d.name);
+    const raw = parse(d);
     if (!Array.isArray(raw)) {
-      problems.push(`${name} holds { "assessments": [ ... ] }`);
+      let json = true;
+      try {
+        JSON.parse(d.content);
+      } catch {
+        json = false;
+      }
+      problems.push(json ? `${d.name} holds { "assessments": [ ... ] }` : `${d.name} is not JSON`);
       continue;
     }
+    const into = d.ours ? ownList : foreignList;
     raw.forEach((a, i) => {
       entry += 1;
-      const at = files.length > 1 ? `${name}, assessment ${i + 1}` : `assessment ${i + 1}`;
+      const at = docs.length > 1 ? `${d.name}, assessment ${i + 1}` : `assessment ${i + 1}`;
       const rule = text(a?.rule) || undefined;
       let targets = null;
       if (text(a?.package)) targets = [{ package: text(a.package), rank: 3 }];
@@ -2678,6 +2760,11 @@ export function readAssessments(out, { root = null } = {}) {
       for (const t of targets) {
         if (t.where && !/:\d+$/.test(t.where)) return problems.push(`${at}: "where" is file:line`);
       }
+      // From a file this machine did not write, an entry on the whole repository (a rule everywhere, every finding) is never applied.
+      if (!d.ours && targets.some((t) => t.under !== undefined && ['', '.', '/'].includes(t.under.replace(/\/+$/, '') || ''))) {
+        fromFiles.refused += 1;
+        return undefined;
+      }
       if (!ASSESSMENT_VERDICTS.includes(a.verdict)) return problems.push(`${at}: "verdict" is one of ${ASSESSMENT_VERDICTS.join(', ')}`);
       const reason = text(a.reason);
       if (reason.length < 30) return problems.push(`${at}: "reason" says what you checked and what you found (the search you ran, the file and line that protects it), in a sentence or two`);
@@ -2690,11 +2777,71 @@ export function readAssessments(out, { root = null } = {}) {
       if (a.verdict === 'proven' && !one) return problems.push(`${at}: proven is for one finding ("where") or one package ("package"): a test or a live request shows one thing`);
       if (a.verdict === 'proven' && !live && !text(a.proofTest)) return problems.push(`${at}: proven, so "proofTest" names the test that shows it, or "live" gives the number of the probe that showed it`);
       if (live && !liveProbes(out).some((x) => x.id === live)) return problems.push(`${at}: no probe ${live} in .cybedefend/out/live.json`);
-      for (const t of targets) list.push({ ...t, verdict: a.verdict, reason: reason.slice(0, 1000), proofTest: a.proofTest, live, priority, entry, file: name });
+      if (!d.ours) fromFiles.applied += 1;
+      for (const t of targets) into.push({ ...t, ...(d.ours ? {} : { rank: FOREIGN_RANK }), verdict: a.verdict, reason: reason.slice(0, 1000), proofTest: a.proofTest, live, priority, entry, file: d.name });
+      return undefined;
     });
   }
-  return { list, problems, files, last };
+  list.push(...foreignList, ...ownList);
+  return { list, problems, files, last, fromFiles };
 }
+
+/** The precision given to a verdict from a file this machine did not write: below every entry of this run. */
+const FOREIGN_RANK = 0.5;
+
+/**
+ * Saves the agent's triage: the file it wrote, outside .cybedefend, becomes
+ * .cybedefend/out/assessments.json (or assessments-<part>.json), and this
+ * machine remembers its content. Only a triage saved this way is applied
+ * without asking. Returns the name written.
+ */
+export function saveAssessments({ root, out, from, part }) {
+  const source = resolve(from);
+  const tree = join(root, '.cybedefend');
+  if (within(realOr(tree), realOr(source)) || within(resolve(tree), source)) throw new Exit(64, `assess --save reads the triage you wrote outside .cybedefend (a file of your own, in the system's temporary folder for example): ${from} is under .cybedefend, where anything can come from the repository.`);
+  if (part !== undefined && !/^[A-Za-z0-9._]+(?:-[A-Za-z0-9._]+)*$/.test(String(part))) throw new Exit(64, '--part is a short name: letters, digits, dots, dashes');
+  let content;
+  try {
+    content = readFileSync(source, 'utf8');
+  } catch {
+    throw new Exit(64, `assess --save: no file ${from}`);
+  }
+  let doc;
+  try {
+    doc = JSON.parse(content);
+  } catch {
+    throw new Exit(64, `assess --save: ${from} is not JSON`);
+  }
+  if (!Array.isArray(Array.isArray(doc) ? doc : doc?.assessments)) throw new Exit(64, `assess --save: ${from} holds { "assessments": [ ... ] }`);
+  const name = part === undefined ? 'assessments.json' : `assessments-${part}.json`;
+  mkdirSync(out, { recursive: true });
+  writeFileSync(join(out, name), content);
+  remember(root, `out/${name}`, content);
+  return name;
+}
+
+/** What a file of verdicts the skill did not write holds: how many, which verdicts, on what, and a hash of it. */
+function heldFile(file, items, hash) {
+  const byVerdict = {};
+  for (const x of items) byVerdict[x.verdict] = (byVerdict[x.verdict] ?? 0) + 1;
+  return { file, sha256: hash, verdicts: items.length, byVerdict, findings: items.map((x) => `${x.what}: ${x.verdict}`) };
+}
+
+/** The lines that tell the user about verdicts found in files the skill did not write. */
+export function sayFromFiles({ applied = 0, refused = 0, held = [], digest = null } = {}) {
+  for (const h of held) {
+    say(`  ! ${counted(h.verdicts, 'verdict')} in ${h.file} ${h.verdicts === 1 ? 'was' : 'were'} not written by this skill on this machine (it came with the repository, a branch, or was written there without assess --save): not applied, the findings they judge are judged again`);
+    say(`     ${Object.entries(h.byVerdict).map(([v, n]) => `${v} ${n}`).join(', ')}`);
+    for (const f of h.findings.slice(0, 12)) say(`     ${f}`);
+    if (h.findings.length > 12) say(`     … ${h.findings.length - 12} more, in the file`);
+  }
+  if (held.length) say(`     Show them to the user. Only when the user confirms them as their own, run the same command again with --accept-verdicts ${digest}: it applies exactly what is listed here, and nothing if the files change meanwhile.`);
+  if (applied) say(`  ! ${counted(applied, 'verdict')} applied from files this machine did not write, as asked (--accept-verdicts), each below every entry of this run`);
+  if (refused) say(`  ! ${counted(refused, 'entry', 'entries')} of those files judged the whole repository (every finding, or a rule everywhere): never applied from a file this machine did not write`);
+}
+
+/** The sentence of the final answer when verdicts came from a file the skill did not write (report.mjs, where the page says it too). */
+export { fromFilesNote };
 
 // ─── The triage, from one run to the next ───────────────────────────────────
 //
@@ -2718,7 +2865,7 @@ const sha1OfFile = (file) => {
 /** The paths a git command lists, NUL-separated; null when git refuses (a commit this clone does not have). */
 function gitPaths(root, args) {
   try {
-    return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024, windowsHide: true }).split('\0').filter(Boolean);
+    return runGit(args, { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).split('\0').filter(Boolean);
   } catch {
     return null;
   }
@@ -2726,7 +2873,7 @@ function gitPaths(root, args) {
 
 /** Of what the scanners read: the files that differ from a commit, and the new ones git does not hold yet. */
 function awayFrom(root, commit) {
-  const tracked = commit ? gitPaths(root, ['diff', '--name-only', '-z', commit, ...SCANNED]) : gitPaths(root, ['ls-files', '-z', '--cached', ...SCANNED]);
+  const tracked = commit ? gitPaths(root, ['diff', '--no-ext-diff', '--no-textconv', '--name-only', '-z', commit, ...SCANNED]) : gitPaths(root, ['ls-files', '-z', '--cached', ...SCANNED]);
   const fresh = gitPaths(root, ['ls-files', '-z', '--others', '--exclude-standard', ...SCANNED]);
   return tracked && fresh ? [...new Set([...tracked, ...fresh])] : null;
 }
@@ -2766,7 +2913,7 @@ export function changedSince(root, mark) {
  * run: .cybedefend/audit/triage.json, next to the map and the last audit.
  * `merged` is the merged audit after placeAssessments. Returns { file, verdicts }.
  */
-export function keepTriage({ root, merged }) {
+export function keepTriage({ root, merged, accept = false }) {
   const verdicts = merged.triage
     .filter((g) => g.judgedBy && g.byScanners.length > 0 && g.type !== 'secret' && !g.judgedBy.live)
     .map((g) => {
@@ -2787,11 +2934,14 @@ export function keepTriage({ root, merged }) {
   // kept for the run that reports the finding again. Where the file still has findings and this one is not
   // among them, it is gone: fixed, or a package upgraded.
   const reported = new Set(merged.triage.map((g) => g.uri));
-  for (const v of lastTriage(root)?.standing ?? []) if (!reported.has(v.file)) verdicts.push(v);
+  for (const v of lastTriage(root, { accept })?.standing ?? []) if (!reported.has(v.file)) verdicts.push(v);
   verdicts.sort((x, y) => x.finding.localeCompare(y.finding));
   const file = lastTriageFile(root);
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify({ about: 'The verdicts of the last triage of /cybedefend. The next run keeps each one while its file has not changed (assess.md).', at: new Date().toISOString(), code: codeMark(root), verdicts }, null, 2)}\n`);
+  const content = `${JSON.stringify({ about: 'The verdicts of the last triage of /cybedefend. The next run keeps each one while its file has not changed (assess.md).', at: new Date().toISOString(), code: codeMark(root), verdicts }, null, 2)}\n`;
+  writeFileSync(file, content);
+  // Remembered outside the repository: the next run applies this content, and nothing a commit puts in its place.
+  remember(root, 'triage.json', content);
   return { file, verdicts: verdicts.length };
 }
 
@@ -2833,20 +2983,30 @@ export function putAwayKeptTriage({ root, out }) {
  * scanners read that changed since; null when no triage was kept. When what
  * changed cannot be told, none stands.
  */
-export function lastTriage(root) {
+export function lastTriage(root, { accept = false } = {}) {
   let doc;
+  let content;
   try {
-    doc = JSON.parse(readFileSync(lastTriageFile(root), 'utf8'));
+    content = readFileSync(lastTriageFile(root), 'utf8');
+    doc = JSON.parse(content);
   } catch {
     return null;
   }
   const all = (Array.isArray(doc?.verdicts) ? doc.verdicts : []).filter((v) => typeof v?.finding === 'string' && ASSESSMENT_VERDICTS.includes(v.verdict) && typeof v.reason === 'string');
+  // The file is in the repository, so a clone, a pull or a checkout can bring one nobody on this machine wrote:
+  // its verdicts would dismiss findings in the user's name. Only the content this machine wrote is applied unasked.
+  const ours = remembered(root, 'triage.json', content);
+  if (!ours && !accept) {
+    const held = all.length ? heldFile('.cybedefend/audit/triage.json', all.map((v) => ({ what: v.finding, verdict: v.verdict })), sha256(content)) : null;
+    return { list: [], standing: [], total: 0, stand: 0, changed: null, held };
+  }
   const changed = changedSince(root, doc.code);
   const gone = changed ? new Set(changed) : null;
   const standing = all.filter((v) => gone && (v.on === 'package' || !gone.has(v.file)));
+  // The precision a verdict was given at is this machine's own record: from a file from elsewhere it ranks lowest, so any entry of this run wins.
   const list = standing
-    .map((v) => ({ finding: v.finding, rank: Number(v.rank) || 1, verdict: v.verdict, reason: v.reason, proofTest: v.proofTest, live: null, priority: PRIORITIES.includes(v.priority) ? v.priority : undefined, entry: 0, file: 'the last triage', kept: true }));
-  return { list, standing, total: all.length, stand: list.length, changed: changed ?? null };
+    .map((v) => ({ finding: v.finding, rank: ours ? Number(v.rank) || 1 : 1, verdict: v.verdict, reason: v.reason, proofTest: v.proofTest, live: null, priority: PRIORITIES.includes(v.priority) ? v.priority : undefined, entry: 0, file: 'the last triage', kept: true }));
+  return { list, standing, total: all.length, stand: list.length, changed: changed ?? null, fromRepository: !ours };
 }
 
 /** A count with its noun: "1 finding", "9 findings". */
@@ -2854,6 +3014,51 @@ export const counted = (n, one, many = `${one}s`) => `${n} ${Number(n) === 1 ? o
 
 /** The last line of finish, so an output cut short still says the verdict. */
 export const verdictLine = (verdict, blocking) => `VERDICT: ${verdict === 'SHIP' ? 'SHIP (exit 0)' : `NOT YET, ${counted(blocking, 'finding blocks', 'findings block')} (exit 1)`}`;
+
+/**
+ * The verdict the user reads: three outcomes (Nov 24, 2026). NOT YET when the
+ * AI scanner proved a flaw at high or critical severity with an exploit test.
+ * Otherwise SHIP, and « SHIP, N to fix » when something is left to fix: what
+ * the policies block (flaws in the code and its configuration, packages to
+ * upgrade, critical or high results the dashboard keeps closed), the secrets
+ * the scan located, and the flaws proven below high. A secret is to fix, not
+ * NOT YET by itself: on large applications most secrets a scan finds are test
+ * fixtures and examples (91 of 103 on Odoo).
+ *
+ * The three verdicts change what is shown, not the exit code: finish exits 1
+ * whenever the team's policies block, as before, so a CI gate keeps failing
+ * on a blocking finding; NOT YET exits 1 too. `policy` mode (--policy, or
+ * CYBEDEFEND_VERDICT=policy) also shows the policies' own words.
+ */
+export function publicVerdict({ policy, triage = [], blocks, secrets = 0, unseen = 0, mode = 'proof' }) {
+  const live = (g) => g.byAiScanner && g.proven && !g.setAside;
+  const provenHigh = triage.filter((g) => live(g) && ['critical', 'high'].includes(g.severity)).length;
+  // A proven flaw that a policy blocks is already one line of blocks.code: counted once.
+  const provenBelow = triage.filter((g) => live(g) && !g.blocks && !['critical', 'high'].includes(g.severity)).length;
+  // A secret is a place (file, line): one already in what blocks is not counted twice.
+  const blocked = new Set((blocks?.code ?? []).map((c) => c.where));
+  const secretsToFix = Array.isArray(secrets) ? secrets.filter((x) => !blocked.has(`${x.file}:${x.line}`)).length : Number(secrets) || 0;
+  // The critical or high results the dashboard keeps closed (unseen) are pushed into the
+  // policies' blocking list before markBlocking, so they are already in blocks: not added again.
+  const toFix = (blocks?.code?.length ?? 0) + (blocks?.dependencies?.packages ?? 0) + provenBelow + secretsToFix;
+  const policyBlocks = policy !== 'SHIP';
+  const base = { toFix, provenHigh, secrets: Array.isArray(secrets) ? secrets.length : Number(secrets) || 0, unseen, mode, policyBlocks };
+  if (mode === 'policy') return { ...base, verdict: policyBlocks ? 'NOT YET' : 'SHIP', ship: !policyBlocks, exit: policyBlocks ? 1 : 0 };
+  const notYet = provenHigh > 0;
+  return { ...base, verdict: notYet ? 'NOT YET' : toFix ? 'SHIP, TO FIX' : 'SHIP', ship: !notYet, exit: notYet || policyBlocks ? 1 : 0 };
+}
+
+/** proof (the three verdicts) or policy (the policies' words), from --policy or CYBEDEFEND_VERDICT. */
+export const verdictMode = (flags = {}, env = process.env) => (flags.policy === true || env.CYBEDEFEND_VERDICT === 'policy' ? 'policy' : 'proof');
+
+/** The last line of finish under the three verdicts; the exit code is the one finish returns. */
+export const publicVerdictLine = (pv, blocking) => {
+  if (pv.mode === 'policy') return verdictLine(pv.ship ? 'SHIP' : 'BLOCK', blocking);
+  if (pv.verdict === 'NOT YET') return `VERDICT: NOT YET, ${counted(pv.provenHigh, 'flaw')} proven by an exploit test (exit 1)`;
+  const things = pv.verdict === 'SHIP, TO FIX' ? `, ${counted(pv.toFix, 'thing', 'things')} to fix` : '';
+  const gate = pv.exit ? `; the policies block ${counted(blocking, 'finding', 'findings')}` : '';
+  return `VERDICT: SHIP${things}${gate} (exit ${pv.exit})`;
+};
 
 /** What blocks, by where it is: in the code and its configuration, then the packages to upgrade. */
 export const blocksWords = (blocks) => `${blocks.findings ?? blocks.code.length} in the code and its configuration${(blocks.findings ?? 0) > blocks.code.length ? ` (${counted(blocks.code.length, 'flaw')}: several tools report the same one)` : ''}, ${counted(blocks.dependencies.advisories, 'advisory', 'advisories')} on ${counted(blocks.dependencies.packages, 'package')} to upgrade`;
@@ -2958,7 +3163,7 @@ function keepAll(merged, totals) {
  * (SKILL.md, step 1). Returns { code, doc }: 0 complete, 2 findings without a
  * verdict (or still being written), 64 entries to correct.
  */
-export async function checkTriage({ root, out, wait }) {
+export async function checkTriage({ root, out, wait, accept }) {
   const manifestFile = join(out, 'manifest.tsv');
   if (!existsSync(manifestFile)) throw new Exit(64, 'No scan in this repository yet: start.mjs first.');
   const stamp = join(out, 'triage.done');
@@ -2973,13 +3178,15 @@ export async function checkTriage({ root, out, wait }) {
     waited = Math.max(1, Math.round((Date.now() - t0) / 1000));
   }
   const stillWriting = seconds > 0 && !fresh();
-  const { list: read, problems, files, last: before } = readAssessments(out, { root });
+  const { list: read, problems, files, last: before, fromFiles } = readAssessments(out, { root, accept });
+  sayFromFiles(fromFiles);
+  const fromFilesDoc = fromFiles.applied || fromFiles.held.length ? { fromFiles } : {};
   // An entry to correct stops this run's entries only: the verdicts of the last run still stand.
   const list = problems.length ? read.filter((a) => a.kept) : read;
   if (problems.length && !stillWriting) {
     for (const problem of problems) say(`  ✗ ${problem}`);
     say(`TRIAGE: ${problems.length} entr${problems.length === 1 ? 'y' : 'ies'} to correct, then assess --check again (exit 64)`);
-    return { code: 64, doc: { ok: false, complete: false, files, problems } };
+    return { code: 64, doc: { ok: false, complete: false, files, problems, ...fromFilesDoc } };
   }
   let merged;
   try {
@@ -3025,7 +3232,7 @@ export async function checkTriage({ root, out, wait }) {
   say(last);
   return {
     code: complete ? 0 : 2,
-    doc: { ok: !problems.length, complete, stillWriting, files, triage: { scannerFindings: t.scannerFindings, judged: t.judged, setAside: t.setAside, kept, notJudged: t.notJudged }, ...(before?.total ? { lastTriage: { verdicts: before.total, stand: before.stand, changed: before.changed } } : {}), notJudged, notPlaced, olderThanScan: older, ...(problems.length ? { problems } : {}) },
+    doc: { ok: !problems.length, complete, stillWriting, files, triage: { scannerFindings: t.scannerFindings, judged: t.judged, setAside: t.setAside, kept, notJudged: t.notJudged }, ...(before?.total ? { lastTriage: { verdicts: before.total, stand: before.stand, changed: before.changed } } : {}), notJudged, notPlaced, olderThanScan: older, ...fromFilesDoc, ...(problems.length ? { problems } : {}) },
   };
 }
 
@@ -3211,15 +3418,16 @@ export function npmContext(root, lockfile) {
   const dir = dirname(lockfile) === '.' ? '' : `${dirname(lockfile)}/`;
   const importedBy = new Map();
   try {
-    const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 })
+    const files = runGit(['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
       .split('\0')
       .filter((f) => f.startsWith(dir) && /\.(m?[jt]sx?|cjs|vue|svelte)$/.test(f) && !/(^|\/)(node_modules|tests?|__tests__|e2e[^/]*|\.cybedefend|\.claude)\/|\.(test|spec)\.|\.config\.[^/]+$/.test(f))
       .slice(0, 4000);
     for (const f of files) {
       let text;
       try {
-        if (statSync(join(root, f)).size > 500_000) continue;
-        text = readFileSync(join(root, f), 'utf8');
+        const real = insideRoot(root, f);
+        if (!real || statSync(real).size > 500_000) continue;
+        text = readFileSync(real, 'utf8');
       } catch {
         continue;
       }
@@ -3550,7 +3758,8 @@ async function main(argv) {
         if (!coverage) before.push('no .cybedefend/audit/map.md: the audit starts with the map of the entry points (audit.md, step 1)');
         else before.push(...coverage.problems);
       }
-      const assessments = readAssessments(out, { root });
+      const assessments = readAssessments(out, { root, accept: flags['accept-verdicts'] });
+      const acceptVerdicts = assessments.fromFiles.accepted;
       before.push(...assessments.problems);
       if (before.length) {
         for (const problem of before) say(`  ✗ ${problem}`);
@@ -3571,6 +3780,7 @@ async function main(argv) {
       // The triage first: the policies judge when an import ends, so what the
       // code cannot reach is set aside before the AI scanner's findings go in.
       stepSay(1, "The scanners' findings, triaged against this code");
+      sayFromFiles(assessments.fromFiles);
       const setAsideOn = flags['set-aside'] !== false;
       let assessed = [];
       let triaged = null;
@@ -3676,7 +3886,7 @@ async function main(argv) {
       const placed = placeAssessments(merged, assessments.list, root);
       // Kept for the next run: the same code gets the same verdicts.
       try {
-        keepTriage({ root, merged });
+        keepTriage({ root, merged, accept: acceptVerdicts });
       } catch {
         /* a triage that cannot be kept is judged again next time */
       }
@@ -3719,8 +3929,10 @@ async function main(argv) {
       // fix, and for a package the dependency that brings it in.
       const blocks = markBlocking({ merged, blocking: v.blocking, dashboard });
       writeTriage({ out, root, merged });
-      writeFileSync(join(out, 'verdict.json'), `${JSON.stringify({ ...v, exit: v.verdict === 'SHIP' ? 0 : 1, blockingCount, blocks, closedByDashboard }, null, 2)}\n`);
-      say(`  ${v.verdict === 'SHIP' ? '✓ SHIP' : `✗ NOT YET: ${counted(blockingCount, 'finding blocks', 'findings block')}, under ${v.blocking.map((b) => `"${b.rule}"`).join(', ')}`}`);
+      const pv = publicVerdict({ policy: v.verdict, triage: merged.triage, blocks, secrets: locatedSecrets(out, root).places, unseen: unseen.length, mode: verdictMode(flags) });
+      writeFileSync(join(out, 'verdict.json'), `${JSON.stringify({ ...v, exit: pv.exit, public: pv, blockingCount, blocks, closedByDashboard }, null, 2)}\n`);
+      say(`  policies: ${v.verdict === 'SHIP' ? 'nothing blocks' : `${counted(blockingCount, 'finding blocks', 'findings block')}, under ${v.blocking.map((b) => `"${b.rule}"`).join(', ')}`}`);
+      say(`  ${pv.ship ? '✓' : '✗'} ${publicVerdictLine(pv, blockingCount).replace(/^VERDICT: /, '').replace(/ \(exit \d\)$/, '')}`);
       if (blockingCount) {
         say(`     ${blocksWords(blocks)}`);
         if (blocks.elsewhere) say(`     ${blocks.elsewhere} more are open elsewhere in the project (another branch, or an earlier scan this run did not repeat): the policies count them too`);
@@ -3749,7 +3961,7 @@ async function main(argv) {
         } catch {
           /* a repository without a commit yet */
         }
-        reportFile = writeReport({ root, out, merged, v, blocks, coverage, secrets: located.places, link, branch, commit, probes: fresh, staleProbes, mask: (t) => located.values.reduce((x, val) => x.split(val).join('REDACTED'), String(t ?? '')) });
+        reportFile = writeReport({ root, out, merged, v, blocks, coverage, secrets: located.places, link, branch, commit, probes: fresh, staleProbes, fromFiles: assessments.fromFiles, mask: (t) => located.values.reduce((x, val) => x.split(val).join('REDACTED'), String(t ?? '')) });
         say(`  ✓ the audit as one page: ${reportFile}`);
         // The same page as a PDF, when a browser of the machine can print it without a window.
         pdfFile = flags.pdf === false ? null : printPdf(reportFile);
@@ -3768,7 +3980,7 @@ async function main(argv) {
         }
         for (const p of fresh) if (p.note) addFeed(w, { kind: 'live', text: located.values.reduce((x, val) => x.split(val).join('REDACTED'), `${p.note}${p.response?.status ? ` (HTTP ${p.response.status})` : ''}`), where: p.finding ?? '' });
         // The numbers of the report's opening sentence: they add up to what blocks.
-        w.verdict = { ship: v.verdict === 'SHIP', blocking: blockingCount, flaws: blocks.code.length, findings: blocks.findings ?? blocks.code.length, advisories: blocks.dependencies.advisories, packages: blocks.dependencies.packages };
+        w.verdict = { ship: pv.ship, exit: pv.exit, toFix: pv.ship ? pv.toFix : 0, provenHigh: pv.provenHigh, blocking: blockingCount, flaws: blocks.code.length, findings: blocks.findings ?? blocks.code.length, advisories: blocks.dependencies.advisories, packages: blocks.dependencies.packages };
         w.links = { dashboard: link, report: reportFile ? pathToFileURL(reportFile).href : null };
         for (const n of [1, 2, 3, 4, 5]) setStep(w, n, { state: 'done', note: '' });
         w.endedAt = new Date().toISOString();
@@ -3806,8 +4018,13 @@ async function main(argv) {
         return l;
       };
       const doc = {
-        verdict: v.verdict,
-        exit: v.verdict === 'SHIP' ? 0 : 1,
+        // Under --policy the policies' own word, as before (SHIP or BLOCK).
+        verdict: pv.mode === 'policy' ? v.verdict : pv.verdict,
+        exit: pv.exit,
+        // The three verdicts: what to fix while it ships, and why it does not.
+        toFix: pv.toFix,
+        provenHighOrCritical: pv.provenHigh,
+        policyVerdict: v.verdict,
         blockingCount,
         blockingRules: v.blocking.map((b) => ({ rule: b.rule, message: b.message, findings: b.findings.length })),
         blocks: {
@@ -3839,6 +4056,8 @@ async function main(argv) {
         live: probes.length ? { probes: fresh.length, findingsSeenLive: [...new Set(fresh.map((x) => x.finding).filter((f) => /^\S.*:\d+$/.test(String(f ?? ''))))].length, olderThanTheCode: staleProbes || undefined } : undefined,
         delivery: delivery.tools.every((d) => d.ok) ? { allSent: true, open: delivery.open } : delivery,
         signin,
+        // Verdicts this machine did not write: how many were applied (--accept-verdicts), and which files were left out.
+        verdictsFromFiles: assessments.fromFiles.applied || assessments.fromFiles.held.length ? { applied: assessments.fromFiles.applied, notApplied: assessments.fromFiles.held.map((h) => ({ file: h.file, verdicts: h.verdicts })) } : undefined,
         files: { page: reportFile, pdf: pdfFile ?? undefined, triage: join(out, 'triage.md'), verdict: join(out, 'verdict.json'), sarif: join(out, 'cybedefend-full.sarif') },
         links: { project: link, compliance: `${link}/compliance` },
       };
@@ -3856,9 +4075,12 @@ async function main(argv) {
           for (const l of liveBlock(step, liveLine)) say(`  ${l}`);
         } else say(liveLine);
       }
+      // Where verdicts came from, said with the answer: a dismissal nobody on this machine gave is never silent.
+      const note = fromFilesNote(assessments.fromFiles);
+      if (note) say(`\nVERDICTS FROM FILES: ${note}`);
       // The last line on the screen, so a truncated output still says it.
-      say(verdictLine(v.verdict, blockingCount));
-      return v.verdict === 'SHIP' ? 0 : 1;
+      say(publicVerdictLine(pv, blockingCount));
+      return pv.exit;
     }
     case 'open': {
       // What the last run left to look at, opened again: the project in the dashboard (the administrator's password in the clipboard) and the audit page.
@@ -4049,12 +4271,21 @@ async function main(argv) {
       return 0;
     }
     case 'assess': {
+      // --save <file> [--part <name>]: the triage the agent wrote, outside .cybedefend, saved where the skill reads it and remembered.
+      if (flags.save !== undefined) {
+        if (typeof flags.save !== 'string') throw new Exit(64, 'Usage: assess --save <the file you wrote> [--part <name>]');
+        const root = repoRoot();
+        const name = saveAssessments({ root, out: join(root, '.cybedefend', 'out'), from: flags.save, part: typeof flags.part === 'string' ? flags.part : undefined });
+        say(`  ✓ saved as .cybedefend/out/${name}: the next assess --check and finish apply it`);
+        print({ saved: `.cybedefend/out/${name}` });
+        return 0;
+      }
       // With --check: the triage against this scan, on this machine, while the AI scanner works.
       if (flags.check || flags.wait !== undefined) {
         const root = repoRoot();
         // --fresh, right after a scan (start.mjs): this run starts from the verdicts the last finish kept.
         if (flags.fresh) putAwayKeptTriage({ root, out: join(root, '.cybedefend', 'out') });
-        const { code, doc } = await checkTriage({ root, out: join(root, '.cybedefend', 'out'), wait: flags.wait });
+        const { code, doc } = await checkTriage({ root, out: join(root, '.cybedefend', 'out'), wait: flags.wait, accept: flags['accept-verdicts'] });
         // Nothing judged yet: the page keeps its line that says the triage is judging.
         if (doc.triage?.scannerFindings && doc.triage.judged > 0) {
           updateWatch(join(root, '.cybedefend', 'out'), (w) => {
@@ -4069,7 +4300,9 @@ async function main(argv) {
       const root = repoRoot();
       const project = projectId(root, inst);
       const out = join(root, '.cybedefend', 'out');
-      const { list, problems } = readAssessments(out, { root });
+      const { list, problems, fromFiles } = readAssessments(out, { root, accept: flags['accept-verdicts'] });
+      const acceptVerdicts = fromFiles.accepted;
+      sayFromFiles(fromFiles);
       if (problems.length) {
         for (const problem of problems) say(`  ✗ ${problem}`);
         print({ ok: false, problems });
@@ -4082,7 +4315,7 @@ async function main(argv) {
       const applied = await applyAssessments(inst, { project, merged, list, setAside: flags['set-aside'] !== false, root, out });
       writeTriage({ out, root, merged });
       try {
-        keepTriage({ root, merged });
+        keepTriage({ root, merged, accept: acceptVerdicts });
       } catch {
         /* judged again next time */
       }
@@ -4340,14 +4573,15 @@ async function main(argv) {
       const root = repoRoot();
       const file = positional[0];
       if (!file) throw new Exit(64, 'Usage: show <file>');
-      const path = resolve(file);
-      if (!path.startsWith(resolve(root) + sep) || !existsSync(path) || !statSync(path).isFile()) throw new Exit(64, `show: ${file} is not a file of this repository`);
+      // The real path: a symbolic link of the repository can point to a file outside it (a key in the user's home).
+      const path = insideRoot(root, resolve(file));
+      if (!path || path === insideRoot(root, root) || !statSync(path).isFile()) throw new Exit(64, `show: ${file} is not a file of this repository`);
       const { values, places } = locatedSecrets(join(root, '.cybedefend', 'out'), root);
       const located = values.reduce((t, v) => t.split(v).join(MASK), readFileSync(path, 'utf8'));
       // A settings file by its name; anything else is read as source code.
       const settings = /(^|[./_-])(env|ini|cfg|conf|config|properties|toml|ya?ml)(\.|$)|(^|\/)(Makefile|Dockerfile[^/]*|[^/]*compose[^/]*\.ya?ml)$/i.test(basename(path)) || /\.env(\.|$)/i.test(basename(path));
       const { text, masked } = maskNamedSecrets(located, { code: !settings });
-      const here = places.filter((x) => resolve(root, x.file) === path).length;
+      const here = places.filter((x) => insideRoot(root, x.file) === path).length;
       process.stdout.write(text.split('\n').map((l, i) => `${String(i + 1).padStart(5)}  ${l}`).join('\n') + '\n');
       say(`${here} secret(s) the scan located and ${masked} value(s) named like a key, a token or a password are masked in this file`);
       return 0;

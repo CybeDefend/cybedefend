@@ -1,17 +1,14 @@
 /**
  * Rate-limit e2e.
  *
- * The @fastify/rate-limit plugin is wired in src/main.ts with a global scope
- * and an allow-list for /health and /.well-known/oauth-*. This spec boots a
- * mini Nest app mirroring main.ts's registration, lowers the bucket to 5
- * per 10 seconds via env vars, then fires a burst of POST /mcp requests
- * (unauthenticated — the 401 path still counts toward the bucket) and
- * asserts at least one 429 response.
- *
- * Assertion scope: "plugin is wired and counts requests", not "exact
- * threshold timing". If Fastify tightens its allow-list evaluation order in
- * the future, swapping the burst target is fine — the contract we care about
- * is that /mcp is NOT allow-listed.
+ * Boots the application with the request guards `src/main.ts` registers
+ * (`registerRequestGuards` with `requestGuardOptionsFromEnv`), lowers the
+ * budget of requests without credentials to 5 per 10 seconds, then fires
+ * bursts at POST /mcp: requests without a bearer are counted on their
+ * address (the 401 path counts), a forwarded-address header from a peer
+ * that is not a trusted proxy changes nothing, and refused bearers, checked
+ * with a call to the gateway in this edition, have a budget of their own per
+ * address.
  */
 
 // Lower the limiter bucket BEFORE AppModule / main.ts reads process.env.
@@ -29,6 +26,7 @@ process.env.CYBEDEFEND_API_RESOURCE = 'http://localhost:3000';
 process.env.FRONTEND_URL = 'http://localhost:3002';
 process.env.OTEL_DISABLED = 'true';
 process.env.RATE_LIMIT_MAX = '5';
+process.env.RATE_LIMIT_ANONYMOUS_MAX = '5';
 process.env.RATE_LIMIT_WINDOW = '10 seconds';
 
 // `jose@6` is ESM-only — the e2e hits unauth endpoints so jwtVerify is never
@@ -38,17 +36,20 @@ jest.mock('jose', () => ({
   jwtVerify: jest.fn(),
 }));
 
-import { HttpException, HttpStatus, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import rateLimit from '@fastify/rate-limit';
 
 import { AppModule } from '../../src/app.module';
 import { GlobalExceptionFilter } from '../../src/core/exception/global-exception.filter';
-import { parseTrustProxyCidrs } from '../../src/core/trust-proxy/trust-proxy';
+import { httpAdapterOptions } from '../../src/core/http/http-surface.options';
+import {
+  registerRequestGuards,
+  requestGuardOptionsFromEnv,
+} from '../../src/core/http/request-guards';
 
 describe('mcp-service rate limit e2e', () => {
   let app: NestFastifyApplication;
@@ -63,41 +64,15 @@ describe('mcp-service rate limit e2e', () => {
       imports: [AppModule],
     }).compile();
     app = mod.createNestApplication<NestFastifyApplication>(
-      new FastifyAdapter({
-        trustProxy: parseTrustProxyCidrs(process.env.TRUST_PROXY_CIDR),
-      }),
+      new FastifyAdapter(httpAdapterOptions(process.env.TRUST_PROXY_CIDR)),
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
     app.useGlobalPipes(
       new ValidationPipe({ transform: true, whitelist: true }),
     );
 
-    // Mirror main.ts — register rate-limit on the underlying Fastify instance
-    // BEFORE init/ready so the plugin hooks into the request lifecycle.
-    const fastify = app.getHttpAdapter().getInstance();
-    await fastify.register(rateLimit, {
-      global: true,
-      max: Number(process.env.RATE_LIMIT_MAX ?? 120),
-      timeWindow: process.env.RATE_LIMIT_WINDOW ?? '1 minute',
-      keyGenerator: (req) => req.ip,
-      allowList: (req) => {
-        const url = req.url || '';
-        return (
-          url.startsWith('/health') ||
-          url.startsWith('/.well-known/oauth-protected-resource') ||
-          url.startsWith('/.well-known/oauth-authorization-server')
-        );
-      },
-      errorResponseBuilder: (_req, ctx) =>
-        new HttpException(
-          {
-            statusCode: HttpStatus.TOO_MANY_REQUESTS,
-            error: 'Too Many Requests',
-            message: `Rate limit exceeded, retry in ${Math.ceil(ctx.ttl / 1000)}s`,
-          },
-          HttpStatus.TOO_MANY_REQUESTS,
-        ),
-    });
+    // The registration main.ts runs, before init/ready.
+    await registerRequestGuards(app, requestGuardOptionsFromEnv(process.env));
 
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
@@ -108,22 +83,44 @@ describe('mcp-service rate limit e2e', () => {
   });
 
   it('triggers 429 when POST /mcp bursts past the configured max', async () => {
-    // Fire 10 requests in parallel against /mcp (not allow-listed). The guard
-    // rejects each with 401, but the rate-limit hook runs first so at least
-    // the tail of the burst should see 429.
+    // Fire 10 requests without credentials in parallel against /mcp (not
+    // exempt). Each is counted when it arrives: 5 reach the authentication
+    // guard (401), the rest get 429.
     const burst = await Promise.all(
       Array.from({ length: 10 }, () =>
         app.inject({ method: 'POST', url: '/mcp', payload: {} }),
       ),
     );
     const statuses = burst.map((r) => r.statusCode);
-    expect(statuses).toContain(429);
+    expect(statuses.filter((s) => s === 401)).toHaveLength(5);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(5);
+  });
+
+  it('answers made-up bearers 401 up to their own budget of the address, then 429 before checking them', async () => {
+    // The Community Edition checks a token with a call to the gateway, so
+    // bearers not accepted recently have a budget per address, apart from
+    // the one requests without a bearer spent above.
+    const burst = await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        app.inject({
+          method: 'POST',
+          url: '/mcp',
+          payload: {},
+          headers: { authorization: `Bearer not-a-token-${i}` },
+        }),
+      ),
+    );
+    const statuses = burst.map((r) => r.statusCode);
+    expect(statuses.filter((s) => s === 401)).toHaveLength(5);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(5);
+    for (const r of burst.filter((x) => x.statusCode === 429)) {
+      expect(Number(r.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+    }
   });
 
   it('still triggers 429 when callers rotate X-Forwarded-For (TRUST_PROXY_CIDR unset)', async () => {
     // With `trustProxy: true`, a different X-Forwarded-For value on every
-    // request would make @fastify/rate-limit see a fresh bucket each time and
-    // never trigger 429. With `trustProxy: parseTrustProxyCidrs(undefined)`
+    // request would key a fresh bucket each time and never trigger 429. With `trustProxy: parseTrustProxyCidrs(undefined)`
     // (i.e. `false`), `req.ip` ignores XFF and falls back to the socket origin,
     // so the bucket fills as if the headers were never sent.
     const burst = await Promise.all(

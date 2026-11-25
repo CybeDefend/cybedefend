@@ -14,10 +14,11 @@
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FRAME, PALETTE, fonts } from './look.mjs';
 import { envValue, isWsl } from './os.mjs';
+import { insideRoot } from './trust.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'];
@@ -54,8 +55,9 @@ export function proofSource(root, proofTest) {
   const parts = String(proofTest ?? '').split(/\s+>\s+|::/).map((s) => s.trim()).filter(Boolean);
   if (parts.length < 2) return null;
   const file = parts[0];
-  const path = resolve(root, file);
-  if (!path.startsWith(resolve(root) + sep) || !existsSync(path)) return null;
+  // The real path, in the repository: a committed link to a file elsewhere is not a proof of this code.
+  const path = insideRoot(root, resolve(root, file));
+  if (!path) return null;
   let lines;
   try {
     lines = readFileSync(path, 'utf8').split('\n');
@@ -87,9 +89,20 @@ export function proofSource(root, proofTest) {
 // The report is a web page, not a sheet: dark to the edges of the window, as wide as the window up to a wide screen.
 // The header stays at the top with the way to each part; a proof shows what it says and the test that proves it side
 // by side when there is room for both. The PDF is this page printed: the same dark page, to the edge of each sheet.
+/**
+ * The policy of the audit page. The page shows what the repository, the
+ * scanners and the live replay wrote, and opens in the user's browser and in
+ * the PDF step: it runs no script at all, loads its two typefaces and nothing
+ * else, and takes images only from inside the page. Text that slips through
+ * as markup is then never code.
+ */
+export const PAGE_POLICY = "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; base-uri 'none'; form-action 'none'";
+
 const STYLE = `
 ${PALETTE}
 ${FRAME}
+/* Printed from the browser, every folded proof shows: the page runs no script to open them. */
+@media print{details::details-content{content-visibility:visible;display:block;height:auto}}
 html{scroll-behavior:smooth;scroll-padding-top:96px}
 header.hd{position:sticky;top:0;z-index:5;background:rgba(10,9,16,.84);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .toc{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 4px}
@@ -201,7 +214,17 @@ export const printCopy = (html) => String(html).replace(/<details(?! open)(?=[\s
  * located secret values in a text; `probes` the live requests still current,
  * `staleProbes` how many were made before the code last changed.
  */
-export function writeReport({ root, out, merged, v, blocks, coverage, secrets = [], link, branch, commit, probes = [], staleProbes = 0, mask = (t) => t, now = new Date() }) {
+/** The sentence that says verdicts came from files this machine did not write; null when none did. On the page and in the final answer. */
+export function fromFilesNote({ applied = 0, held = [] } = {}) {
+  const n = (count, one, many = `${one}s`) => `${count} ${Number(count) === 1 ? one : many}`;
+  const heldCount = held.reduce((sum, h) => sum + h.verdicts, 0);
+  const words = [];
+  if (applied) words.push(`${n(applied, 'verdict')} of this answer come${applied === 1 ? 's' : ''} from files this machine did not write, applied with --accept-verdicts.`);
+  if (heldCount) words.push(`${n(heldCount, 'verdict')} found in files this machine did not write ${heldCount === 1 ? 'was' : 'were'} not applied (${held.map((h) => h.file).join(', ')}).`);
+  return words.length ? words.join(' ') : null;
+}
+
+export function writeReport({ root, out, merged, v, blocks, coverage, secrets = [], link, branch, commit, probes = [], staleProbes = 0, fromFiles = null, mask = (t) => t, now = new Date() }) {
   const repo = basename(root);
   const s = merged.summary;
   const ship = v.verdict === 'SHIP';
@@ -237,6 +260,9 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
         : `<b>${plural(blockingCount, 'finding blocks', 'findings block')}</b> under the team's ${rules.length > 1 ? 'policies' : 'policy'}${rules.length ? ` ${rules.map((r) => `&ldquo;${esc(r)}&rdquo;`).join(', ')}` : ''}: ${blocks.findings ?? blocks.code.length} in the code and its configuration, ${plural(blocks.dependencies.advisories, 'advisory', 'advisories')} on ${plural(blocks.dependencies.packages, 'package')} to upgrade.`
     }</p>`,
   );
+  // Set-asides that rest on a file this machine did not write: said where the page and its PDF are read, next to the verdict.
+  const fromElsewhere = fromFiles ? fromFilesNote(fromFiles) : null;
+  if (fromElsewhere) parts.push(`<p class="lead">${esc(fromElsewhere)}</p>`);
   parts.push('</div>');
   const numbers = [
     [blockingCount, ship ? 'm' : 'r', blockingCount === 1 ? 'finding blocks the deploy.' : 'findings block the deploy.'],
@@ -257,14 +283,14 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
       const facts = [
         g.impact ? ['At stake', esc(mask(g.impact))] : null,
         g.attack ? ['How it is done', esc(mask(g.attack))] : null,
-        ['Where', `<code>${esc(g.uri)}:${g.line}</code>`],
+        ['Where', `<code>${esc(g.uri)}:${esc(g.line)}</code>`],
         g.entryPoint ? ['Entry point', `<code>${esc(g.entryPoint)}</code>`] : null,
         g.guarantee ? ['Guarantee', esc(g.guarantee)] : null,
         ['Found by', esc(who(g))],
         g.challenge === 'holds' ? ['Challenged', 'A second agent, which did not write this proof, tried to break it and could not.'] : null,
-        g.score ? ['Rated', `${g.score} out of 10 by the AI scanner${s.severityFrom === 'dashboard' ? `, ${esc(g.severity)} in the dashboard with the project&rsquo;s context` : ''}`] : null,
+        g.score ? ['Rated', `${esc(g.score)} out of 10 by the AI scanner${s.severityFrom === 'dashboard' ? `, ${esc(g.severity)} in the dashboard with the project&rsquo;s context` : ''}`] : null,
         g.blocks ? ['Policy', 'Blocks the deploy', 'blk'] : null,
-        seen.length ? ['Seen live', seen.map((x) => `${esc(x.request.method)} <code>${esc(x.request.url)}</code> answered ${x.response.status}${x.note ? `: ${esc(x.note)}` : ''}`).join('<br>')] : null,
+        seen.length ? ['Seen live', seen.map((x) => `${esc(x.request.method)} <code>${esc(x.request.url)}</code> answered ${esc(x.response.status)}${x.note ? `: ${esc(x.note)}` : ''}`).join('<br>')] : null,
         g.fix ? ['The fix', esc(g.fix), 'fix'] : null,
       ].filter(Boolean);
       parts.push(
@@ -272,7 +298,7 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
           `<p class="msg">${esc(mask(g.message))}</p>` +
           `<dl class="facts">${facts.map(([k, val, cls]) => `<dt>${esc(k)}</dt><dd${cls ? ` class="${cls}"` : ''}>${val}</dd>`).join('')}</dl>` +
           (src
-            ? `</div><details${i < 3 ? ' open' : ''}><summary>The proof: ${esc(src.name)}</summary><div class="term"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">${esc(src.file)}:${src.line}</span></div><pre>${esc(mask(src.code))}${src.cut ? '\n...' : ''}</pre></div></details>`
+            ? `</div><details${i < 3 ? ' open' : ''}><summary>The proof: ${esc(src.name)}</summary><div class="term"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">${esc(src.file)}:${esc(src.line)}</span></div><pre>${esc(mask(src.code))}${src.cut ? '\n...' : ''}</pre></div></details>`
             : `<p class="more">The proof: <code>${esc(g.proofTest)}</code></p></div>`) +
           '</section>',
       );
@@ -294,8 +320,8 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
       const res = [`${x.response.status}`, ...Object.entries(x.response.headers ?? {}).map(([k, val]) => `${k}: ${Array.isArray(val) ? val.join(', ') : val}`), ...(shownAnswer ? ['', shownAnswer] : [])].join('\n');
       parts.push(
         `<section class="find two"><div><h3>${esc(x.note ?? `${x.request.method} ${x.request.url}`)}</h3>` +
-          `<dl class="facts">${x.finding ? `<dt>Finding</dt><dd><code>${esc(x.finding)}</code></dd>` : ''}<dt>Answer</dt><dd>${x.response.status}</dd></dl></div>` +
-          `<details${i < 2 && x.finding ? ' open' : ''}><summary>The request and the answer</summary><div class="term"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">probe ${x.id}, ${esc(x.at ?? '')}</span></div><pre>${esc(mask(req))}\n\n${esc(mask(res))}</pre></div></details></section>`,
+          `<dl class="facts">${x.finding ? `<dt>Finding</dt><dd><code>${esc(x.finding)}</code></dd>` : ''}<dt>Answer</dt><dd>${esc(x.response.status)}</dd></dl></div>` +
+          `<details${i < 2 && x.finding ? ' open' : ''}><summary>The request and the answer</summary><div class="term"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">probe ${esc(x.id)}, ${esc(x.at ?? '')}</span></div><pre>${esc(mask(req))}\n\n${esc(mask(res))}</pre></div></details></section>`,
       );
     });
     if (probes.length > shown.length) parts.push(`<p class="more">${probes.length - shown.length} more ${probes.length - shown.length === 1 ? 'request' : 'requests'} (sign-ups and sign-ins of the test accounts) in <code>.cybedefend/out/live.json</code>.</p>`);
@@ -319,7 +345,7 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
           { head: 'Blocks', cell: (g) => (g.blocks ? 'yes' : ''), cls: 'y' },
           { head: 'Found by', cell: (g) => esc(who(g)), cls: 'w' },
           { head: 'Finding', cell: (g) => esc(g.title), keep: true },
-          { head: 'Where', cell: (g) => `<code>${breakable(g.uri)}:${g.line}</code>`, keep: true },
+          { head: 'Where', cell: (g) => `<code>${breakable(g.uri)}:${esc(g.line)}</code>`, keep: true },
           { head: 'The triage', cell: (g) => judged(g.assessment), under: true },
           { head: 'What to do', cell: (g) => esc(g.fix ?? ''), under: true },
         ],
@@ -381,7 +407,7 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
   if (secrets.length) {
     parts.push(part('secrets', 'Secrets', 'Secrets to revoke.'));
     parts.push('<p>A secret in a repository is exposed, whatever the code does with it. Its owner revokes it and issues a new one; removing it from the file does not undo the exposure. Values are never shown here.</p>');
-    parts.push(`<ul class="l">${secrets.slice(0, 40).map((x) => `<li><code>${esc(x.file)}:${x.line}</code> ${esc(String(x.kind).replace(/-/g, ' '))}</li>`).join('')}</ul>`);
+    parts.push(`<ul class="l">${secrets.slice(0, 40).map((x) => `<li><code>${esc(x.file)}:${esc(x.line)}</code> ${esc(String(x.kind).replace(/-/g, ' '))}</li>`).join('')}</ul>`);
     if (secrets.length > 40) parts.push(`<p class="more">${secrets.length - 40} more in the dashboard.</p>`);
   }
 
@@ -389,7 +415,7 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
   if (leads.length) {
     parts.push(part('leads', 'Leads', 'Leads the review could not prove.'));
     parts.push('<p>No test shows these yet, so they cannot block a deploy. They are places to look.</p>');
-    parts.push(`<ul class="l">${leads.map((g) => `<li><code>${esc(g.uri)}:${g.line}</code> ${esc(mask(g.message))}</li>`).join('')}</ul>`);
+    parts.push(`<ul class="l">${leads.map((g) => `<li><code>${esc(g.uri)}:${esc(g.line)}</code> ${esc(mask(g.message))}</li>`).join('')}</ul>`);
   }
 
   // ── coverage
@@ -427,6 +453,7 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="${PAGE_POLICY}">
 <title>CybeDefend audit of ${esc(repo)}</title>
 ${fonts('block')}
 <style>${STYLE}</style>
@@ -437,7 +464,6 @@ ${fonts('block')}
 ${parts.join('\n')}
 <footer class="ft"><span>Generated by /cybedefend on ${esc(date)}. Every proof is a test in this repository: run it to see it fail.</span><span>cybedefend.com</span></footer>
 </div>
-<script>addEventListener('beforeprint',function(){document.querySelectorAll('details').forEach(function(d){d.open=true})})</script>
 </body>
 </html>
 `;

@@ -13,8 +13,10 @@ import { ScaDetectedPackages } from 'src/entities/sca-detected-packages.entity';
 import { ScaVulnerabilityDetections } from 'src/entities/sca-vulnerability-detections.entity';
 import { VulnerabilityOsv } from 'src/entities/osv';
 import { calculateOsvCvssScore, getMinFixedAbove } from './sca.utils';
+import { storedInstallCommandForOutput } from 'src/core/utils/stored-install-command.util';
 import { CvssExplainerService } from 'src/modules/cvss/cvss-explainer.service';
 import { resolveEffectiveSeverity } from 'src/modules/cvss/severity-from-cvss';
+import { displayedCveOf } from 'src/modules/results-import/imported-advisory.view';
 
 function resolveScoringSource(
   e: ScaVulnerabilityDetections,
@@ -36,7 +38,12 @@ export function mapVulnerabilityScaEntityToMetadata(
   // installed 7.5.13); empty when the install is already past every listed fix.
   installedVersion?: string,
 ): VulnerabilityScaMetadata {
-  const cve = e.aliases?.find((a) => a.alias.startsWith('CVE-'))?.alias ?? '';
+  // The same rule as the list: the id when it is a CVE, else the first CVE
+  // alias (the reads load the aliases sorted).
+  const cve = displayedCveOf(
+    e.id,
+    (e.aliases ?? []).map((a) => a.alias),
+  );
   const ghsaId =
     e.aliases?.find((a) => a.alias.startsWith('GHSA-'))?.alias ??
     (e.id.startsWith('GHSA-') ? e.id : '');
@@ -234,7 +241,7 @@ export function mapScaDetectionEntityToInterface(
     recommendedCurrentVersion: r.recommendedCurrentVersion || '',
     recommendedProposedVersion: r.recommendedProposedVersion || '',
     recommendedUpdateType: r.recommendedUpdateType || '',
-    installCommand: r.installCommand || '',
+    installCommand: storedInstallCommandForOutput(r),
     hasFixAvailable: r.hasFixAvailable || false,
   }));
 
@@ -545,7 +552,7 @@ export function mapScaDetectionEntityToListInterface(
     recommendedCurrentVersion: r.recommendedCurrentVersion || '',
     recommendedProposedVersion: r.recommendedProposedVersion || '',
     recommendedUpdateType: r.recommendedUpdateType || '',
-    installCommand: r.installCommand || '',
+    installCommand: storedInstallCommandForOutput(r),
     hasFixAvailable: r.hasFixAvailable || false,
   }));
 

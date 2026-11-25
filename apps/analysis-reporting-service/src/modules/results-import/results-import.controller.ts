@@ -139,7 +139,10 @@ export class ResultsImportController {
         ...(severities !== undefined ? { severities } : {}),
         ...(sbomFileKey !== undefined ? { sbomFileKey } : {}),
       });
-    } catch {
+    } catch (err) {
+      // A refusal of the queue (too many imports waiting for this
+      // organization) reaches the caller as is.
+      if (err instanceof RpcException) throw err;
       this.logger.error(
         `RESULTS_IMPORT_ENQUEUE_FAILED scan=${scanId} project=${projectId}`,
       );

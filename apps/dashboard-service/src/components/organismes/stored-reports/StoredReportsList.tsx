@@ -14,6 +14,8 @@ import ReportMetadataPopover, {
 
 import { AS_THEAD, AS_TH, AS_TD, AS_TD_STRONG, AS_CHIP } from '@/components/atoms/appsec/styles';
 import { cn } from '@/utils/function/utils';
+import EmptyState from '@/components/molecules/empty-state/EmptyState';
+import { API_ERROR_KEYS } from '@/utils/function/apiErrorKey';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface StoredReportsListProps {
@@ -58,6 +60,7 @@ const StoredReportsList: React.FC<StoredReportsListProps> = ({
     pageSize,
     loading,
     error,
+    forbidden,
     deletingId,
     usage,
     setPage,
@@ -116,6 +119,11 @@ const StoredReportsList: React.FC<StoredReportsListProps> = ({
       setConfirmId(null);
     }
   };
+
+  // The API refused the reports of this scope to the member: one calm state.
+  if (forbidden) {
+    return <EmptyState title={t(API_ERROR_KEYS.notAllowed)} size="md" />;
+  }
 
   return (
     <div className="space-y-4">

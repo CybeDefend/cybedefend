@@ -83,7 +83,16 @@ describe('OrganizationService: invitations take no seat (community)', () => {
     const res = await invite();
 
     expect(t.entitlements.canInviteUser).not.toHaveBeenCalled();
-    expect(manager.count).not.toHaveBeenCalled();
+    // No seat count: the only counts are the invitations of the last 24
+    // hours (the sending limits), never the members.
+    for (const call of manager.count.mock.calls as unknown[][]) {
+      const [entity, options] = call as [unknown, { where?: object }];
+      expect(entity).toBe(OrganizationInvitation);
+      expect(
+        'createdAt' in (options?.where ?? {}) ||
+          'updatedAt' in (options?.where ?? {}),
+      ).toBe(true);
+    }
     // The organisation row is still locked, first, and the invitation saved
     // through the transaction.
     expect(manager.findOne.mock.calls[0][0]).toBe(Organization);

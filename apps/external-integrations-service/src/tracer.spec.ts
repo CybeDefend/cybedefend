@@ -212,3 +212,35 @@ describe('the SDK exports traces only', () => {
     });
   });
 });
+
+describe('a failed statement’s span leaves without its values', () => {
+  it('scrubs the exception, the status and the statement before export', async () => {
+    const email = 'jane.doe+private@example.test';
+    const exporter = new InMemorySpanExporter();
+    const provider = new BasicTracerProvider({
+      spanProcessors: [buildSpanProcessor(exporter)],
+    });
+    const error = new Error(
+      `Duplicate entry '${email}' for key 'user.IDX_user_email_unique'`,
+    );
+
+    const span = provider.getTracer('spec').startSpan('mysql INSERT');
+    span.setAttribute(
+      'db.statement',
+      `INSERT INTO \`user\` (\`email\`) VALUES ('${email}')`,
+    );
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
+    span.end();
+    await provider.forceFlush();
+
+    const [exported] = exporter.getFinishedSpans();
+    expect(
+      JSON.stringify({
+        attributes: exported.attributes,
+        status: exported.status,
+        events: exported.events,
+      }),
+    ).not.toContain(email);
+  });
+});

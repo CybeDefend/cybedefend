@@ -2673,7 +2673,17 @@ describe('PolicyEvaluationProcessor — an incomplete fetch removes no violation
           },
         },
         { provide: getRepositoryToken(PolicyEvaluation), useValue: {} },
-        { provide: getRepositoryToken(PolicyViolation), useValue: {} },
+        {
+          provide: getRepositoryToken(PolicyViolation),
+          useValue: {
+            manager: {
+              transaction: async (
+                work: (em: unknown) => Promise<unknown>,
+              ): Promise<unknown> =>
+                work({ query: async () => [], getRepository: () => ({}) }),
+            },
+          },
+        },
         { provide: getRepositoryToken(SecurityPolicy), useValue: {} },
         {
           provide: 'ANALYSIS_REPORTING_SERVICE',

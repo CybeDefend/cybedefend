@@ -41,6 +41,7 @@ describe('ScanService', () => {
 
     fileStub = {
       uploadFile: jest.fn(),
+      deleteFile: jest.fn(),
     } as any;
 
     scanGrpcClient = { getService: jest.fn().mockReturnValue(scanStub) } as any;
@@ -151,5 +152,15 @@ describe('ScanService', () => {
       throwError(() => new Error('start-fail')) as any,
     );
     await expect(service.startScan({} as any)).rejects.toThrow('start-fail');
+  });
+  it('discardPendingUpload removes the upload registered for the scan', async () => {
+    fileStub.deleteFile.mockReturnValue(of({ success: true }) as any);
+    await expect(service.discardPendingUpload('s1')).resolves.toEqual({
+      success: true,
+    });
+    expect(fileStub.deleteFile).toHaveBeenCalledWith(
+      { scanId: 's1' },
+      expect.anything(),
+    );
   });
 });

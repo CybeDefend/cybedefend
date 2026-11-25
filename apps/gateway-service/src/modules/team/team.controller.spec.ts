@@ -290,6 +290,24 @@ describe('TeamController', () => {
       ).toEqual(result);
     });
 
+    it('names the token subject as the requester, never a body field', async () => {
+      const removeMember = jest
+        .spyOn(service, 'removeMember')
+        .mockResolvedValue({ message: 'ok' });
+
+      await controller.deleteTeamMember(
+        'team1',
+        { user: { sub: 'u1' } } as any,
+        { userId: 'mem1', removedBy: 'someone-else' } as any,
+      );
+
+      expect(removeMember).toHaveBeenCalledWith({
+        teamId: 'team1',
+        userId: 'mem1',
+        removedBy: 'u1',
+      });
+    });
+
     it('should handle errors when trying to remove a non-existent member', async () => {
       jest
         .spyOn(service, 'removeMember')
@@ -320,6 +338,25 @@ describe('TeamController', () => {
           body as any,
         ),
       ).toEqual(result);
+    });
+
+    it('names the token subject as the requester of a role change', async () => {
+      const updateMemberRole = jest
+        .spyOn(service, 'updateMemberRole')
+        .mockResolvedValue({ message: 'ok' });
+
+      await controller.updateTeamMemberRole(
+        'team1',
+        { user: { sub: 'u1' } } as any,
+        { userId: 'userId1', role: 'developer', updatedBy: 'x' } as any,
+      );
+
+      expect(updateMemberRole).toHaveBeenCalledWith({
+        teamId: 'team1',
+        userId: 'userId1',
+        role: 'developer',
+        updatedBy: 'u1',
+      });
     });
 
     it('should handle errors when invalid data is provided', async () => {

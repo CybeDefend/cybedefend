@@ -47,7 +47,7 @@ test('the README has the section, linked from the import section', () => {
   assert.match(README, /\]\(#run-scans-on-a-kubernetes-cluster\)/);
 });
 
-test('the section lists the eleven variables with the defaults the code uses', () => {
+test('the section lists the twelve variables with the defaults the code uses', () => {
   const text = section();
   const rows = new Map(
     [...text.matchAll(/^\| `(CYBEDEFEND_SCANNER_[A-Z_]+)` \| ([^|]*) \|/gm)].map((m) => [m[1], m[2].trim()]),
@@ -61,6 +61,7 @@ test('the section lists the eleven variables with the defaults the code uses', (
       'CYBEDEFEND_SCANNER_IMAGE_TAG',
       'CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET',
       'CYBEDEFEND_SCANNER_MAX_CONCURRENT',
+      'CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION',
       'CYBEDEFEND_SCANNER_RESOURCES',
       'CYBEDEFEND_SCANNER_KEEP_PODS',
       'CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS',
@@ -71,6 +72,9 @@ test('the section lists the eleven variables with the defaults the code uses', (
   assert.equal(rows.get('CYBEDEFEND_SCANNER_IMAGE_REGISTRY'), `\`${constant(CONFIG, 'DEFAULT_SCANNER_IMAGE_REGISTRY')}\``);
   assert.equal(rows.get('CYBEDEFEND_SCANNER_IMAGE_TAG'), `\`${constant(CONFIG, 'DEFAULT_SCANNER_IMAGE_TAG')}\``);
   assert.equal(rows.get('CYBEDEFEND_SCANNER_MAX_CONCURRENT'), `\`${constant(CONFIG, 'DEFAULT_SCANNER_MAX_CONCURRENT')}\``);
+  // Unset, the per-organization limit is the instance maximum: one organization keeps the whole capacity.
+  assert.equal(rows.get('CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION'), 'the maximum');
+  assert.match(text, /reserve/);
   assert.equal(rows.get('CYBEDEFEND_SCANNER_KEEP_PODS'), '`false`');
   assert.equal(rows.get('CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS'), '`false`');
   assert.match(text, /must be\s+set together, or neither/);

@@ -7,7 +7,6 @@ import {
   IsString,
   Matches,
   MaxLength,
-  IsUUID,
   ValidateIf,
 } from 'class-validator';
 
@@ -95,15 +94,6 @@ export class UpdateResultBodyDto {
   })
   dismissalReason?: string;
 
-  @ApiProperty({
-    description: 'User unique identifier that updates the vulnerability',
-    required: false,
-    format: 'uuid',
-  })
-  @IsUUID()
-  @IsOptional()
-  userId: string;
-
   // Exploitability override (manual verdict from analyst).
   // When set, the gateway forces ``exploitabilitySource = 'manual'`` so the
   // analysis-reporting EPSS/OSV crons skip recalculation for 7 days.
@@ -128,47 +118,9 @@ export class UpdateResultBodyDto {
   @MaxLength(1024)
   exploitabilityReason?: string;
 
-  // Chat agent audit trail forwarded to HistoryItem.
-  // Filled by the MCP set_exploitability / update_vulnerability tools after
-  // an HITL confirm; not meant to be set by humans through the public API.
-  @ApiProperty({
-    description: 'Chat agent tool call id (HITL audit).',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  @MaxLength(64)
-  agentToolCallId?: string;
-
-  @ApiProperty({
-    description: 'Chat agent conversation id (HITL audit).',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  @MaxLength(128)
-  agentConversationId?: string;
-
-  @ApiProperty({
-    description: 'Chat agent stream id (HITL audit).',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  @MaxLength(128)
-  agentStreamId?: string;
-
-  constructor(
-    status: string,
-    priority: string,
-    comment: string,
-    userId: string,
-  ) {
-    this.status = status;
-    this.priority = priority;
-    this.comment = comment;
-    this.userId = userId;
-  }
+  // Who triaged is never read from this body: the gateway records the
+  // authenticated caller, and the assistant audit fields of the history are
+  // not part of the public contract. The global pipe strips them if sent.
 
   public toString(): string {
     return JSON.stringify(this);

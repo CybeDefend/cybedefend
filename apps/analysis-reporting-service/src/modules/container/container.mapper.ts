@@ -11,6 +11,7 @@ import { VulnerabilityOsv } from 'src/entities/osv';
 import { calculateOsvCvssScore, getMinFixedAbove } from '../sca/sca.utils';
 import { CvssExplainerService } from '../cvss/cvss-explainer.service';
 import { resolveEffectiveSeverity } from '../cvss/severity-from-cvss';
+import { displayedCveOf } from '../results-import/imported-advisory.view';
 
 function resolveScoringSource(
   d: VulnerabilityDetectionsContainer,
@@ -140,7 +141,13 @@ function mapOsvToContainerVuln(
 ): ContainerVulnerability | undefined {
   if (!e) return undefined;
 
-  const cve = e.aliases?.find((a) => a.alias.startsWith('CVE-'))?.alias ?? e.id;
+  // The same rule as the SCA reads: the id when it is a CVE, else the first
+  // CVE alias (sorted), else the id.
+  const cve =
+    displayedCveOf(
+      e.id,
+      (e.aliases ?? []).map((a) => a.alias),
+    ) || e.id;
   const cvssScores: { [key: string]: CVSSInfo } = {};
 
   // The 'e' entity is now potentially enriched with alias data for CVSS scoring

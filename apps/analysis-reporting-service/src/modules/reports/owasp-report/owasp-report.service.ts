@@ -20,6 +20,33 @@ import { IacVulnerabilityDetections } from 'src/entities/iac-vulnerability-detec
 import { VulnerabilityDetectionsContainer } from 'src/entities/container_vulnerability_detections.entity';
 import { installedAwareContainerFix } from '../../container/container.mapper';
 import { getMinFixedAbove } from '../../sca/sca.utils';
+import {
+  applyImportedAdvisories,
+  displayedCveOf,
+  entriesOfPackage,
+} from '../../results-import/imported-advisory.view';
+
+/** The package of an SCA finding, as the advisory reads compare it. */
+const scaPackageOf = (d: ScaVulnerabilityDetections) =>
+  d.scaDetectedPackage
+    ? {
+        packageName: d.scaDetectedPackage.packageName,
+        ecosystem: d.scaDetectedPackage.ecosystem,
+      }
+    : null;
+
+/** The CVE shown for an advisory: the lists' rule over its sorted aliases. */
+const shownCveOf = (
+  osv: { id?: string; aliases?: Array<{ alias: string }> } | null | undefined,
+): string =>
+  osv?.id
+    ? displayedCveOf(
+        osv.id,
+        (osv.aliases ?? [])
+          .map((a) => a.alias)
+          .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+      )
+    : '';
 import { OWASP_TOP_10_2021_DATA } from './constants/owasp-data.constants';
 import { owaspReportTitle, renderOwaspReport } from './owasp-report.template';
 import {
@@ -162,6 +189,20 @@ export class OwaspReportService {
     // Map all vulnerabilities to unified format
     const sast = sastVulns.map((v) => this.mapSastVulnerability(v));
     const iac = iacVulns.map((v) => this.mapIacVulnerability(v));
+    // An advisory the project imported is read from the project's own row.
+    await applyImportedAdvisories(
+      this.scaVulnDetectRepository.manager,
+      scaVulns,
+      scaPackageOf,
+    );
+    await applyImportedAdvisories(
+      this.containerVulnDetectRepository.manager,
+      containerVulns,
+      (d) =>
+        d.detectedPackage
+          ? { packageName: d.detectedPackage.packageName, ecosystem: '' }
+          : null,
+    );
     const sca = scaVulns.map((v) => this.mapScaVulnerability(v));
     const container = containerVulns.map((v) =>
       this.mapContainerVulnerability(v),
@@ -324,15 +365,13 @@ export class OwaspReportService {
     vuln: ScaVulnerabilityDetections,
   ): MappedVulnerability {
     const osv = vuln.vulnerability;
-    const cveAlias = osv?.aliases?.find((a) => a.alias.startsWith('CVE-'));
     const packageName = vuln.scaDetectedPackage?.packageName;
     const packageVersion = vuln.scaDetectedPackage?.packageVersion;
 
-    // Recommended fix: the smallest `fixed` event strictly above the
-    // installed version (never a downgrade), as on the dashboard.
-    const affected = osv?.affected ?? [];
-    const forPackage = affected.filter((a) => a.packageName === packageName);
-    const fixes = (forPackage.length ? forPackage : affected)
+    // Recommended fix: the smallest `fixed` event of the finding's own
+    // package (entriesOfPackage) strictly above the installed version (never
+    // a downgrade), as on the dashboard.
+    const fixes = entriesOfPackage(osv?.affected ?? [], scaPackageOf(vuln))
       .flatMap((a) => a.ranges ?? [])
       .flatMap((r) => r.events ?? [])
       .map((e) => e.fixed)
@@ -354,7 +393,7 @@ export class OwaspReportService {
       fixedVersion: fixedVersion || undefined,
       advisoryId: osv?.id,
       withdrawn: osv?.withdrawnAt != null,
-      cve: cveAlias?.alias || '',
+      cve: shownCveOf(osv),
       cwe: [],
       owaspTop10: [],
       exploitability: this.mapExploitability(vuln),
@@ -366,10 +405,6 @@ export class OwaspReportService {
   private mapContainerVulnerability(
     vuln: VulnerabilityDetectionsContainer,
   ): MappedVulnerability {
-    const cveAlias = vuln.vulnerability?.aliases?.find((a) =>
-      a.alias.startsWith('CVE-'),
-    );
-
     return {
       id: vuln.id,
       type: 'container',
@@ -385,7 +420,7 @@ export class OwaspReportService {
       imageName: vuln.detectedImage?.artifactName || undefined,
       cvssScore: vuln.cvssScore,
       withdrawn: vuln.vulnerability?.withdrawnAt != null,
-      cve: cveAlias?.alias || '',
+      cve: shownCveOf(vuln.vulnerability),
       cwe: [],
       owaspTop10: [],
       exploitability: this.mapExploitability(vuln),

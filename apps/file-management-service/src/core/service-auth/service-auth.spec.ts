@@ -27,6 +27,8 @@ import {
   mintServiceToken,
   serviceAuthCallersOf,
   serviceAuthPeerKeyName,
+  serviceAuthServerKeyName,
+  serviceAuthServerOf,
 } from './service-auth';
 import {
   SCANNER_AUTH_HEADER,
@@ -124,6 +126,24 @@ describe('policy rules', () => {
       'SERVICE_AUTH_PEER_KEY_SECURITY_SCANNING',
     );
     expect(() => serviceAuthPeerKeyName('../x')).toThrow();
+  });
+
+  it('names the server of a method path, and the variable of the key that signs calls to it', () => {
+    expect(
+      serviceAuthServerOf('/cybedefend.global_management.UserService/Get'),
+    ).toBe('global-management');
+    expect(
+      serviceAuthServerOf('/cybedefend.policy_management.PolicyService/List'),
+    ).toBe('policy-management');
+    expect(serviceAuthServerOf(SAY)).toBeUndefined();
+    expect(serviceAuthServerOf(HEALTH)).toBeUndefined();
+    expect(serviceAuthServerOf('not-a-path')).toBeUndefined();
+    expect(serviceAuthServerOf('/cybedefend.Bad.Service/M')).toBeUndefined();
+    expect(serviceAuthServerOf('/cybedefend..Service/M')).toBeUndefined();
+    expect(serviceAuthServerKeyName('global-management')).toBe(
+      'SERVICE_AUTH_KEY_FOR_GLOBAL_MANAGEMENT',
+    );
+    expect(() => serviceAuthServerKeyName('../x')).toThrow();
   });
 });
 
@@ -742,6 +762,37 @@ describe('the interceptors on a real gRPC server', () => {
     const forger = client('gateway', OTHER_KEY);
     expect((await call(forger, 'Grant')).code).toBe(status.UNAUTHENTICATED);
     forger.close();
+  });
+
+  it('signs each call with the key the client holds for the method it calls', async () => {
+    const asked: string[] = [];
+    // The key of the pair (gateway, this server) for Say only; another
+    // server's key for Grant.
+    const c = new Ctor(address, credentials.createInsecure(), {
+      interceptors: [
+        createServiceAuthClientInterceptor({
+          caller: 'gateway',
+          key: (path) => {
+            asked.push(path);
+            return path === SAY ? KEY : OTHER_KEY;
+          },
+          logger: { warn },
+        }),
+      ],
+    }) as unknown as TestClient;
+    expect((await call(c, 'Say')).code).toBe(status.OK);
+    expect((await call(c, 'Grant')).code).toBe(status.UNAUTHENTICATED);
+    c.close();
+    expect(asked).toEqual([SAY, GRANT]);
+  });
+
+  it("refuses a caller's key for another server", async () => {
+    // The caller's key for this server is KEY; it signs with the key it holds
+    // for another server.
+    serverKeys = { gateway: [KEY] };
+    const c = client('gateway', OTHER_KEY);
+    expect((await call(c, 'Say')).code).toBe(status.UNAUTHENTICATED);
+    c.close();
   });
 
   it('in verify mode serves a call signed with the former shared key, and reports it', async () => {

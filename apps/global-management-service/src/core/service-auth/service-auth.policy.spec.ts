@@ -23,7 +23,7 @@ import {
 } from './service-auth';
 import {
   serviceAuthClientChannelOptions,
-  serviceAuthCommunityInfo,
+  serviceAuthCommunityPairInfo,
   serviceAuthServerChannelOptions,
 } from './service-auth.edition';
 import { SERVICE_AUTH_POLICY } from './service-auth.policy';
@@ -140,10 +140,12 @@ describe('global-management service-auth policy', () => {
 });
 
 const MASTER = Buffer.alloc(32, 3).toString('base64');
-const keyOf = (caller: string) =>
-  deriveKey(decodeMasterKey(MASTER), serviceAuthCommunityInfo(caller)).toString(
-    'hex',
-  );
+/** The key of the pair (caller, server), as the Community Edition derives it. */
+const keyOf = (caller: string, server: string) =>
+  deriveKey(
+    decodeMasterKey(MASTER),
+    serviceAuthCommunityPairInfo(caller, server),
+  ).toString('hex');
 
 describe('LocalAuthService on a real server, Community Edition', () => {
   const saved = { ...process.env };
@@ -280,7 +282,18 @@ describe('LocalAuthService on a real server, Community Edition', () => {
   it('refuses another service that signs as the gateway with its own key', async () => {
     const forger = createServiceAuthClientInterceptor({
       caller: 'gateway',
-      key: () => keyOf('file-management'),
+      key: () => keyOf('file-management', 'global-management'),
+      logger: { warn: () => undefined },
+    });
+    expect(await mint([forger])).toBe(status.UNAUTHENTICATED);
+    expect(minted).toEqual([]);
+  });
+
+  it("refuses the gateway's key for another server", async () => {
+    // The key file-management holds to verify the gateway's calls to it.
+    const forger = createServiceAuthClientInterceptor({
+      caller: 'gateway',
+      key: () => keyOf('gateway', 'file-management'),
       logger: { warn: () => undefined },
     });
     expect(await mint([forger])).toBe(status.UNAUTHENTICATED);
@@ -290,7 +303,7 @@ describe('LocalAuthService on a real server, Community Edition', () => {
   it('serves the gateway', async () => {
     const gateway = createServiceAuthClientInterceptor({
       caller: 'gateway',
-      key: () => keyOf('gateway'),
+      key: () => keyOf('gateway', 'global-management'),
       logger: { warn: () => undefined },
     });
     expect(await mint([gateway])).toBe(status.OK);

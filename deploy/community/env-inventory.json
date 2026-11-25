@@ -233,6 +233,14 @@
     "doc": "How many scans run on the cluster at once (1 to 50); the others wait in the queue."
   },
   {
+    "variable": "CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION",
+    "services": [
+      "security-scanning"
+    ],
+    "class": "optional",
+    "doc": "How many scans of one organization run on the cluster at once (1 to 50, at most CYBEDEFEND_SCANNER_MAX_CONCURRENT, which is the default); lower it to reserve slots for the other organizations."
+  },
+  {
     "variable": "CYBEDEFEND_SCANNER_NAMESPACE",
     "services": [
       "security-scanning"
@@ -502,6 +510,22 @@
     "doc": "Live OS end-of-life lookup; the Community Edition downloads no advisory feed."
   },
   {
+    "variable": "FILE_SCAN_ARCHIVE_DEADLINE_MS",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Milliseconds one uploaded archive may take to be read and rewritten before that scan alone fails (default 600000, ten minutes)."
+  },
+  {
+    "variable": "FILE_SCAN_MAX_PENDING_UPLOADS_PER_PROJECT",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Uploads of one project registered and not yet received; past it a further scan start is answered 429 (default 20)."
+  },
+  {
     "variable": "FILE_SCAN_MIN_FILE_AGE_SECONDS",
     "services": [
       "file-management"
@@ -516,6 +540,22 @@
     ],
     "class": "default",
     "doc": "Smallest upload the file cron accepts."
+  },
+  {
+    "variable": "FILE_SCAN_PENDING_CHECKS_PER_PROJECT",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Pending uploads of one project the file cron checks in storage per tick (default 5)."
+  },
+  {
+    "variable": "FILE_SCAN_PENDING_CHECKS_PER_TICK",
+    "services": [
+      "file-management"
+    ],
+    "class": "default",
+    "doc": "Pending uploads the file cron checks in storage per tick, all projects together (default 100)."
   },
   {
     "variable": "FILE_SCAN_PROCESSING_TIMEOUT_MINUTES",
@@ -910,6 +950,14 @@
     "doc": "Scans running at once on the instance (default 25)."
   },
   {
+    "variable": "MCP_ALLOWED_ORIGINS",
+    "services": [
+      "mcp"
+    ],
+    "class": "internal",
+    "doc": "CYBEDEFEND_MCP_ALLOWED_ORIGINS, empty by default: the browser pages the MCP server answers, comma-separated http(s) origins or * for any; empty, only its own address (CYBEDEFEND_MCP_PUBLIC_URL). A request from any other page's origin gets 403."
+  },
+  {
     "variable": "METRICS_PORT",
     "services": [
       "analysis-reporting",
@@ -1224,12 +1272,20 @@
     "doc": "Bearer token of the internal queue metrics endpoint. Unset: the endpoint answers on the internal network without one."
   },
   {
+    "variable": "RATE_LIMIT_ANONYMOUS_MAX",
+    "services": [
+      "mcp"
+    ],
+    "class": "default",
+    "doc": "Requests per window and client address without a token on the MCP server (default 60); the same number bounds, per client address and window, the tokens not accepted recently that the gateway refuses or is still checking."
+  },
+  {
     "variable": "RATE_LIMIT_MAX",
     "services": [
       "mcp"
     ],
     "class": "default",
-    "doc": "Requests per window and client address on the MCP server (default 120)."
+    "doc": "Requests per window and person on the MCP server (default 120)."
   },
   {
     "variable": "RATE_LIMIT_REDIS_TIMEOUT_MS",
@@ -1304,12 +1360,36 @@
     "doc": "redis://redis:6379, the bundled Redis (the MCP server keeps its sessions there)."
   },
   {
+    "variable": "REPORTS_MAX_STORED_PER_ORG",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "optional",
+    "doc": "How many reports each organisation may keep stored, queued ones included (a positive integer, or -1 for no limit; unset or any other value: 500). An organisation at the limit is refused new reports until it deletes some or they expire; nothing is deleted to make room."
+  },
+  {
+    "variable": "REPORTS_RETENTION_DAYS",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "optional",
+    "doc": "Days a new report is kept before the scheduled purge deletes it (a positive integer). Unset, -1 or any other value: reports never expire. The expiry is fixed when a report is created, so a change applies to new reports only."
+  },
+  {
     "variable": "REPO_SCAN_CONCURRENCY",
     "services": [
       "external-integrations"
     ],
     "class": "default",
     "doc": "Repository scans external-integrations starts at once."
+  },
+  {
+    "variable": "RESULTS_IMPORT_REDIS_URL",
+    "services": [
+      "analysis-reporting"
+    ],
+    "class": "unused",
+    "doc": "Redis of the results import live specs (test harness only)."
   },
   {
     "variable": "S3_ACCESS_KEY_ID",
@@ -1401,6 +1481,20 @@
     "doc": "Lets the scanner pods call their few methods without a service token, where a deployment routes them to the gRPC servers. The Community Edition never does: its scan pods report to the gateway over HTTP."
   },
   {
+    "variable": "SERVICE_AUTH_KEY_FOR_",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "file-management",
+      "gateway",
+      "global-management",
+      "policy-management",
+      "security-scanning"
+    ],
+    "class": "default",
+    "doc": "A family of keys, SERVICE_AUTH_KEY_FOR_<SERVER>: the key a service signs its internal gRPC calls to that server with, one per (caller, server) pair. Derived from CYBEDEFEND_SECRET_KEY by the init-secrets job into the service's own secrets volume, read from SERVICE_AUTH_PEER_KEYS_DIR; never set by hand."
+  },
+  {
     "variable": "SERVICE_AUTH_MODE",
     "services": [
       "analysis-reporting",
@@ -1413,6 +1507,20 @@
     ],
     "class": "cloud-only",
     "doc": "verify (log a call without a valid service token and serve it) or enforce (refuse it). The Community Edition always enforces and ignores the variable."
+  },
+  {
+    "variable": "SERVICE_AUTH_PEER_KEY_",
+    "services": [
+      "analysis-reporting",
+      "external-integrations",
+      "file-management",
+      "gateway",
+      "global-management",
+      "policy-management",
+      "security-scanning"
+    ],
+    "class": "default",
+    "doc": "A family of keys, SERVICE_AUTH_PEER_KEY_<CALLER>: the key a server verifies the internal gRPC calls of that caller with, the same as the caller's SERVICE_AUTH_KEY_FOR_<this server>. Derived from CYBEDEFEND_SECRET_KEY by the init-secrets job into the server's own secrets volume, read from SERVICE_AUTH_PEER_KEYS_DIR; never set by hand."
   },
   {
     "variable": "SLACK_CLIENT_ID",

@@ -139,7 +139,10 @@ describe('aggregated report kinds', () => {
       }),
     };
     const svc = new AggregatedReportsService(
-      { update: jest.fn().mockResolvedValue(undefined) } as any,
+      {
+        findOne: jest.fn().mockResolvedValue({ id: 'r1', status: 'queued' }),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
+      } as any,
       agg as any,
       builder as any,
       upload as any,

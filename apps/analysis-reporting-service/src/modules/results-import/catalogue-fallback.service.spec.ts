@@ -11,6 +11,7 @@ import { ScanQueueService } from '../scan-queue/scan-queue.service';
 import { Vulnerability } from '../../entities/vulnerability/vulnerability.entity';
 import { CorrespondanceTable } from '../../entities/vulnerability/correspondance-table.entity';
 import { References } from '../../entities/vulnerability/references.entity';
+import { SastVulnerabilityDetections } from '../../entities/sast-vulnerability-detections.entity';
 
 /**
  * Unit spec for the catalogue fallback: an imported rule with no
@@ -65,6 +66,18 @@ class FakeQueryBuilder {
     return this.record('updateEntity', args);
   }
 
+  update(...args: unknown[]): this {
+    return this.record('update', args);
+  }
+
+  orUpdate(...args: unknown[]): this {
+    return this.record('orUpdate', args);
+  }
+
+  set(...args: unknown[]): this {
+    return this.record('set', args);
+  }
+
   async execute(): Promise<unknown> {
     this.record('execute', []);
     const error = this.harness.insertErrors.shift();
@@ -80,7 +93,15 @@ class Harness {
   /** Errors the INSERTs throw, in order (one per execute). */
   insertErrors: unknown[] = [];
   transactionCalls = 0;
+  /** The detection moves: entity, criteria, values. */
+  readonly moves: Array<{ entity: unknown; where: unknown; set: unknown }> = [];
   readonly manager = {
+    getRepository: (entity: unknown) => ({
+      update: async (where: unknown, set: unknown) => {
+        this.moves.push({ entity, where, set });
+        return { affected: 1 };
+      },
+    }),
     createQueryBuilder: (entity?: unknown, alias?: string) => {
       const qb = new FakeQueryBuilder(this);
       qb.calls.push({ method: 'createQueryBuilder', args: [entity, alias] });
@@ -96,7 +117,25 @@ class Harness {
       return cb(this.manager);
     },
     query: jest.fn(),
+    createQueryBuilder: () => this.manager.createQueryBuilder(),
   };
+
+  /** The UPDATE builders: what each one set, and on which id. */
+  updates(): Array<{ set: Record<string, unknown>; id: unknown }> {
+    return this.builders
+      .filter((qb) => qb.calls.some((c) => c.method === 'update'))
+      .map((qb) => ({
+        set: qb.calls.find((c) => c.method === 'set')?.args[0] as Record<
+          string,
+          unknown
+        >,
+        id: (
+          qb.calls.find((c) => c.method === 'where')?.args[1] as {
+            id?: unknown;
+          }
+        )?.id,
+      }));
+  }
 
   /** The INSERT builders that targeted `entity`, with their values rows. */
   insertsInto(entity: unknown): Array<Record<string, unknown>[]> {
@@ -150,6 +189,8 @@ interface SetupOptions {
   importedKnown?: string[];
   lockToken?: string | null;
   lockError?: unknown;
+  /** Every project key resolves to a row an earlier import created. */
+  projectRowsExist?: boolean;
 }
 
 const setup = (opts: SetupOptions = {}) => {
@@ -161,6 +202,9 @@ const setup = (opts: SetupOptions = {}) => {
       if (opts.known?.includes(id)) out.set(id, catalogRule(id));
       if (opts.importedKnown?.includes(id)) {
         out.set(id, catalogRule(id, 'CD-SAST-90023'));
+      }
+      if (opts.projectRowsExist && id.startsWith('imported-')) {
+        out.set(id, catalogRule(id, 'CD-SAST-90031'));
       }
     }
     return out;
@@ -399,6 +443,82 @@ describe('CatalogueFallbackService', () => {
 describe('CatalogueFallbackService.catalogueRuleIds: rules imported by one organisation', () => {
   const ORG_A = '11111111-1111-4111-8111-111111111111';
   const ORG_B = '22222222-2222-4222-8222-222222222222';
+  const PROJECT_1 = '33333333-3333-4333-8333-333333333333';
+  const PROJECT_2 = '44444444-4444-4444-8444-444444444444';
+
+  it('gives two projects of one organisation importing the same rule id two distinct catalogue rules', async () => {
+    const { service, harness } = setup();
+    const forOne = await service.catalogueRuleIds(
+      'semgrep',
+      'sast',
+      [meta({ ruleId: 'team.sqli', name: 'Wording of project 1' })],
+      ORG_A,
+      PROJECT_1,
+    );
+    const forTwo = await service.catalogueRuleIds(
+      'semgrep',
+      'sast',
+      [meta({ ruleId: 'team.sqli', name: 'Wording of project 2' })],
+      ORG_A,
+      PROJECT_2,
+    );
+    expect(forOne.get('team.sqli')).not.toBe(forTwo.get('team.sqli'));
+    expect(
+      harness
+        .insertsInto(Vulnerability)
+        .flat()
+        .map((r) => r.name),
+    ).toEqual(['Wording of project 1', 'Wording of project 2']);
+  });
+
+  it("refreshes the wording and severity of the project's own rule on a later import", async () => {
+    const { service, harness } = setup({ projectRowsExist: true });
+    await service.catalogueRuleIds(
+      'semgrep',
+      'sast',
+      [meta({ ruleId: 'team.sqli', name: 'Reworded', severity: 'low' })],
+      ORG_A,
+      PROJECT_1,
+    );
+    // No new rule is created: the project's existing row is written in one
+    // upsert on its primary key, which only ever updates it.
+    expect(harness.transactionCalls).toBeLessThanOrEqual(1);
+    const refresh = harness.builders.find((qb) =>
+      qb.calls.some((c) => c.method === 'orUpdate'),
+    );
+    expect(refresh).toBeDefined();
+    const orUpdate = refresh.calls.find((c) => c.method === 'orUpdate');
+    expect(orUpdate.args[1]).toEqual(['id']);
+    expect(orUpdate.args[0]).toEqual(
+      expect.arrayContaining(['name', 'description', 'severity']),
+    );
+    const [row] = refresh.calls.find((c) => c.method === 'values')
+      .args[0] as Array<Record<string, unknown>>;
+    expect(row).toEqual(
+      expect.objectContaining({ name: 'Reworded', severity: 'low' }),
+    );
+    expect(String(row.id)).toMatch(/^vuln-imported-/);
+  });
+
+  it("moves this project's findings off the organisation's former rule row", async () => {
+    const { service, harness } = setup({ projectRowsExist: true });
+    await service.catalogueRuleIds(
+      'semgrep',
+      'sast',
+      [meta({ ruleId: 'team.sqli' })],
+      ORG_A,
+      PROJECT_1,
+    );
+    expect(harness.moves).toHaveLength(1);
+    const [move] = harness.moves as Array<{
+      entity: unknown;
+      where: { projectId: string; vulnerability: { id: string } };
+      set: { vulnerability: { id: string } };
+    }>;
+    expect(move.entity).toBe(SastVulnerabilityDetections);
+    expect(move.where.projectId).toBe(PROJECT_1);
+    expect(move.where.vulnerability.id).not.toBe(move.set.vulnerability.id);
+  });
 
   it('gives two organisations importing the same rule id two distinct catalogue rules', async () => {
     const { service, harness } = setup();
@@ -408,12 +528,14 @@ describe('CatalogueFallbackService.catalogueRuleIds: rules imported by one organ
       'sast',
       [rule],
       ORG_A,
+      PROJECT_1,
     );
     const forB = await service.catalogueRuleIds(
       'semgrep',
       'sast',
       [meta({ ruleId: 'team.sqli', name: 'Org B wording' })],
       ORG_B,
+      PROJECT_1,
     );
     const keyA = forA.get('team.sqli');
     const keyB = forB.get('team.sqli');
@@ -439,6 +561,7 @@ describe('CatalogueFallbackService.catalogueRuleIds: rules imported by one organ
       'sast',
       [meta({ ruleId: 't4.sqli' }), meta({ ruleId: 't6.sqli' })],
       ORG_A,
+      PROJECT_1,
     );
     expect(keys.get('t4.sqli')).not.toBe(keys.get('t6.sqli'));
     const corr = harness.insertsInto(CorrespondanceTable).flat();
@@ -452,12 +575,14 @@ describe('CatalogueFallbackService.catalogueRuleIds: rules imported by one organ
       'sast',
       [meta()],
       ORG_A,
+      PROJECT_1,
     );
     const second = await service.catalogueRuleIds(
       'semgrep',
       'sast',
       [meta()],
       ORG_A,
+      PROJECT_1,
     );
     expect(second.get('rule-a')).toBe(first.get('rule-a'));
   });
@@ -470,6 +595,7 @@ describe('CatalogueFallbackService.catalogueRuleIds: rules imported by one organ
       'sast',
       [meta({ ruleId: 'mine.sqli', name: 'My wording' })],
       ORG_B,
+      PROJECT_1,
     );
     expect(keys.get('mine.sqli')).not.toBe('mine.sqli');
     const names = harness
@@ -486,6 +612,7 @@ describe('CatalogueFallbackService.catalogueRuleIds: rules imported by one organ
       'sast',
       [meta({ ruleId: 'python.lang.security.audit.eval' })],
       ORG_A,
+      PROJECT_1,
     );
     expect(keys.get('python.lang.security.audit.eval')).toBe(
       'python.lang.security.audit.eval',

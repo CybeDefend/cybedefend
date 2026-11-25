@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
 import { TeamService } from './team.service';
+import { grantingCreateQueryRunner } from '../authorization/membership-lock.testing';
 import { Team } from 'src/entities/team.entity';
 import { Organization } from 'src/entities/organization.entity';
 import { Project } from 'src/entities/project.entity';
@@ -37,7 +38,7 @@ describe('TeamService', () => {
   let realtimePublisher: { publish: jest.Mock };
   let authorization: Record<string, jest.Mock>;
   let manager: { delete: jest.Mock };
-  let dataSource: { transaction: jest.Mock };
+  let dataSource: { transaction: jest.Mock; createQueryRunner: jest.Mock };
   let purgeLedger: { enqueueTeam: jest.Mock };
   let purgeRunner: { kick: jest.Mock };
   let tx: { committed: boolean; rolledBack: boolean };
@@ -65,6 +66,7 @@ describe('TeamService', () => {
           throw err;
         }
       }),
+      createQueryRunner: grantingCreateQueryRunner(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

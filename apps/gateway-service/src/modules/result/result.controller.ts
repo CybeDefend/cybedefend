@@ -1347,9 +1347,12 @@ export class ResultController {
       cvss4EnvAdjustments: '',
       scoringSource: '',
       exploitabilityScoreReason: '',
-      agentToolCallId: updateResultDto.agentToolCallId ?? '',
-      agentConversationId: updateResultDto.agentConversationId ?? '',
-      agentStreamId: updateResultDto.agentStreamId ?? '',
+      // The triage is recorded as the authenticated caller's (`userId`
+      // above). The assistant audit fields would record it as a decision of
+      // the assistant: a public caller never sets them.
+      agentToolCallId: '',
+      agentConversationId: '',
+      agentStreamId: '',
       // The DTO already refused an `ignored` with no
       // reason; forward it so analysis-reporting can persist the justification
       // and its own `assertDismissalReason` guard is satisfied.
@@ -1407,15 +1410,11 @@ export class ResultController {
     this.logger.log(
       `User ${req?.user.sub} is batch updating ${batchUpdateDto.items.length} vulnerabilities for project ${projectId}`,
     );
+    // Recorded as the authenticated caller's triage, never the assistant's.
     return this.resultService.batchUpdate(
       projectId,
       batchUpdateDto.items,
       req.user?.sub,
-      {
-        agentToolCallId: batchUpdateDto.agentToolCallId,
-        agentConversationId: batchUpdateDto.agentConversationId,
-        agentStreamId: batchUpdateDto.agentStreamId,
-      },
     );
   }
 
@@ -1633,8 +1632,11 @@ export class ResultController {
   })
   @Feature('container_scanning')
   @UseGuards(PermissionsGuard, FeatureGuard)
-  @SubjectType('project')
-  @Permission('read_scan_result')
+  // Removes the image, its findings and their triage history for good:
+  // `delete` restricts it to the roles that may delete the project, and
+  // `change_vulnerability_state` adds the organisation's writes-allowed gate.
+  @SubjectType(['project', 'project'])
+  @Permission(['delete', 'change_vulnerability_state'])
   @Delete('/project/:projectId/results/container/images/:imageId')
   deleteContainerImage(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
@@ -1691,7 +1693,7 @@ export class ResultController {
   })
   @UseGuards(PermissionsGuard, FeatureGuard)
   @SubjectType('project')
-  @Permission('read_scan_result')
+  @Permission('create_report')
   @Feature('reports')
   @Get('/project/:projectId/owasp-report/:format')
   async generateOwaspReport(
@@ -1754,7 +1756,7 @@ export class ResultController {
   })
   @UseGuards(PermissionsGuard, FeatureGuard)
   @SubjectType('project')
-  @Permission('read_scan_result')
+  @Permission('create_report')
   @Feature('reports')
   @Get('/project/:projectId/cwe-report/:format')
   async generateCweReport(
@@ -1814,7 +1816,7 @@ export class ResultController {
   })
   @UseGuards(PermissionsGuard)
   @SubjectType('project')
-  @Permission('read_scan_result')
+  @Permission('read_report')
   @Get('/project/:projectId/reports/:reportId')
   async getGeneratedReport(
     @Req() req,
@@ -1978,7 +1980,7 @@ export class ResultController {
   @ApiParam({ name: 'projectId', type: 'string', format: 'uuid' })
   @UseGuards(PermissionsGuard, FeatureGuard)
   @SubjectType('project')
-  @Permission('read_scan_result')
+  @Permission('read_report')
   @Feature('reports')
   @Get('/project/:projectId/reports')
   async listGeneratedReports(
@@ -2057,7 +2059,7 @@ export class ResultController {
   @ApiParam({ name: 'projectId', type: 'string', format: 'uuid' })
   @UseGuards(PermissionsGuard, FeatureGuard)
   @SubjectType('project')
-  @Permission('read_scan_result')
+  @Permission('read_report')
   @Feature('reports')
   @Get('/project/:projectId/reports/usage')
   async getProjectReportUsage(

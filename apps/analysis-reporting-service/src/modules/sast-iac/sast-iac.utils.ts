@@ -60,7 +60,9 @@ import {
   applySightingToDetection,
   applyTriageToDetection,
   assertDismissalReason,
+  carriesTriageDecision,
   clearResolutionOnRevive,
+  holdsDismissal,
   mergeDetectionTriage,
   shouldAutoResolveOnDisappearance,
 } from '../findings-export/lifecycle.util';
@@ -91,6 +93,26 @@ export function fingerprintForNewSastDetection(
     vulnerableEndLine: snippet?.vulnerableEndLine ?? 0,
     occurrenceIndex,
   });
+}
+
+/**
+ * Fingerprint of an occurrence whose own digest is already held by another
+ * finding (a dismissed twin keeps it): the digest, framed with a marker and
+ * the occurrence's position at creation, so it is unique in its file and,
+ * being written once, stable across scans.
+ */
+export function fingerprintForHeldOccurrence(
+  heldDigest: string,
+  startLine: number | undefined,
+  endLine: number | undefined,
+): string {
+  const h = createHash('sha256');
+  for (const part of ['held-occurrence', heldDigest, startLine, endLine]) {
+    const buf = Buffer.from(String(part ?? ''), 'utf8');
+    h.update(`${buf.length}:`);
+    h.update(buf);
+  }
+  return h.digest('hex');
 }
 
 /**
@@ -129,6 +151,65 @@ export function fingerprintForSecretValue(
  * is never stored on the detection. Read from `ruleMetadata`, never from
  * `vulnDto.ruleId`: the import ingests a finding under its catalogue key.
  */
+/**
+ * The line-drift repair's assignment of new rows to the rows that vanished:
+ * pairs taken by smallest line distance across the whole group, each side
+ * used once, so the result never depends on the order of the rows.
+ *
+ * On equal distance the new row goes to a row nobody decided on before a row
+ * holding a dismissal. A row holding a dismissal only takes a new row when it
+ * is the strictly closest of all the vanished rows to it: when that is not
+ * clear, the dismissal stays where it was taken and the new occurrence is
+ * left open, never hidden under a decision taken on other code.
+ */
+export function assignDriftPairs<
+  O extends { id?: string } & Parameters<typeof holdsDismissal>[0],
+  C extends { id?: string },
+>(pairs: Array<{ old: O; candidate: C; dist: number }>): Map<O, C> {
+  const sorted = [...pairs].sort(
+    (a, b) =>
+      a.dist - b.dist ||
+      Number(holdsDismissal(a.old)) - Number(holdsDismissal(b.old)) ||
+      String(a.old.id).localeCompare(String(b.old.id)) ||
+      String(a.candidate.id).localeCompare(String(b.candidate.id)),
+  );
+  const assigned = new Map<O, C>();
+  const taken = new Set<C>();
+  for (const pair of sorted) {
+    if (assigned.has(pair.old) || taken.has(pair.candidate)) continue;
+    if (
+      holdsDismissal(pair.old) &&
+      pairs.some(
+        (other) =>
+          other.candidate === pair.candidate &&
+          other.old !== pair.old &&
+          other.dist <= pair.dist,
+      )
+    ) {
+      continue;
+    }
+    assigned.set(pair.old, pair.candidate);
+    taken.add(pair.candidate);
+  }
+  return assigned;
+}
+
+/**
+ * The severity of an imported finding: the one its own result gave (level and
+ * `security-severity`, mapped at parse time), null for a scanner finding. A
+ * catalogue row is shared by every finding of its rule, so it never decides
+ * the severity of one imported result.
+ */
+export function importedFindingSeverityOf(
+  vulnDto: VulnerabilityDtoRequest,
+): string | null {
+  if (!vulnDto.ruleMetadata) return null;
+  const severity = (vulnDto.severity ?? '').toLowerCase();
+  return ['critical', 'high', 'medium', 'low'].includes(severity)
+    ? severity
+    : null;
+}
+
 export function importedScannerRuleIdOf(
   vulnDto: VulnerabilityDtoRequest,
 ): string | null {
@@ -962,6 +1043,7 @@ export class SastIacUtilsService {
     );
 
     if (existingVuln) {
+      await this.applyImportedSeverity(existingVuln, vulnDto, projectId);
       if (existingVuln instanceof SastVulnerabilityDetections) {
         if (existingVuln.fileHash === vulnDto.fileHash) {
           await this.updateExistingVulnerability(
@@ -1544,6 +1626,114 @@ export class SastIacUtilsService {
   }
 
   /**
+   * An import is the source of its findings' severity: a re-imported finding
+   * takes the severity of its new result, with the scores derived from it. A
+   * priority a person set stays. Saved by the caller with the re-detection.
+   */
+  private async applyImportedSeverity(
+    detection: SastVulnerabilityDetections | IacVulnerabilityDetections,
+    vulnDto: VulnerabilityDtoRequest,
+    projectId: string,
+  ): Promise<void> {
+    const severity = importedFindingSeverityOf(vulnDto);
+    if (!severity || detection.currentSeverity?.toLowerCase() === severity) {
+      return;
+    }
+    detection.currentSeverity = severity;
+    const cvss4 = this.cvssCalculator.computeCvss4Base({
+      cvss3Vector: null,
+      severity,
+    });
+    detection.cvss4Vector = cvss4?.vector ?? null;
+    detection.cvss4BaseScore = cvss4?.baseScore ?? null;
+    detection.cvss4EnvironmentalScore = cvss4?.baseScore ?? null;
+    detection.cvss4EnvironmentalVector = null;
+    detection.effectiveSeverity = deriveEffectiveSeverity(
+      detection.cvss4EnvironmentalScore ?? null,
+      detection.cvss4BaseScore ?? null,
+    );
+    if (!detection.priorityManualOverride) {
+      const priority = await this.resultService.recalculatePriority(
+        {
+          cvss4EnvironmentalScore: detection.cvss4EnvironmentalScore ?? null,
+          cvss4BaseScore: detection.cvss4BaseScore ?? null,
+          currentSeverity: severity,
+          epssScore: null,
+          epssPercentile: null,
+          exploitabilityScore: detection.exploitabilityScore ?? null,
+          priorityManualOverride: false,
+        },
+        projectId,
+      );
+      detection.currentPriority =
+        priority?.priority ?? this.mapSeverityToPriority(severity);
+      detection.priorityScore = priority?.priorityScore ?? null;
+    }
+  }
+
+  /**
+   * Sends a dismissed finding back to review (`to_verify`) as the system: the
+   * dismissal stays in its history, followed by this status change.
+   */
+  private async reopenForReview(
+    detection:
+      | SastVulnerabilityDetections
+      | IacVulnerabilityDetections
+      | CicdVulnerabilityDetections,
+    twinId: string,
+  ): Promise<void> {
+    const now = new Date();
+    detection.currentState = 'to_verify';
+    detection.stateManuallyModified = false;
+    applyTriageToDetection(detection, { status: 'to_verify' }, now, 'system');
+    const historyItem = new HistoryItem();
+    historyItem.type = 'status_change';
+    historyItem.value = 'to_verify';
+    historyItem.date = now;
+    if (detection instanceof SastVulnerabilityDetections) {
+      await this.sastVulnDetectRepository.save(detection);
+      historyItem.sastVulnerabilityDetection = detection;
+    } else if (detection instanceof CicdVulnerabilityDetections) {
+      await this.cicdVulnDetectRepository.save(detection);
+      historyItem.cicdVulnerabilityDetection = detection;
+    } else {
+      await this.iacVulnDetectRepository.save(detection);
+      historyItem.iacVulnerabilityDetection = detection;
+    }
+    applyAgentAuditFields(historyItem, {}, 'system');
+    await this.resultService.addHistoryItem(historyItem);
+    this.logger.warn(
+      `DISMISSAL_SENT_TO_REVIEW det=${detection.id} twin=${twinId} — identical code with no finding of its own appeared in the same file`,
+    );
+  }
+
+  /**
+   * Whether a scan other than `currentScanId` recorded a sighting of this
+   * SAST, IaC or CICD detection: true for a finding that existed before the
+   * current scan, false for a row the current scan created.
+   */
+  private async wasSightedByAnotherScan(
+    detection:
+      | SastVulnerabilityDetections
+      | IacVulnerabilityDetections
+      | CicdVulnerabilityDetections,
+    currentScanId: string,
+  ): Promise<boolean> {
+    const relation =
+      detection instanceof SastVulnerabilityDetections
+        ? 'sastVulnerabilityDetection'
+        : detection instanceof CicdVulnerabilityDetections
+          ? 'cicdVulnerabilityDetection'
+          : 'iacVulnerabilityDetection';
+    return this.vulnDetectHistoryRepository.exists({
+      where: {
+        scanId: Not(currentScanId),
+        [relation]: { id: detection.id },
+      } as FindOptionsWhere<VulnerabilityDetectionHistory>,
+    });
+  }
+
+  /**
    * Manage old SAST and IAC vulnerabilities to manage simple changements in the code like line changes to avoid duplicates vulnerabilities.
    * 1st case: Their is one vulnerability in a file and the line of this vulnerability has changed => update the line of the vulnerability.
    * 2nd case: Their is one vulnerability in a file and the line of this vulnerability has changed and the code snippet has changed => update the line of the vulnerability and the code snippet.
@@ -1657,6 +1847,37 @@ export class SastIacUtilsService {
         | CicdVulnerabilityDetections,
     ) => Math.abs(v1.vulnerableStartLine - v2.vulnerableStartLine);
 
+    // The line-drift repair merges a finding that vanished into the row this
+    // scan created for it at its new position, then deletes that row. A row
+    // that existed before this scan was found at its own position: it is
+    // another occurrence (a twin with the same code), never the vanished one
+    // displaced. Merging into it moved a dismissal onto a live occurrence and
+    // deleted the history of one of the two. A row carrying a person's or the
+    // agent's decision is never deleted by a scan either.
+    const seenBeforeThisScan = new Map<string, boolean>();
+    const existedBeforeThisScan = async (
+      detection:
+        | SastVulnerabilityDetections
+        | IacVulnerabilityDetections
+        | CicdVulnerabilityDetections,
+    ): Promise<boolean> => {
+      let seen = seenBeforeThisScan.get(detection.id);
+      if (seen === undefined) {
+        seen = await this.wasSightedByAnotherScan(detection, currentScanId);
+        seenBeforeThisScan.set(detection.id, seen);
+      }
+      return seen;
+    };
+    const isDriftTarget = async (
+      candidate:
+        | SastVulnerabilityDetections
+        | IacVulnerabilityDetections
+        | CicdVulnerabilityDetections,
+    ): Promise<boolean> => {
+      if (carriesTriageDecision(candidate)) return false;
+      return !(await existedBeforeThisScan(candidate));
+    };
+
     const updateAndRemove = async (
       older:
         | SastVulnerabilityDetections
@@ -1762,19 +1983,23 @@ export class SastIacUtilsService {
       older.firstDetectedAt = merged.first;
       older.lastDetectedAt = merged.last;
 
-      // The row being DELETED can be the one carrying the decision: `older` is
-      // only "older" by `createdAt`, and `areVulnsSimilar` filters on
-      // type/rule/path/snippet with no state filter, so an `ignored`, frozen
-      // detection is a legal merge candidate. `history_item`'s detection FKs are
-      // ON DELETE CASCADE, so the delete below takes the `status_change` row AND
-      // the `comment` row `backfill-lifecycle.ts` rebuilds `dismissal_reason`
-      // from — the evidence and its only recovery source go together, and
-      // nothing can restore them afterwards. The shared rule keeps the decided
-      // side (see mergeDetectionTriage).
+      // The row deleted below is one this scan created and nobody decided on
+      // (`isDriftTarget`): `history_item`'s detection FKs are ON DELETE
+      // CASCADE, so deleting a decided row would take its `status_change` and
+      // `comment` rows with it. The shared rule is kept as a last guard: it
+      // only ever keeps the decided side (see mergeDetectionTriage).
       if (mergeDetectionTriage(older, newer)) {
         this.logger.log(
           `TRIAGE_CARRIED_OVER survivor=${older.id} from=${newer.id} state=${older.currentState} by=${older.triagedByType ?? 'none'}`,
         );
+      }
+
+      // The finding is detected right now at its new position: a survivor a
+      // scan had resolved is open again, as at ingestion.
+      if (older.currentState === 'resolved') {
+        older.currentState = 'to_verify';
+        older.stateManuallyModified = false;
+        clearResolutionOnRevive(older);
       }
 
       // The survivor used to be
@@ -2035,36 +2260,37 @@ export class SastIacUtilsService {
           }
         }
 
+        // Every (vanished row, new row) pair of the group, then one global
+        // assignment by smallest distance. A greedy walk per vanished row
+        // depended on the order the rows came back from the database, and
+        // could hand the live occurrence to a dismissed twin.
+        const pairs: Array<{
+          old: (typeof oldSet)[number];
+          candidate: (typeof newSet)[number];
+          dist: number;
+        }> = [];
         for (const oldVuln of oldSet) {
-          // Yield at start of each vuln processing
           await this.yieldToEventLoop();
-
-          let bestMatch:
-            | SastVulnerabilityDetections
-            | IacVulnerabilityDetections
-            | CicdVulnerabilityDetections
-            | null = null;
-          let bestDist = Number.MAX_SAFE_INTEGER;
-
           for (const candidate of newSet) {
             if (candidate.id === oldVuln.id) continue;
             if (!(await this.areVulnsSimilar(oldVuln, candidate))) continue;
-            const dist = lineDistance(oldVuln, candidate);
-            if (dist < bestDist) {
-              bestDist = dist;
-              bestMatch = candidate;
-            }
+            if (!(await isDriftTarget(candidate))) continue;
+            pairs.push({
+              old: oldVuln,
+              candidate,
+              dist: lineDistance(oldVuln, candidate),
+            });
           }
-
+        }
+        const assignment = assignDriftPairs(pairs);
+        for (const oldVuln of oldSet) {
+          await this.yieldToEventLoop();
+          const bestMatch = assignment.get(oldVuln);
           if (bestMatch) {
-            const older =
-              oldVuln.createdAt < bestMatch.createdAt ? oldVuln : bestMatch;
-            const newer = older === oldVuln ? bestMatch : oldVuln;
-            await updateAndRemove(older, newer);
-            const idx = newSet.indexOf(bestMatch);
-            if (idx !== -1) {
-              newSet.splice(idx, 1);
-            }
+            // The finding that existed before this scan survives, with its
+            // id, its decision and its history; the row this scan created for
+            // its new position is the one removed.
+            await updateAndRemove(oldVuln, bestMatch);
           } else {
             // Auto-resolve only ACTIVE detections; 'ignored'/'resolved' are
             // preserved on disappearance. The gate lives inside markResolved.
@@ -2099,6 +2325,7 @@ export class SastIacUtilsService {
         let bestDist = Number.MAX_SAFE_INTEGER;
 
         for (const candidate of possibleNew) {
+          if (!(await isDriftTarget(candidate))) continue;
           const dist = lineDistance(oldVuln, candidate);
           if (dist < bestDist) {
             bestDist = dist;
@@ -2107,15 +2334,32 @@ export class SastIacUtilsService {
         }
 
         if (bestMatch) {
-          const older =
-            oldVuln.createdAt < bestMatch.createdAt ? oldVuln : bestMatch;
-          const newer = older === oldVuln ? bestMatch : oldVuln;
-          await updateAndRemove(older, newer);
+          // Same rule as above: the pre-existing finding survives.
+          await updateAndRemove(oldVuln, bestMatch);
         } else {
           // Only ACTIVE detections auto-resolve; 'ignored'/'resolved' are
           // preserved across re-scans. The gate lives inside markResolved.
           await markResolved(oldVuln);
         }
+      }
+    }
+
+    // A dismissed finding the scan saw at its own position, while the scan
+    // also created a new row for identical code in the same file: the two
+    // occurrences cannot be told apart (same rule, same code, and the rank
+    // moves with the new code), so the position alone does not say which one
+    // was reviewed. The dismissal goes back to review instead of staying on
+    // code nobody may have looked at; it stays in the history.
+    for (const decided of trulyNewVulns) {
+      if (!decided.id || !holdsDismissal(decided)) continue;
+      if (!(await existedBeforeThisScan(decided))) continue;
+      for (const fresh of trulyNewVulns) {
+        if (!fresh.id || fresh.id === decided.id) continue;
+        if (carriesTriageDecision(fresh)) continue;
+        if (!(await this.areVulnsSimilar(decided, fresh))) continue;
+        if (await existedBeforeThisScan(fresh)) continue;
+        await this.reopenForReview(decided, fresh.id);
+        break;
       }
     }
 
@@ -2471,6 +2715,9 @@ export class SastIacUtilsService {
     // branch and path, so no further predicate is needed to keep the match
     // inside the right file; `projectId` is an index hint (IDX_<table>_fingerprint).
     let mergedByDrift = false;
+    // The digest this occurrence would get is held by another finding that
+    // was not adopted: the new row is written without one (see below).
+    let digestHeldByAnother = false;
     if (!matchedDuplicate && dupRepository && occurrenceIndex !== null) {
       const expected = fingerprintForNewSastDetection(
         vulnDto,
@@ -2517,14 +2764,24 @@ export class SastIacUtilsService {
       // merging on the digest alone would fold a new secret into an old one.
       // Refusing costs no report, as the new row's digest is built from its
       // value (`fingerprintForSecretValue`) and cannot collide.
+      // A claimant holding a dismissal is never adopted here either: when the
+      // same code is added above it, the new occurrence takes its rank, hence
+      // its digest, and adopting it would hide code nobody reviewed under
+      // that dismissal. The incoming occurrence is created as a finding of its
+      // own; when the dismissed row really moved, the finalization pairs the
+      // two by distance and keeps the dismissed row. A secret is matched by
+      // its value above and keeps the former rule.
       if (
         claimant &&
         !seenByThisScan &&
+        (isSecret || !holdsDismissal(claimant)) &&
         (!secretValueHash ||
           (await this.isSameSecretValue(claimant, secretValueHash)))
       ) {
         matchedDuplicate = claimant;
         mergedByDrift = true;
+      } else if (claimant) {
+        digestHeldByAnother = true;
       }
     }
     const alreadyExists = !!matchedDuplicate;
@@ -2608,9 +2865,21 @@ export class SastIacUtilsService {
           matchedDuplicate as SecretVulnerabilityDetections,
           scanId,
         );
+      } else if (
+        mergedByDrift &&
+        !(
+          (matchedDuplicate as SastVulnerabilityDetections)
+            .vulnerabilityDetectionHistory ?? []
+        ).some((h) => h?.scanId === scanId)
+      ) {
+        // A SAST/IaC finding found again at a new line by its identity: this
+        // scan saw it, so it records the sighting, or the finalization of
+        // this very scan would resolve a finding it has just detected.
+        await this.addVulnerabilityDetectionHistory(matchedDuplicate, scanId);
       } else {
-        // SAST/IaC only land here on an intra-batch duplicate: their scan was
-        // recorded by processVulnerability; the sighting stamp is idempotent.
+        // SAST/IaC otherwise only land here on an intra-batch duplicate: their
+        // scan was recorded by processVulnerability; the sighting stamp is
+        // idempotent.
         await this.recordDetectionSighting(matchedDuplicate, new Date());
       }
       return; // Skip duplicate insert
@@ -2634,11 +2903,18 @@ export class SastIacUtilsService {
     newVulnDetection.projectId = projectId;
     newVulnDetection.scannerType = scannerNameLowerCase;
     newVulnDetection.currentState = 'to_verify';
-    newVulnDetection.currentSeverity = correspondance.vulnerability.severity;
+    // An imported finding carries the severity of its own result; the
+    // catalogue row's is the rule's default, for scanner findings.
+    const importedSeverity = importedFindingSeverityOf(vulnDto);
+    const findingSeverity =
+      importedSeverity ?? correspondance.vulnerability.severity;
+    newVulnDetection.currentSeverity = findingSeverity;
     // Compute CVSS4 base vector and score
     const cvss4Result = this.cvssCalculator.computeCvss4Base({
-      cvss3Vector: correspondance.vulnerability.cvss3?.vector ?? null,
-      severity: correspondance.vulnerability.severity,
+      cvss3Vector: importedSeverity
+        ? null
+        : (correspondance.vulnerability.cvss3?.vector ?? null),
+      severity: findingSeverity,
     });
     if (cvss4Result) {
       newVulnDetection.cvss4Vector = cvss4Result.vector;
@@ -2723,7 +2999,7 @@ export class SastIacUtilsService {
         {
           cvss4EnvironmentalScore: envScore,
           cvss4BaseScore: cvss4Result?.baseScore ?? null,
-          currentSeverity: correspondance.vulnerability.severity,
+          currentSeverity: findingSeverity,
           epssScore: null,
           epssPercentile: null,
           exploitabilityScore,
@@ -2732,8 +3008,7 @@ export class SastIacUtilsService {
         projectId,
       );
       newVulnDetection.currentPriority =
-        priorityResult?.priority ??
-        this.mapSeverityToPriority(correspondance.vulnerability.severity);
+        priorityResult?.priority ?? this.mapSeverityToPriority(findingSeverity);
       newVulnDetection.priorityScore = priorityResult?.priorityScore ?? null;
     }
     newVulnDetection.path = vulnDto.path;
@@ -2753,6 +3028,17 @@ export class SastIacUtilsService {
     // next healthy scan backfills it via applyShadowFingerprint.
     // A secret with a value is identified by its value, not its snippet, and
     // needs no occurrence index: never a NULL fingerprint for it.
+    // A digest already held by another live or decided finding cannot be
+    // this one's: writing it would make the unique index refuse the insert and
+    // the occurrence would never be reported. It gets an identity of its own,
+    // derived from the same inputs and its position, written once and kept
+    // across scans (a stored fingerprint is never overwritten).
+    if (digestHeldByAnother && !secretValueHash) {
+      this.logger.warn(
+        `FINGERPRINT_COLLISION path=${vulnDto.path} line=${startLine} scan=${scanId} — ` +
+          `the digest of this occurrence is held by another finding; created with an identity of its own`,
+      );
+    }
     newVulnDetection.fingerprint = secretValueHash
       ? fingerprintForSecretValue(
           vulnDto.path,
@@ -2764,14 +3050,27 @@ export class SastIacUtilsService {
         )
       : occurrenceIndex === null
         ? null
-        : fingerprintForNewSastDetection(
-            vulnDto,
-            correspondance,
-            projectId,
-            scannerNameLowerCase,
-            branch,
-            occurrenceIndex,
-          );
+        : digestHeldByAnother
+          ? fingerprintForHeldOccurrence(
+              fingerprintForNewSastDetection(
+                vulnDto,
+                correspondance,
+                projectId,
+                scannerNameLowerCase,
+                branch,
+                occurrenceIndex,
+              ),
+              startLine,
+              endLine,
+            )
+          : fingerprintForNewSastDetection(
+              vulnDto,
+              correspondance,
+              projectId,
+              scannerNameLowerCase,
+              branch,
+              occurrenceIndex,
+            );
     newVulnDetection.vulnerableStartLine =
       vulnDto.codeSnippet.vulnerableStartLine;
     newVulnDetection.vulnerableEndLine = vulnDto.codeSnippet.vulnerableEndLine;

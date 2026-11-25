@@ -559,4 +559,77 @@ describeLive('Project reads on a real database', () => {
       message: 'Project already exists',
     });
   });
+
+  it('a rename keeps the name unique per team whatever its case', async () => {
+    const other = scored[0].id;
+    const thrown = await projectService
+      .updateProject({ projectId: other, name: 'PAYMENTS' } as Parameters<
+        ProjectService['updateProject']
+      >[0])
+      .catch((e) => e);
+    expect(thrown.getError()).toEqual({
+      code: 6,
+      message: 'Project already exists',
+    });
+
+    // A project may change the case of its own name.
+    const renamed = await projectService.updateProject({
+      projectId,
+      name: 'PAYMENTS',
+    } as Parameters<ProjectService['updateProject']>[0]);
+    expect(renamed.success).toBe(true);
+    await projectService.updateProject({
+      projectId,
+      name: 'Payments',
+    } as Parameters<ProjectService['updateProject']>[0]);
+
+    const stored = await dataSource
+      .getRepository(Project)
+      .findOneBy({ id: other });
+    expect(stored.name).toBe(scored[0].name);
+  });
+
+  it('the issue-creation branches survive an update that does not clear them', async () => {
+    const update = (data: Record<string, unknown>) =>
+      projectService.updateProject({
+        projectId,
+        ...data,
+      } as unknown as Parameters<ProjectService['updateProject']>[0]);
+    const branches = async () =>
+      (await dataSource.getRepository(Project).findOneBy({ id: projectId }))
+        .issueCreationBranches;
+
+    await update({ issueCreationBranches: ['main', 'release'] });
+    expect(await branches()).toEqual(['main', 'release']);
+
+    await update({ lastScanSourceType: 'github', issueCreationBranches: [] });
+    expect(await branches()).toEqual(['main', 'release']);
+
+    await update({
+      issueCreationBranches: [],
+      clearIssueCreationBranches: true,
+    });
+    expect(await branches()).toBeNull();
+  });
+
+  it('the CI/CD agent categories survive an update that does not disable them', async () => {
+    const update = (data: Record<string, unknown>) =>
+      projectService.updateProject({
+        projectId,
+        ...data,
+      } as unknown as Parameters<ProjectService['updateProject']>[0]);
+    const categories = async () =>
+      (await dataSource.getRepository(Project).findOneBy({ id: projectId }))
+        .agentCategoriesCicd;
+
+    await update({ agentCategoriesCicd: ['cicd_security'] });
+    expect(await categories()).toEqual(['cicd_security']);
+
+    // What a scan sends when it records its source.
+    await update({ lastScanSourceType: 'github', agentCategoriesCicd: [] });
+    expect(await categories()).toEqual(['cicd_security']);
+
+    await update({ agentCategoriesCicd: [], clearAgentCategoriesCicd: true });
+    expect(await categories()).toBeNull();
+  });
 });

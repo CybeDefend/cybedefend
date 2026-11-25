@@ -5,10 +5,9 @@ import { UuidPrimaryColumn } from '@cybedefend/db-dialect';
 import { Team } from './team.entity';
 
 @Entity('teams_members')
-// Composite index for membership lookups by (teamId, userId).
-// The PK is on the synthetic `id`; only single-column FK indexes exist on
-// teamId / userId, so this composite is NOT redundant.
-@Index('IDX_tm_team_user', ['team', 'user'])
+// One membership row per (teamId, userId), and the index of the membership
+// lookups by that pair. The PK is on the synthetic `id`.
+@Index('UQ_tm_team_user', ['team', 'user'], { unique: true })
 export class UserTeamMembership {
   @UuidPrimaryColumn()
   id: string;

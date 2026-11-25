@@ -21,7 +21,10 @@ import {
   MockType,
 } from '../../test-utils/typeorm-mock.util';
 import { Logger } from 'nestjs-pino';
-import { makeProjectLookupHarness } from '../../test-utils/project-lookup.harness';
+import {
+  makeChainableQueryBuilder,
+  makeProjectLookupHarness,
+} from '../../test-utils/project-lookup.harness';
 
 describe('ContainerService', () => {
   let service: ContainerService;
@@ -54,6 +57,11 @@ describe('ContainerService', () => {
     detRepo = createMockRepository();
     histRepo = createMockRepository();
     osvRepo = createMockRepository();
+    // The advisory reads: no imported advisory, no catalogue row.
+    (osvRepo as any).manager = {
+      find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn(() => makeChainableQueryBuilder()),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

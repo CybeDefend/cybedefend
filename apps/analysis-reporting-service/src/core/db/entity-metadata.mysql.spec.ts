@@ -13,7 +13,7 @@ const SNAPSHOT_PATH = join(
 );
 
 /**
- * The metadata of the 32 core entities on MySQL (src/entities/, never
+ * The metadata of the 33 core entities on MySQL (src/entities/, never
  * src/ee/), built without connecting (`buildMetadatas()`), is the committed
  * snapshot. `UPDATE_ENTITY_SNAPSHOT=1` rewrites the snapshot instead of
  * comparing: it was run once on the untouched entities, never after
@@ -42,8 +42,8 @@ describe('core entity metadata on MySQL', () => {
     expect(snapshot).toEqual(JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')));
   });
 
-  it('covers the 32 core entity tables', async () => {
+  it('covers the 33 core entity tables', async () => {
     const snapshot = await mysqlSnapshot();
-    expect(new Set(snapshot.columns.map((c) => c.table)).size).toBe(32);
+    expect(new Set(snapshot.columns.map((c) => c.table)).size).toBe(33);
   });
 });

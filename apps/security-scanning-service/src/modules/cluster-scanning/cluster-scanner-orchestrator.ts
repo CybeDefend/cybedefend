@@ -23,6 +23,7 @@ import { ScanStateManager } from '../scan/core/scanStateManager';
 import { ScanStateStore } from '../scan/core/scanStateStore';
 import {
   CLUSTER_SCANNING_CONFIG,
+  organizationScanLimit,
   type ClusterScanningConfig,
 } from './cluster-scanning.config';
 import { ClusterPodLauncher } from './cluster-pod-launcher';
@@ -34,6 +35,18 @@ export type LaunchOutcome = 'launched' | 'requeued' | 'failed';
 
 /** The branch a scan without one is stored and imported on. */
 const DEFAULT_BRANCH = 'main';
+
+/**
+ * The scans the cluster engine queues: code scans (no diff, graph-only or
+ * import scan ever waits for a slot). Admission and the dequeue read the
+ * same rows.
+ */
+export const QUEUED_CODE_SCAN = {
+  state: 'queued',
+  isDiffScan: false,
+  isGraphOnly: false,
+  importFormat: IsNull(),
+} as const;
 
 const refuse = (): RpcException =>
   new RpcException({
@@ -48,8 +61,14 @@ const refuse = (): RpcException =>
  * - v1 runs code scans only: a container, diff or graph-only scan is refused
  *   SCANNERS_NOT_AVAILABLE at CreateScan, before any write.
  * - Admission (StartScan): the platform's slot-holding running scans plus
- *   the queued non-import non-diff scans, against MAX_CONCURRENT. The dequeue
- *   (ClusterScanQueue) counts the running ones only.
+ *   the queued non-import non-diff scans, against MAX_CONCURRENT; and the
+ *   organization's slot-holding running scans plus its queued ones, against
+ *   the instance's per-organization limit (organizationScanLimit: the
+ *   instance maximum unless the operator lowers it). Either one reached:
+ *   the scan is queued, never refused. The dequeue (ClusterScanQueue) counts
+ *   the running ones only, so the queue can drain. The organization's own
+ *   stored limit is not read: a hosted service's plan sets it, and nothing
+ *   sets it here.
  *   No entitlement is checked.
  * - `launchScan` is the ONE start function of both paths: the direct start
  *   and a scan the 15 s tick takes out of the queue go through it alike.
@@ -112,7 +131,7 @@ export class ClusterScannerOrchestrator implements ScannerOrchestratorPort {
     scan.totalSize = data.totalSize ?? '0Mo';
     scan.branch = scan.branch || data.branch || DEFAULT_BRANCH;
 
-    if (await this.atCapacity()) {
+    if ((await this.atCapacity()) || (await this.organizationAtLimit(scan))) {
       await this.store.claimScanStart(scan, 'queued', {
         branch: scan.branch,
         language: scan.language,
@@ -160,14 +179,16 @@ export class ClusterScannerOrchestrator implements ScannerOrchestratorPort {
    * leaves the scan `failed` with 83 CLUSTER_LAUNCH_FAILED ('failed'): never
    * a `running` scan without its pods.
    *
-   * MAX_CONCURRENT across processes (the direct start in the API, the tick
-   * in the cron): the admission read and the claim are two statements, so
-   * after the claim the slot-holding scans are counted again. Above the
+   * MAX_CONCURRENT and the organization's limit across processes (the
+   * direct start in the API, the tick in the cron): the admission read and
+   * the claim are two statements, so after the claim the slot-holding scans
+   * are counted again, the platform's and the organization's. Above either
    * limit, the scan steps back to `queued` (one conditional move, only while
    * it is `running` with no container) and nothing is launched ('requeued');
    * the tick starts it later. Every scan that stays read a count, after its
    * own claim, that held every other stayer claimed before it: at most
-   * MAX_CONCURRENT stay. Two racers may both step back; the tick admits one.
+   * MAX_CONCURRENT stay, and at most the organization's limit of its scans.
+   * Two racers may both step back; the tick admits one.
    */
   async launchScan(scan: Scan): Promise<LaunchOutcome> {
     await this.ensureSeeded();
@@ -181,7 +202,7 @@ export class ClusterScannerOrchestrator implements ScannerOrchestratorPort {
       totalLOC: scan.totalLOC ?? 0,
       totalSize: scan.totalSize ?? '0Mo',
     });
-    if (await this.overCapacity()) {
+    if (await this.overCapacity(scan)) {
       if (await this.stepBack(scan)) {
         this.logger.log(`CLUSTER_SCAN_REQUEUED scan=${scan.id}`);
         if (fromState !== 'queued') {
@@ -202,11 +223,35 @@ export class ClusterScannerOrchestrator implements ScannerOrchestratorPort {
     }
   }
 
-  /** The slot-holding running scans (platform), this one included, > MAX_CONCURRENT. */
-  private async overCapacity(): Promise<boolean> {
-    const max = this.config?.maxConcurrent ?? 0;
-    const { total } = await this.organizationManager.getSlotHoldingScansCount();
-    return total > max;
+  /**
+   * The slot-holding running scans, this one included: the platform's >
+   * MAX_CONCURRENT, or its organization's > the organization's limit.
+   */
+  private async overCapacity(scan: Scan): Promise<boolean> {
+    if (!this.config) return true;
+    const { total, byOrganization } =
+      await this.organizationManager.getSlotHoldingScansCount();
+    if (total > this.config.maxConcurrent) return true;
+    // A scan without an organization is bound by the platform only.
+    if (!scan.organizationId) return false;
+    return (
+      (byOrganization[scan.organizationId] ?? 0) >
+      organizationScanLimit(this.config)
+    );
+  }
+
+  /**
+   * The organization's slot-holding running scans plus its queued ones
+   * reach the per-organization limit (OrganizationManager.shouldQueueScan,
+   * the admission rule of every scan engine). The queue is counted so that a
+   * burst cannot jump ahead of the scans already waiting.
+   */
+  private async organizationAtLimit(scan: Scan): Promise<boolean> {
+    if (!this.config || !scan.organizationId) return false;
+    return this.organizationManager.shouldQueueScan(
+      scan.organizationId,
+      organizationScanLimit(this.config),
+    );
   }
 
   /**
@@ -238,14 +283,7 @@ export class ClusterScannerOrchestrator implements ScannerOrchestratorPort {
   private async atCapacity(): Promise<boolean> {
     const max = this.config?.maxConcurrent ?? 0;
     const { total } = await this.organizationManager.getSlotHoldingScansCount();
-    const queued = await this.scans.count({
-      where: {
-        state: 'queued',
-        isDiffScan: false,
-        isGraphOnly: false,
-        importFormat: IsNull(),
-      },
-    });
+    const queued = await this.scans.count({ where: { ...QUEUED_CODE_SCAN } });
     return total + queued >= max;
   }
 

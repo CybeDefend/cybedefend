@@ -12,6 +12,7 @@ import {
   isSeverityLevel,
   normalizeSeverity,
 } from './severity';
+import { globPatternError } from '@modules/evaluation/safe-glob';
 
 /**
  * Validation result structure
@@ -74,7 +75,24 @@ export class PolicyValidationService {
   /**
    * Validate a policy configuration
    */
-  validate(configJson: string): ValidationResult {
+  validate(
+    configJson: string,
+    options: { storedPatterns?: ReadonlySet<string> } = {},
+  ): ValidationResult {
+    // validate() runs synchronously to the end: the set cannot leak into
+    // another call.
+    this.keptPatterns = options.storedPatterns ?? new Set();
+    try {
+      return this.validateConfig(configJson);
+    } finally {
+      this.keptPatterns = new Set();
+    }
+  }
+
+  /** Glob patterns the policy held before this update. */
+  private keptPatterns: ReadonlySet<string> = new Set();
+
+  private validateConfig(configJson: string): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -384,6 +402,8 @@ export class PolicyValidationService {
                 errors.push(
                   `${path}.value[${i}] must be a non-empty string (branch name or glob pattern)`,
                 );
+              } else {
+                this.validateGlob(v, `${path}.value[${i}]`, errors, warnings);
               }
             });
           }
@@ -395,6 +415,8 @@ export class PolicyValidationService {
             errors.push(
               `${path}.value must be a non-empty string (branch name or glob pattern)`,
             );
+          } else {
+            this.validateGlob(rule.value, `${path}.value`, errors, warnings);
           }
         } else {
           errors.push(
@@ -417,14 +439,9 @@ export class PolicyValidationService {
     if (!exclusion.pattern || typeof exclusion.pattern !== 'string') {
       errors.push(`${path}.pattern is required and must be a string`);
     } else {
-      // Basic glob pattern validation
-      try {
-        // Check for obviously invalid patterns
-        if (exclusion.pattern.includes('**/**/**')) {
-          warnings.push(`${path}.pattern contains redundant wildcards`);
-        }
-      } catch {
-        errors.push(`${path}.pattern is not a valid glob pattern`);
+      this.validateGlob(exclusion.pattern, `${path}.pattern`, errors, warnings);
+      if (exclusion.pattern.includes('**/**/**')) {
+        warnings.push(`${path}.pattern contains redundant wildcards`);
       }
     }
 
@@ -441,6 +458,29 @@ export class PolicyValidationService {
       } else if (date < new Date()) {
         warnings.push(`${path}.expirationDate is in the past`);
       }
+    }
+  }
+
+  /**
+   * A glob is matched against every finding of every evaluation: only the
+   * syntax the evaluation supports, within its length and wildcard caps, is
+   * accepted. A pattern the policy already held is kept with a warning, so an
+   * update is never refused for a pattern it does not add or change.
+   */
+  private validateGlob(
+    pattern: string,
+    path: string,
+    errors: string[],
+    warnings: string[],
+  ): void {
+    const reason = globPatternError(pattern);
+    if (reason === null) return;
+    if (this.keptPatterns.has(pattern)) {
+      warnings.push(
+        `${path} is kept as stored, but is not a supported glob pattern: ${reason}`,
+      );
+    } else {
+      errors.push(`${path} is not a supported glob pattern: ${reason}`);
     }
   }
 

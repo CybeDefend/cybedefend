@@ -63,10 +63,13 @@ default, an administrator invites each user) or `open` (anyone who reaches the
 sign-up page).
 
 **`open` does not verify e-mail addresses.** Anyone who reaches the instance can
-register any address, a colleague's included, before that colleague is invited.
-The personal access tokens such an account creates stay valid after a password
-reset of that address. Keep `invite_only` (the default, and the recommended
-mode); use `open` only on an instance that trusted users alone can reach.
+register any address, a colleague's included, before that colleague is invited,
+and use that account until the address's owner takes it back. The owner does so
+with a password reset (by e-mail, or the administrator's reset link below),
+which signs out every session and revokes every personal access token of the
+account: nothing the person who registered it created keeps working. Keep
+`invite_only` (the default, and the recommended mode); use `open` only on an
+instance that trusted users alone can reach.
 
 ## What runs
 
@@ -254,13 +257,18 @@ proxy is the only listener on the network.
   the front's access log lines (`docker compose logs dashboard`): before the
   setting it is the proxy's, after it the browser's. Then run
   `docker compose up -d` again after each change of `.env`.
-- The MCP server is published on its own port, not behind the front, and
-  limits each client address to 120 requests a minute, failed sign-ins
-  included. Behind your TLS proxy every agent reaches it from the proxy's
-  address, so one client without a token could use up the limit for all of
-  them. The MCP server takes the client address from `X-Forwarded-For` only
-  from the addresses of `CYBEDEFEND_TRUSTED_PROXIES` too: list your proxy
-  there, as seen from the MCP server's container.
+- The MCP server is published on its own port, not behind the front. It
+  allows each person 120 requests a minute, and each client address 60
+  requests a minute without a token. It checks each token it has not seen
+  recently with the gateway, so it also allows each client address 60 such
+  tokens a minute that the gateway refuses or is still checking: while one
+  client sends made-up tokens, a token not yet used on the MCP server from
+  that same address waits until the minute ends; tokens already in use, and
+  every other address, are served. Behind your TLS proxy every agent reaches
+  it from the proxy's address, so one client could use up the per-address
+  limits for all of them. The MCP server takes the client address from
+  `X-Forwarded-For` only from the addresses of `CYBEDEFEND_TRUSTED_PROXIES`
+  too: list your proxy there, as seen from the MCP server's container.
 - The front's access log writes `***` in place of the token in `/invite/…`,
   `/api/auth/invitations/…` and `/api/webhooks/jira/…`, and no query string.
   An invitation link accepts the invitation with its token alone, and the Jira
@@ -308,13 +316,27 @@ configuration that enforces it to Permify's own secrets volume, and the key
 itself to the volumes of its only callers: the schema job, `gateway` and
 `global-management`.
 
-The internal gRPC calls between the services are signed: each service signs
-with a key of its own (`SERVICE_AUTH_KEY_FILE`), and each server holds the
-keys of the services allowed to call it, and only those
-(`SERVICE_AUTH_PEER_KEY_<CALLER>` in `SERVICE_AUTH_PEER_KEYS_DIR`).
-`init-secrets` derives them all. A container that holds no key is refused,
-even on the back network, and a compromised service can sign only as itself:
-it cannot claim to be the gateway, the one service that may act for a user.
+The internal gRPC calls between the services are signed with one key per
+caller and server: a service signs its calls to each server with the key of
+that pair (`SERVICE_AUTH_KEY_FOR_<SERVER>`), and each server holds the keys
+of the services allowed to call it, and only those
+(`SERVICE_AUTH_PEER_KEY_<CALLER>`), all in the service's own secrets
+(`SERVICE_AUTH_PEER_KEYS_DIR`). `init-secrets` derives them all. A container
+that holds no key is refused, even on the back network, and a compromised
+service can sign only as itself: a key it holds to check the gateway's calls
+is valid at that service only, so it cannot claim to be the gateway, the one
+service that may act for a user, to any other service. This holds because
+only `init-secrets` holds the instance's master key in this compose file; a
+service given the master key itself (a run from source or for development)
+can derive every pair's key. Take this compose file and its `runtime/` folder
+from the same release as the images: with an earlier compose file, the
+services still get one key for all their calls, held by every server they
+call, and each service logs `S2S_AUTH_SINGLE_KEY` once at start to say so.
+Upgrade the whole stack at once (`docker compose up -d` after pulling the
+new release), not one service at a time: `init-secrets` writes the new keys
+when the stack starts, and a container still running an earlier image has
+no usable key any more (its key file is removed), so its calls are refused
+until it restarts on the new image.
 Known limit: the calls are not encrypted, so someone who can read the traffic
 of the back network can replay a signed call to the same method for up to
 five minutes.
@@ -360,13 +382,20 @@ container needs no password).
 ## Sessions and passwords
 
 - An access token lives 15 minutes; the refresh cookie 30 days.
-- A password change or reset signs out every refresh session of the account
-  (the one that changes its password gets a new one). An access token already
-  issued stays valid up to 15 minutes.
-- **Personal access tokens stay valid after a password change or reset.** To
-  cut them, revoke them from your profile in the interface, or with
+- A password change or reset signs out every refresh session and revokes
+  every personal access token of the account, in the same step as the new
+  password (the one that changes its password gets a new session). An access
+  token already issued stays valid up to 15 minutes, and a live update stream
+  already open with a revoked personal access token can stay open up to 15
+  minutes too, until it reconnects and the token is checked again. Create new
+  personal access tokens for your scripts and CI afterwards.
+- Creating a personal access token asks for the account's password (a token
+  outlives every session, so a session alone is not enough). Each attempt,
+  right or wrong, counts toward the same limit as a password change: 10 per
+  account per 15 minutes. To revoke one,
+  use your profile in the interface, or
   `DELETE /api/me/personal-access-tokens/<id>` (the ids are listed by
-  `GET /api/me/personal-access-tokens`), using a session token: a personal
+  `GET /api/me/personal-access-tokens`), with a session token: a personal
   access token cannot manage tokens.
 - Removing a member from an organisation revokes every refresh session and
   every personal access token of that account, whichever organisation they were
@@ -425,6 +454,18 @@ read once at start, trailing whitespace removed.
 Community Edition needs it (`required`, `optional`), sets it itself
 (`internal`, `derived`, `default`), or ignores it (`cloud-only`, `unused`).
 
+## Stored reports
+
+Generated reports are kept in the object storage. Two optional settings in
+`.env` bound them (then `docker compose up -d`):
+
+| Variable | Default | What it does |
+|---|---|---|
+| `REPORTS_MAX_STORED_PER_ORG` | `500` | How many reports each organisation may keep stored, queued ones included. `-1` removes the limit. An organisation at the limit is refused new reports until it deletes some or they expire; nothing is deleted to make room. |
+| `REPORTS_RETENTION_DAYS` | `-1` (never) | Days a new report is kept before the scheduled purge (every 12 hours) deletes it. The expiry is fixed when a report is created, so a change applies to new reports only. |
+
+Each takes a positive integer or `-1`; any other value keeps the default.
+
 ## Importing results
 
 By default the instance runs no scanner itself: you import SARIF produced by
@@ -433,8 +474,9 @@ own Kubernetes cluster instead, see
 [Run scans on a Kubernetes cluster](#run-scans-on-a-kubernetes-cluster).
 Imports keep working either way.) Create a **personal access token** first
 (from your profile in the interface, or with `POST /api/me/personal-access-tokens`
-`{ "name": "ci" }` and a session token: a personal access token cannot create
-another one). It starts with `cdp_` and is shown once.
+`{ "name": "ci", "currentPassword": "<your password>" }` and a session token: a
+personal access token cannot create another one). It starts with `cdp_` and is
+shown once. A password change or reset revokes it.
 
 ```bash
 curl -H "Authorization: Bearer cdp_…" \
@@ -937,6 +979,7 @@ Each variable is set in `.env`. An empty value counts as unset.
 | `CYBEDEFEND_SCANNER_IMAGE_TAG` | `1.0.0` | The version of the images. The default is the one this release speaks; change it only to a version that the release notes name. |
 | `CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET` | unset | The name of a `docker-registry` Secret, in the namespace, for a private registry. |
 | `CYBEDEFEND_SCANNER_MAX_CONCURRENT` | `2` | How many scans run at once (1 to 50). Each scan runs up to five pods. |
+| `CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION` | the maximum | How many scans of one organization run at once (1 to 50, never more than `CYBEDEFEND_SCANNER_MAX_CONCURRENT`). Lower it to reserve slots for the other organizations. |
 | `CYBEDEFEND_SCANNER_RESOURCES` | the table above | JSON that overrides the requests or limits of a scanner, for example `{"opengrep":{"memoryLimit":"4Gi"}}`. |
 | `CYBEDEFEND_SCANNER_KEEP_PODS` | `false` | `true` keeps the pods and Secrets of finished scans, to read their logs; a pod past its deadline is deleted anyway. |
 | `CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS` | `false` | `true` accepts a kubeconfig with `insecure-skip-tls-verify: true` or an `http://` server: the API server is then not verified. For a test cluster only. |
@@ -957,8 +1000,18 @@ kubectl -n cybedefend-scans create secret docker-registry cybedefend-pull --dock
 ### Limits
 
 - **Concurrency.** Past `CYBEDEFEND_SCANNER_MAX_CONCURRENT` running scans, a
-  new scan waits as `queued` and starts when a slot frees, oldest first. A scan
-  still queued after 6 hours fails (code 65).
+  new scan waits as `queued` and starts when a slot frees. So does a new scan
+  of an organization that already runs
+  `CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION` scans. A freed slot
+  goes to the organization with the fewest scans running, then to the one
+  whose scan has waited longest, so one organization's backlog does not hold
+  the others back. Unset, the per-organization limit is the maximum: an
+  instance with one organization uses every slot. With several
+  organizations, lower it to reserve capacity for the others: with a maximum
+  of 4 and a per-organization limit of 2, one organization never takes more
+  than half the slots. An organization with many running scans gets no new
+  slot while organizations with fewer wait. A scan still queued after 6
+  hours fails (code 65).
 - **Time.** A scanner has 2 hours from the start of its scan. Its pod has an
   `activeDeadlineSeconds` of 7500 (2 hours and 5 minutes), and its tool a
   timeout of 5700 seconds (25 minutes less than 2 hours, for the download and
@@ -1363,22 +1416,30 @@ superuser is unchanged.
 
 Each image of a release is signed with [cosign](https://docs.sigstore.dev/),
 keyless: the signature names the workflow that built it, from the release tag,
-in the public repository. Each image also carries a build provenance
-attestation and an SBOM. To check an image before you run it:
+in the public repository. The workflow builds only from a tag whose commit is
+on `main`. That check runs from the workflow file of the tagged commit, so it
+stops a mistake, not someone who can push a tag on a commit whose workflow has
+no check: what holds against that is the repository ruleset that limits who
+can create release tags, set on the public repository by its owners. Each image
+also carries a build provenance attestation and an SBOM.
+To check an image before you run it, give the exact identity of the release
+tag you run, never a pattern: a pattern that accepts any tag starting with `v`
+also accepts a signature made from a tag nobody released.
 
 ```bash
-cosign verify ghcr.io/cybedefend/cybedefend-gateway:1.0.0 \
-  --certificate-identity-regexp '^https://github.com/CybeDefend/cybedefend/.github/workflows/images.yml@refs/tags/v' \
+VERSION=1.0.0
+cosign verify ghcr.io/cybedefend/cybedefend-gateway:${VERSION} \
+  --certificate-identity "https://github.com/CybeDefend/cybedefend/.github/workflows/images.yml@refs/tags/v${VERSION}" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Replace `gateway` and `1.0.0` with each image and the version of `.env`. A
-missing or foreign signature makes the command fail. To read the provenance
-and the SBOM:
+Set `VERSION` to the version of `.env` (`CYBEDEFEND_VERSION`), and replace
+`gateway` with each image. A missing or foreign signature, or one made from
+another tag, makes the command fail. To read the provenance and the SBOM:
 
 ```bash
-docker buildx imagetools inspect ghcr.io/cybedefend/cybedefend-gateway:1.0.0 --format '{{ json .Provenance }}'
-docker buildx imagetools inspect ghcr.io/cybedefend/cybedefend-gateway:1.0.0 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/cybedefend/cybedefend-gateway:${VERSION} --format '{{ json .Provenance }}'
+docker buildx imagetools inspect ghcr.io/cybedefend/cybedefend-gateway:${VERSION} --format '{{ json .SBOM }}'
 ```
 
 ## Backup

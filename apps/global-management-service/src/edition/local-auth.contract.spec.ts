@@ -91,6 +91,22 @@ describe('local_auth.proto — Community local identity contract', () => {
     ]);
   });
 
+  it('carries the account password on a personal access token creation', () => {
+    expect(
+      fieldNames(
+        pkg(),
+        'cybedefend.global_management.CreateLocalPersonalAccessTokenRequest',
+      ),
+    ).toEqual(['userId', 'name', 'expiresAt', 'currentPassword']);
+    expect(
+      fieldByNumber(
+        pkg(),
+        'cybedefend.global_management.CreateLocalPersonalAccessTokenRequest',
+        4,
+      ).type,
+    ).toBe('TYPE_STRING');
+  });
+
   it('carries the sign-up and password-change fields', () => {
     expect(
       fieldNames(pkg(), 'cybedefend.global_management.LocalSignUpRequest'),

@@ -117,36 +117,6 @@ export class ReportRetentionService {
     return { generated, aggregated };
   }
 
-  /**
-   * Flip `queued` rows older than `maxAgeMs` (default 1h, aligned with the
-   * async-task TTL) to `failed`. A zombie queued row — whose worker died before
-   * settling it — would otherwise hold a quota slot forever and show as
-   * "generating" in the stored-report list. `failed` rows free the slot and are
-   * themselves purged once expired.
-   */
-  async failStaleQueued(opts?: {
-    now?: Date;
-    maxAgeMs?: number;
-  }): Promise<{ generated: number; aggregated: number }> {
-    const now = opts?.now ?? new Date();
-    const cutoff = new Date(now.getTime() - (opts?.maxAgeMs ?? 60 * 60 * 1000));
-    const patch = { status: 'failed', error: 'Report generation timed out' };
-    const [generated, aggregated] = await Promise.all([
-      this.generatedRepo.update(
-        { status: 'queued', createdAt: LessThan(cutoff) } as any,
-        patch as any,
-      ),
-      this.aggregatedRepo.update(
-        { status: 'queued', createdAt: LessThan(cutoff) } as any,
-        patch as any,
-      ),
-    ]);
-    return {
-      generated: generated.affected ?? 0,
-      aggregated: aggregated.affected ?? 0,
-    };
-  }
-
   private async purgeRows(
     repo: Repository<GeneratedReport> | Repository<AggregatedReport>,
     now: Date,

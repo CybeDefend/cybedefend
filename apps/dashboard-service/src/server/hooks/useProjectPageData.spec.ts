@@ -777,3 +777,47 @@ describe('useProjectPageData — one branch source', () => {
     expect(result.current.isContentReady).toBe(false);
   });
 });
+
+/**
+ * The id of the project the API answered for: what a page puts in a command it
+ * offers to copy, never the id of the address bar.
+ */
+describe('useProjectPageData — loadedProjectId', () => {
+  const ID = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';
+
+  beforeEach(() => {
+    fetchProjectMock.mockReset();
+    getGithubRepositoriesMock.mockReset().mockResolvedValue({ repositories: [] });
+    getGitlabRepositoriesMock.mockReset().mockResolvedValue({ repositories: [] });
+    getProjectBranchesMock.mockReset().mockResolvedValue({ branches: [] });
+    getArchivedBranchesMock.mockReset().mockResolvedValue({ branches: [] });
+    getProjectBranchesListMock.mockReset().mockResolvedValue(listOf([]));
+    localStorage.clear();
+    hookCache.clear();
+  });
+
+  it('is null until the project payload has loaded', () => {
+    fetchProjectMock.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useProjectPageData(ID), { wrapper: wrap(buildStore()) });
+    expect(result.current.loadedProjectId).toBeNull();
+  });
+
+  it('is the id of the payload, not the one the hook was given', async () => {
+    fetchProjectMock.mockResolvedValue({ projectId: ID, name: 'Api' });
+    const { result } = renderHook(() => useProjectPageData(`${ID};id`), { wrapper: wrap(buildStore()) });
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    expect(result.current.loadedProjectId).toBe(ID);
+  });
+
+  it('comes back from the cache on the next mount', async () => {
+    fetchProjectMock.mockResolvedValue({ projectId: ID, name: 'Api' });
+    const store = buildStore();
+    const first = renderHook(() => useProjectPageData(ID), { wrapper: wrap(store) });
+    await waitFor(() => expect(first.result.current.isReady).toBe(true));
+    first.unmount();
+
+    fetchProjectMock.mockReturnValue(new Promise(() => {}));
+    const second = renderHook(() => useProjectPageData(ID), { wrapper: wrap(store) });
+    expect(second.result.current.loadedProjectId).toBe(ID);
+  });
+});

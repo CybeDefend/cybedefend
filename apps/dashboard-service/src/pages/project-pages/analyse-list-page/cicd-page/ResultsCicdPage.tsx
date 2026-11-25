@@ -55,6 +55,7 @@ const ResultsCicdPage: React.FC = () => {
         isLoadingBranches,
         isBranchResolved,
         projectName: pageDataProjectName,
+        loadedProjectId,
         integrationInfo,
         linkedGithubRepo,
         linkedGitlabRepo,
@@ -910,7 +911,7 @@ const ResultsCicdPage: React.FC = () => {
 
             {showImport && projectId && (
                 <ImportResultsDialog
-                    projectId={projectId}
+                    projectId={loadedProjectId ?? ""}
                     defaultType="cicd"
                     defaultBranch={selectedBranch || defaultBranch || ''}
                     onClose={() => setShowImport(false)}

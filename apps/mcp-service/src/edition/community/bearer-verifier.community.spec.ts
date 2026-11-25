@@ -65,6 +65,26 @@ describe('PersonalAccessTokenBearerVerifier', () => {
     });
   });
 
+  it('names the person the token belongs to, from the profile the gateway answers, and keeps it cached', async () => {
+    const verifier = build();
+    get.mockResolvedValue({ status: 200, data: { id: 'u-1', email: 'x' } });
+
+    await expect(verifier.verify(t)).resolves.toEqual(
+      expect.objectContaining({ subject: 'user:u-1' }),
+    );
+    await expect(verifier.verify(t)).resolves.toEqual(
+      expect.objectContaining({ subject: 'user:u-1' }),
+    );
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('names no person when the profile carries no id', async () => {
+    get.mockResolvedValue({ status: 200, data: { id: 42 } });
+    const verified = await build().verify(t);
+    expect(verified).not.toBeNull();
+    expect(verified).not.toHaveProperty('subject');
+  });
+
   it.each([401, 403])(
     'refuses a well-formed token the gateway answers %i to',
     async (status) => {
@@ -209,6 +229,10 @@ describe('PersonalAccessTokenBearerVerifier', () => {
       expect(userId).not.toContain(token.slice(4));
       expect(userId).toMatch(/^pat:[0-9a-f]{32}$/);
     }
+  });
+
+  it('says that a verification costs a call to another service', () => {
+    expect(build().remote).toBe(true);
   });
 
   it('challenges without resource_metadata', () => {

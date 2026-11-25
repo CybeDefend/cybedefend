@@ -6,6 +6,7 @@
 开源的 Snyk 替代方案：自托管的智能体化 AppSec，AI 扫描器由你的编码智能体运行。</p>
 
 <p align="center">
+  <a href="https://github.com/CybeDefend/cybedefend/stargazers"><img src="https://img.shields.io/badge/Star%20on%20GitHub-7B5BFF?logo=github&logoColor=white" alt="Star CybeDefend on GitHub"></a>
   <a href="https://github.com/CybeDefend/cybedefend/tags"><img src="https://img.shields.io/github/v/tag/CybeDefend/cybedefend?sort=semver&label=release&color=7B5BFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-7B5BFF" alt="License: AGPL-3.0"></a>
   <a href="https://discord.gg/UPzm4n6SAJ"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -17,7 +18,7 @@
 <p align="center"><a href="README.md">English</a> &bull; <a href="README.fr.md">Français</a> &bull; <a href="README.zh-CN.md">中文</a> &bull; <a href="README.ja.md">日本語</a> &bull; <a href="README.ko.md">한국어</a> &bull; <a href="README.es.md">Español</a> &bull; <a href="README.pt-BR.md">Português</a></p>
 
 > [!NOTE]
-> 我们将于 2026 年 12 月 4 日在 Product Hunt 上发布。欢迎来 [Discord](https://discord.gg/UPzm4n6SAJ) 和我们聊聊。
+> 点个 Star，能让更多开发者发现这个仓库。我们将于 2026 年 12 月 4 日在 Product Hunt 上发布。欢迎来 [Discord](https://discord.gg/UPzm4n6SAJ) 和我们聊聊。
 
 **① 一条命令，一次完整审计。**
 在编码智能体里输入 `/cybedefend`。开源扫描器先跑，AI 扫描器去找它们看不到的问题，你的智能体再对照你的代码逐条判断每个发现项。它的回答是 **SHIP**，或者 **NOT YET**，并附上阻断项和每一项的修复方法。
@@ -386,6 +387,10 @@ docker compose up -d
     </td>
   </tr>
 </table>
+
+<br>
+
+<p align="center">如果审计在你的代码里发现了问题，点个 Star 能帮其他开发者找到这个项目。</p>
 
 <br>
 

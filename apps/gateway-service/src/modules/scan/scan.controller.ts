@@ -7,6 +7,7 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  HttpException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -22,6 +23,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Span } from 'nestjs-otel';
 import { Logger } from 'nestjs-pino';
 import {
@@ -59,6 +61,31 @@ import {
 import { UploadFileResponse } from '@grpc/file-management/file';
 import { StartScanRequest } from '@grpc/security-scanning/scan';
 import { StartContainerScanBodyDto } from './dto/body/start-container-scan-body.dto';
+
+/**
+ * The failures of a scan creation that mean the scan was not stored: a
+ * refusal (invalid request, permission, missing project, existing scan,
+ * precondition, quota), by HTTP status once mapped by safeGrpcCall or by
+ * gRPC code when raw. A deadline, an unavailable service, a cancelled call or
+ * an internal error says nothing of whether the scan exists.
+ */
+const REFUSAL_HTTP_STATUSES = new Set([400, 403, 404, 409, 429]);
+const REFUSAL_GRPC_CODES = new Set([
+  GrpcStatus.INVALID_ARGUMENT,
+  GrpcStatus.NOT_FOUND,
+  GrpcStatus.ALREADY_EXISTS,
+  GrpcStatus.PERMISSION_DENIED,
+  GrpcStatus.RESOURCE_EXHAUSTED,
+  GrpcStatus.FAILED_PRECONDITION,
+]);
+
+export function isScanCreationRefusal(err: unknown): boolean {
+  if (err instanceof HttpException) {
+    return REFUSAL_HTTP_STATUSES.has(err.getStatus());
+  }
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'number' && REFUSAL_GRPC_CODES.has(code);
+}
 
 /**
  * Starting a scan reads the project's scanner flags (and a diff
@@ -376,7 +403,26 @@ export class ScanController {
       `[DEBUG] startScan - Creating scan with sourceType: "${requestCreateScan.sourceType}", body.sourceType: "${body?.sourceType}", projectId: ${projectId}`,
     );
 
-    await this.scanService.createScan(requestCreateScan);
+    try {
+      await this.scanService.createScan(requestCreateScan);
+    } catch (err) {
+      // The caller gets the failure either way. When it is a refusal, the
+      // scan was never stored: remove its registered upload, or the upload
+      // processor would keep checking storage for it until its deadline.
+      // On any other failure the scan may exist; its upload is left to the
+      // upload deadline.
+      if (!isScanCreationRefusal(err)) throw err;
+      try {
+        await this.scanService.discardPendingUpload(scanId);
+      } catch (cleanupErr) {
+        this.logger.warn(
+          `Could not remove the pending upload of refused scan ${scanId}: ${
+            cleanupErr instanceof Error ? cleanupErr.message : cleanupErr
+          }`,
+        );
+      }
+      throw err;
+    }
 
     return uploadResponse;
   }

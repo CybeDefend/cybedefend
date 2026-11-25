@@ -24,6 +24,7 @@ import { BranchSelector } from "@/components/molecules/branch-selector";
 import SelectAtom from "../../atoms/select/Select";
 import { useTranslation } from "react-i18next";
 import SecurityContextBanner from "../banners/SecurityContextBanner";
+import UploadFilterSummaryNotice from "../banners/UploadFilterSummaryNotice";
 import { Ban } from '@/components/atoms/icon/icons';
 import { format } from 'date-fns';
 import { getScanErrorDetail, getScanErrorI18nKey, getCancelledScanI18nKey, isArchiveScanFailure, isScanRefusedByPlan } from '@/utils/function/scanErrorMessage';
@@ -594,6 +595,13 @@ const AnalyseWrapper: React.FC<AnalyseWrapperProps> = ({
             </div>
           )}
           {/* End Scan Status Display */}
+
+          {/* What the upload filter left out of this scan's archive; the notice renders nothing when nothing was. */}
+          {scanIsThisProjects && scanData.uploadFilterSummary && (
+            <div className="mt-3 empty:hidden">
+              <UploadFilterSummaryNotice summary={scanData.uploadFilterSummary} />
+            </div>
+          )}
 
           {afterStatusBanner && (
             <div className="mt-3">{afterStatusBanner}</div>

@@ -5,7 +5,9 @@ import {
   DEFAULT_SCANNER_IMAGE_TAG,
   instanceIdOf,
   normalisedInstanceUrl,
+  organizationScanLimit,
   readClusterScanningConfig,
+  type ClusterScanningConfig,
 } from './cluster-scanning.config';
 
 /**
@@ -78,6 +80,7 @@ describe('readClusterScanningConfig', () => {
         imageRegistry: 'ghcr.io/cybedefend',
         imageTag: '1.0.0',
         maxConcurrent: 2,
+        maxConcurrentPerOrganization: 2,
         keepPods: false,
         allowInsecureTls: false,
         trivyDbRepository: null,
@@ -170,6 +173,7 @@ describe('readClusterScanningConfig', () => {
         CYBEDEFEND_SCANNER_IMAGE_TAG: '',
         CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET: '',
         CYBEDEFEND_SCANNER_MAX_CONCURRENT: '',
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: '',
         CYBEDEFEND_SCANNER_RESOURCES: '',
         CYBEDEFEND_SCANNER_KEEP_PODS: '',
         CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS: '',
@@ -338,6 +342,11 @@ describe('readClusterScanningConfig', () => {
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', '51'],
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', '2.5'],
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', 'two'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '0'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '-1'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '51'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '1.5'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', 'all'],
     ['CYBEDEFEND_SCANNER_NAMESPACE', 'Scans'],
     ['CYBEDEFEND_SCANNER_NAMESPACE', '-scans'],
     ['CYBEDEFEND_SCANNER_NAMESPACE', 'a'.repeat(64)],
@@ -361,11 +370,75 @@ describe('readClusterScanningConfig', () => {
   });
 });
 
+describe('the per-organization limit (an instance setting)', () => {
+  it('defaults to the instance maximum: one organization keeps the whole capacity', () => {
+    expect(
+      readClusterScanningConfig({
+        ...BOTH,
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT: '7',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        maxConcurrent: 7,
+        maxConcurrentPerOrganization: 7,
+      }),
+    );
+  });
+
+  it('reads a lower value', () => {
+    expect(
+      readClusterScanningConfig({
+        ...BOTH,
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT: '6',
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: '2',
+      }),
+    ).toEqual(expect.objectContaining({ maxConcurrentPerOrganization: 2 }));
+  });
+
+  it('is clamped to the instance maximum', () => {
+    expect(
+      readClusterScanningConfig({
+        ...BOTH,
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT: '3',
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: '10',
+      }),
+    ).toEqual(expect.objectContaining({ maxConcurrentPerOrganization: 3 }));
+  });
+
+  describe('organizationScanLimit', () => {
+    const base = readClusterScanningConfig({
+      ...BOTH,
+      CYBEDEFEND_SCANNER_MAX_CONCURRENT: '4',
+    }) as ClusterScanningConfig;
+
+    it.each([
+      [undefined, 4],
+      [2, 2],
+      [9, 4],
+      [0, 1],
+      [-3, 1],
+      [Number.NaN, 1],
+      [2.7, 2],
+    ])(
+      'a per-organization value of %p gives %p: never below one, never above the maximum',
+      (value, limit) => {
+        expect(
+          organizationScanLimit({
+            ...base,
+            maxConcurrentPerOrganization: value,
+          }),
+        ).toBe(limit);
+      },
+    );
+  });
+});
+
 describe('clusterScanningConfigProvider', () => {
   const KEYS = [
     'CYBEDEFEND_SCANNER_KUBECONFIG_FILE',
     'CYBEDEFEND_SCANNER_NAMESPACE',
     'CYBEDEFEND_SCANNER_MAX_CONCURRENT',
+    'CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION',
     'FRONTEND_URL',
     'S3_PUBLIC_ENDPOINT',
   ];
@@ -384,6 +457,7 @@ describe('clusterScanningConfigProvider', () => {
     process.env.CYBEDEFEND_SCANNER_KUBECONFIG_FILE = '/run/k';
     process.env.CYBEDEFEND_SCANNER_NAMESPACE = 'scans';
     process.env.CYBEDEFEND_SCANNER_MAX_CONCURRENT = '7';
+    process.env.CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION = '3';
     process.env.FRONTEND_URL = 'https://a.example';
     process.env.S3_PUBLIC_ENDPOINT = 'https://files.example';
     expect(clusterScanningConfigProvider.provide).toBe(CLUSTER_SCANNING_CONFIG);
@@ -392,6 +466,7 @@ describe('clusterScanningConfigProvider', () => {
         kubeconfigFile: '/run/k',
         namespace: 'scans',
         maxConcurrent: 7,
+        maxConcurrentPerOrganization: 3,
         apiUrl: 'https://a.example/api',
         storagePublicUrl: 'https://files.example',
       }),
@@ -423,6 +498,7 @@ describe('CYBEDEFEND_SCANNER_* in the configuration schema', () => {
     'CYBEDEFEND_SCANNER_IMAGE_TAG',
     'CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET',
     'CYBEDEFEND_SCANNER_MAX_CONCURRENT',
+    'CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION',
     'CYBEDEFEND_SCANNER_RESOURCES',
     'CYBEDEFEND_SCANNER_KEEP_PODS',
     'CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS',
@@ -444,6 +520,8 @@ describe('CYBEDEFEND_SCANNER_* in the configuration schema', () => {
     ['CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET', 'regcred'],
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', '1'],
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', '50'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '1'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '50'],
     ['CYBEDEFEND_SCANNER_RESOURCES', '{"opengrep":{"cpuLimit":"2"}}'],
     ['CYBEDEFEND_SCANNER_KEEP_PODS', 'true'],
     ['CYBEDEFEND_SCANNER_KEEP_PODS', 'false'],
@@ -472,6 +550,9 @@ describe('CYBEDEFEND_SCANNER_* in the configuration schema', () => {
     ['CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET', 'Reg_Cred'],
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', '0'],
     ['CYBEDEFEND_SCANNER_MAX_CONCURRENT', '51'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '0'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', '-2'],
+    ['CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION', 'all'],
     ['CYBEDEFEND_SCANNER_KEEP_PODS', 'yes'],
     ['CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS', '1'],
     ['CYBEDEFEND_SCANNER_TRIVY_DB_REPOSITORY', 'a b'],

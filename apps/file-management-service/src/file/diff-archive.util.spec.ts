@@ -1,3 +1,4 @@
+import { SCANNER_CONFIGURATION_FILES } from './scanner-config-files';
 import {
   validateDiffZipEntries,
   DiffArchiveCaps,
@@ -111,5 +112,38 @@ describe('validateDiffZipEntries', () => {
       CAPS,
     );
     expect(out).toEqual(['src/app.py']);
+  });
+  it('drops the scanner configuration files, wherever they are', () => {
+    const configs = [
+      '.gitleaks.toml',
+      'gitleaks.toml',
+      'trivy.yaml',
+      'trivy.yml',
+      'zizmor.yml',
+      'zizmor.yaml',
+      '.github/zizmor.yml',
+      '.github/zizmor.yaml',
+      '.checkov.yaml',
+      '.checkov.yml',
+      'services/api/.gitleaks.toml',
+      'services/api/trivy.yaml',
+    ];
+    const out = validateDiffZipEntries(
+      [...configs.map((p) => e(p)), e('src/app.py')],
+      { ...CAPS, maxFiles: 1 },
+    );
+    expect(out).toEqual(['src/app.py']);
+    expect([...SCANNER_CONFIGURATION_FILES].sort()).toEqual(
+      [
+        '.checkov.yaml',
+        '.checkov.yml',
+        '.gitleaks.toml',
+        'gitleaks.toml',
+        'trivy.yaml',
+        'trivy.yml',
+        'zizmor.yaml',
+        'zizmor.yml',
+      ].sort(),
+    );
   });
 });

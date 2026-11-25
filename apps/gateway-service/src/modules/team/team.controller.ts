@@ -389,7 +389,13 @@ export class TeamController {
     this.logger.log(
       `User ${req.user.sub} is removing user ${body.userId} from team ${teamId}`,
     );
-    const data: TeamRemoveUserRequest = { teamId, userId: body.userId };
+    // The requester is the token's subject, never a body field: removing a
+    // team manager is the organization creator's or an administrator's.
+    const data: TeamRemoveUserRequest = {
+      teamId,
+      userId: body.userId,
+      removedBy: req.user.sub,
+    };
     return this.TeamService.removeMember(data);
   }
 
@@ -433,10 +439,12 @@ export class TeamController {
     this.logger.log(
       `User ${req.user.sub} is updating role of user ${body.userId} in team ${teamId} to ${body.role}`,
     );
+    // The requester is the token's subject (see deleteTeamMember).
     const data: UpdateTeamRoleRequest = {
       teamId,
       userId: body.userId,
       role: body.role,
+      updatedBy: req.user.sub,
     };
     return this.TeamService.updateMemberRole(data);
   }

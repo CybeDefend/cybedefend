@@ -2,13 +2,20 @@
 // (scripts/tests/service-auth-parity.bats). Change all copies together.
 //
 // Service-to-service authentication of the internal gRPC calls. Every client
-// signs each call with its own key (HMAC-SHA256 over its own name, the method
-// path and the time) in two metadata entries; every server checks them in a
-// transport-level interceptor before any handler runs, with the key of the
-// caller the call claims to come from. A server holds only the keys of the
-// callers it serves, so a service that is not the gateway cannot sign as the
-// gateway. Without it, any process that reaches a server's port could act as
-// any user, since the acting user is a plain request field.
+// signs each call (HMAC-SHA256 over its own name, the method path and the
+// time) in two metadata entries; every server checks them in a
+// transport-level interceptor before any handler runs, with the key it holds
+// for the caller the call claims to come from. Without it, any process that
+// reaches a server's port could act as any user, since the acting user is a
+// plain request field.
+//
+// Keys: the client picks its key per call, from the method path (the server
+// is named by the proto package, see serviceAuthServerOf). A deployment that
+// hands out one key per (caller, server) pair, as the Community Edition does,
+// gives each server only the keys of the pairs it is the server of: a key
+// read from one server signs calls to that server only, never as one of its
+// callers to another server. A deployment may instead give a caller a single
+// key for all its calls; every server it calls then holds that key.
 //
 // A deployment may register credentials (ServiceAuthCredentials) that prove
 // each caller's identity instead: the client then sends their token and the
@@ -114,15 +121,38 @@ export type ServiceAuthCredentialCheck =
 /** The keys that verify a caller: its current one first, then a previous one during a rotation. */
 export type ServiceAuthCallerKeys = (caller: string) => readonly string[];
 
-/** The key this service signs its own calls with, if it has one. */
-export type ServiceAuthSigningKey = () => string | undefined;
+/** The key this service signs a call to the method `path` with, if it has one. */
+export type ServiceAuthSigningKey = (path: string) => string | undefined;
+
+function variableSuffix(name: string): string {
+  if (!CALLER_NAME.test(name)) {
+    throw new Error(`service-auth: invalid caller name "${name}"`);
+  }
+  return name.toUpperCase().replace(/-/g, '_');
+}
 
 /** The variable that holds the verification key of a caller, e.g. SERVICE_AUTH_PEER_KEY_SECURITY_SCANNING. */
 export function serviceAuthPeerKeyName(caller: string): string {
-  if (!CALLER_NAME.test(caller)) {
-    throw new Error(`service-auth: invalid caller name "${caller}"`);
-  }
-  return `SERVICE_AUTH_PEER_KEY_${caller.toUpperCase().replace(/-/g, '_')}`;
+  return `SERVICE_AUTH_PEER_KEY_${variableSuffix(caller)}`;
+}
+
+/** The variable that holds the key a caller signs its calls to a server with, e.g. SERVICE_AUTH_KEY_FOR_GLOBAL_MANAGEMENT. */
+export function serviceAuthServerKeyName(server: string): string {
+  return `SERVICE_AUTH_KEY_FOR_${variableSuffix(server)}`;
+}
+
+const SERVER_PACKAGE = /^\/cybedefend\.([a-z0-9_]+)\.[A-Za-z0-9_]+\/[^/]+$/;
+
+/**
+ * The service that serves a method path: its proto package is
+ * `cybedefend.<server>` (underscores for dashes). Undefined for any other
+ * path, which no per-server key signs.
+ */
+export function serviceAuthServerOf(path: string): string | undefined {
+  const pkg = SERVER_PACKAGE.exec(path)?.[1];
+  if (pkg === undefined) return undefined;
+  const server = pkg.replace(/_/g, '-');
+  return CALLER_NAME.test(server) ? server : undefined;
 }
 
 export function isServiceAuthCallerName(caller: string): boolean {
@@ -642,7 +672,7 @@ export function createServiceAuthClientInterceptor(
           next(metadata, listener);
           return;
         }
-        const key = options.key();
+        const key = options.key(path);
         if (key) {
           metadata.set(SERVICE_AUTH_CALLER_HEADER, options.caller);
           metadata.set(

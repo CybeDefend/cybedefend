@@ -1202,7 +1202,7 @@ export class ProjectService implements OnModuleInit {
     proj.gitlabIssueEnabled = data.gitlabIssueEnabled ?? true;
     proj.issueCreationMode =
       (data as any).issueCreationMode ?? 'per_vulnerability_type';
-    // Issue creation branches (empty array means all branches)
+    // Issue creation branches (empty: no GitHub/GitLab issue is created)
     proj.issueCreationBranches =
       (data as any).issueCreationBranches?.length > 0
         ? (data as any).issueCreationBranches
@@ -1607,6 +1607,22 @@ export class ProjectService implements OnModuleInit {
     const previousReferenceBranch = proj.referenceBranch ?? null;
 
     if (data.name !== undefined && data.name !== '') {
+      // Same rule as creation: two projects of a team never share a name.
+      if (data.name !== proj.name) {
+        const taken = await this.projectRepo.findOne({
+          where: {
+            name: data.name,
+            team: { id: proj.team?.id },
+            id: Not(proj.id),
+          },
+        });
+        if (taken) {
+          throw new RpcException({
+            code: status.ALREADY_EXISTS,
+            message: 'Project already exists',
+          });
+        }
+      }
       proj.name = data.name;
     }
     if (data.applicationType !== undefined && data.applicationType !== '') {
@@ -1753,24 +1769,27 @@ export class ProjectService implements OnModuleInit {
       proj.agentCategoriesIac = normalized as string[];
     }
 
-    // CICD Agent categories update (full replacement semantics — empty array means disabled)
-    const agentCategoriesCicdInput = (data as any).agentCategoriesCicd as
-      | string[]
-      | undefined;
-    if (agentCategoriesCicdInput !== undefined) {
-      if (agentCategoriesCicdInput.length === 0) {
-        // Empty array means user disabled CICD agent analysis
-        proj.agentCategoriesCicd = null;
-      } else {
-        // normalize: trim + lowercase
-        const normalized = Array.from(
-          new Set(
-            agentCategoriesCicdInput.map((c: string) => c.trim().toLowerCase()),
-          ),
-        ).filter((c) => !!c);
-        proj.agentCategoriesCicd =
-          normalized.length > 0 ? (normalized as string[]) : null;
+    // CICD Agent categories (full replacement). As for the issue-creation
+    // branches, an empty list is "no change" (callers that do not mean to touch
+    // the setting send one), and disabling the analysis takes the explicit
+    // flag.
+    const agentCategoriesCicdInput = data.agentCategoriesCicd;
+    if (data.clearAgentCategoriesCicd) {
+      proj.agentCategoriesCicd = null;
+    } else if (agentCategoriesCicdInput?.length > 0) {
+      // normalize: trim + lowercase
+      const normalized = Array.from(
+        new Set(
+          agentCategoriesCicdInput.map((c: string) => c.trim().toLowerCase()),
+        ),
+      ).filter((c) => !!c);
+      if (normalized.length === 0) {
+        throw new RpcException({
+          code: status.INVALID_ARGUMENT,
+          message: 'agentCategoriesCicd must contain at least one category',
+        });
       }
+      proj.agentCategoriesCicd = normalized;
     }
 
     // Update lastScanSourceType if provided (used when starting a scan)
@@ -1804,12 +1823,15 @@ export class ProjectService implements OnModuleInit {
         proj.issueCreationMode = mode;
       }
     }
-    // Issue creation branches update (empty array clears the setting)
-    if ((data as any).issueCreationBranches !== undefined) {
-      proj.issueCreationBranches =
-        (data as any).issueCreationBranches?.length > 0
-          ? (data as any).issueCreationBranches
-          : null;
+    // Issue creation branches. A repeated field cannot tell "absent" from
+    // "empty", and callers that do not mean to touch the setting (a scan
+    // recording its source type, a PATCH of another field) send an empty list:
+    // an empty list is "no change", like the other repeated fields, and
+    // clearing takes the explicit flag.
+    if (data.clearIssueCreationBranches) {
+      proj.issueCreationBranches = null;
+    } else if (data.issueCreationBranches?.length > 0) {
+      proj.issueCreationBranches = data.issueCreationBranches;
     }
 
     // Reference branch update (empty string or null clears the setting)
@@ -2598,9 +2620,11 @@ export class ProjectService implements OnModuleInit {
 
       return { success: true };
     } catch (error) {
+      // The statement's error can quote values: logged, never answered.
+      this.logger.error({ err: error, msg: 'Error archiving branch' });
       throw new RpcException({
         code: status.INTERNAL,
-        message: `Error archiving branch: ${error}`,
+        message: 'Error archiving branch',
       });
     }
   }
@@ -2629,9 +2653,11 @@ export class ProjectService implements OnModuleInit {
       );
       return { success: true };
     } catch (error) {
+      // The statement's error can quote values: logged, never answered.
+      this.logger.error({ err: error, msg: 'Error unarchiving branch' });
       throw new RpcException({
         code: status.INTERNAL,
-        message: `Error unarchiving branch: ${error}`,
+        message: 'Error unarchiving branch',
       });
     }
   }
@@ -2662,9 +2688,11 @@ export class ProjectService implements OnModuleInit {
         branches: records.map((r) => r.branchName),
       };
     } catch (error) {
+      // The statement's error can quote values: logged, never answered.
+      this.logger.error({ err: error, msg: 'Error getting archived branches' });
       throw new RpcException({
         code: status.INTERNAL,
-        message: `Error getting archived branches: ${error}`,
+        message: 'Error getting archived branches',
       });
     }
   }

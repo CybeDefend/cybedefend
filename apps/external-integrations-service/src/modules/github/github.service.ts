@@ -132,16 +132,8 @@ const GITHUB_COMMIT_FILES_PAGE = 300;
  */
 const HISTORY_OCTOKIT_TTL_MS = 10 * 60 * 1000;
 
-/**
- * An installation created less than this long ago was made by the person
- * finishing the install flow: binding it needs no proof beyond its listing
- * among that user's installations.
- */
-const FRESH_INSTALLATION_WINDOW_MS = 15 * 60 * 1000;
-
 /** The fields of `GET /app/installations/{id}` the proof of administration reads. */
 type InstallationProofDetails = {
-  created_at?: string | null;
   account?: {
     id?: number | null;
     login?: string | null;
@@ -2354,9 +2346,9 @@ export class GithubService implements OnModuleInit {
    *
    * `GET /user/installations` lists every installation in which the user can
    * see one repository, a read-only collaborator included, so it does not
-   * prove the right to connect an installation made earlier by someone else.
-   * An installation created moments ago was made by the person finishing the
-   * flow and needs nothing more. An older one needs one of:
+   * prove the right to connect an installation. The age of the installation
+   * proves nothing either: whoever calls first could bind an installation
+   * someone else has just made. Every installation therefore needs one of:
    * - personal account: the user is the account itself;
    * - organization: the user is an active owner of it, or else an
    *   administrator of every repository the installation covers.
@@ -2368,14 +2360,6 @@ export class GithubService implements OnModuleInit {
     installationId: number,
     installationDetails: InstallationProofDetails,
   ): Promise<void> {
-    const createdAt = Date.parse(installationDetails?.created_at ?? '');
-    if (
-      Number.isFinite(createdAt) &&
-      Date.now() - createdAt < FRESH_INSTALLATION_WINDOW_MS
-    ) {
-      return;
-    }
-
     let proven = false;
     try {
       proven = await this.userAdministersInstallationAccount(
@@ -2566,6 +2550,11 @@ export class GithubService implements OnModuleInit {
       where: { installationId },
     });
 
+    // An installation belongs to one organization. Binding it again from
+    // another one must fail loudly and leave it where it is: a silent success
+    // would let the rightful owner believe the connection worked.
+    this.assertNotBoundElsewhere(githubIntegration, organizationId);
+
     // Every path below binds an installation that is not yet bound to an
     // organization: require proof that the caller administers it first.
     if (!githubIntegration?.organizationId) {
@@ -2599,10 +2588,12 @@ export class GithubService implements OnModuleInit {
           await this.githubIntegrationRepository.save(newIntegration);
       } catch (error: any) {
         if (this.isUniqueConstraintViolation(error)) {
-          // Created in parallel by webhook: fetch the existing row
+          // Created in parallel (webhook or another callback): fetch the
+          // existing row, and refuse if another organization won the race.
           githubIntegration = await this.githubIntegrationRepository.findOne({
             where: { installationId },
           });
+          this.assertNotBoundElsewhere(githubIntegration, organizationId);
         } else {
           throw error;
         }
@@ -2615,19 +2606,15 @@ export class GithubService implements OnModuleInit {
         });
       }
 
-      // If we finally have the integration, ensure its fields are populated
+      // If we finally have the integration, bind it (a row the webhook
+      // created in parallel has no organization yet) and fill its fields.
       if (githubIntegration) {
-        if (!githubIntegration.organizationId) {
-          githubIntegration.organizationId = organizationId;
-        }
-        if (!githubIntegration.userId) {
-          githubIntegration.userId = userInternalId;
-        }
-        if (!githubIntegration.githubOwner) {
-          githubIntegration.githubOwner =
-            installationAccountLogin(installationDetails);
-        }
-        await this.githubIntegrationRepository.save(githubIntegration);
+        githubIntegration = await this.bindInstallation(
+          githubIntegration,
+          organizationId,
+          userInternalId,
+          installationAccountLogin(installationDetails),
+        );
       }
 
       // Create repository entities (idempotent: ignore duplicates if any)
@@ -2655,29 +2642,100 @@ export class GithubService implements OnModuleInit {
         `Created/ensured GitHub integration for installation ID ${installationId} with repositories synchronized.`,
       );
     } else {
-      // Update existing integration with missing fields
-      let needSave = false;
-      if (!githubIntegration.organizationId) {
-        githubIntegration.organizationId = organizationId;
-        needSave = true;
-      }
-      if (!githubIntegration.userId) {
-        githubIntegration.userId = userInternalId;
-        needSave = true;
-      }
-      const githubOwner = installationAccountLogin(installationDetails);
-      if (!githubIntegration.githubOwner && githubOwner) {
-        githubIntegration.githubOwner = githubOwner;
-        needSave = true;
-      }
-      if (needSave) {
-        await this.githubIntegrationRepository.save(githubIntegration);
-      }
+      await this.bindInstallation(
+        githubIntegration,
+        organizationId,
+        userInternalId,
+        installationAccountLogin(installationDetails),
+      );
     }
 
     return {
       returnUri: this.productLinks.githubInstallReturnUri(),
     };
+  }
+
+  /**
+   * Bind an installation row to the organization, or fill the missing fields
+   * of a row already bound to it.
+   *
+   * A row with no organization (recorded by the installation webhook) is
+   * bound with one conditional update: it only applies while the row still
+   * has no organization. When two organizations finish the flow at the same
+   * time, only one update applies; the other reads the row again and is
+   * refused (ALREADY_EXISTS), or succeeds when the winner is its own
+   * organization. Never a silent overwrite.
+   */
+  private async bindInstallation(
+    integration: GithubIntegration,
+    organizationId: string,
+    userId: string,
+    githubOwner: string | null | undefined,
+  ): Promise<GithubIntegration> {
+    if (!integration.organizationId) {
+      const changes: Partial<GithubIntegration> = {
+        organizationId,
+        userId: integration.userId || userId,
+      };
+      if (!integration.githubOwner && githubOwner) {
+        changes.githubOwner = githubOwner;
+      }
+      const result = await this.githubIntegrationRepository.update(
+        { id: integration.id, organizationId: IsNull() },
+        changes,
+      );
+      if (result?.affected) {
+        return { ...integration, ...changes } as GithubIntegration;
+      }
+      const current = await this.githubIntegrationRepository.findOne({
+        where: { installationId: integration.installationId },
+      });
+      this.assertNotBoundElsewhere(current, organizationId);
+      if (current?.organizationId !== organizationId) {
+        // Removed, or still unbound although the update did not apply:
+        // never report a connection that did not happen.
+        throw new RpcException({
+          message: 'The GitHub installation could not be connected.',
+          code: status.ABORTED,
+        });
+      }
+      return current;
+    }
+
+    this.assertNotBoundElsewhere(integration, organizationId);
+    let needSave = false;
+    if (!integration.userId) {
+      integration.userId = userId;
+      needSave = true;
+    }
+    if (!integration.githubOwner && githubOwner) {
+      integration.githubOwner = githubOwner;
+      needSave = true;
+    }
+    if (needSave) {
+      await this.githubIntegrationRepository.save(integration);
+    }
+    return integration;
+  }
+
+  /** ALREADY_EXISTS when the installation is bound to another organization. */
+  private assertNotBoundElsewhere(
+    integration: GithubIntegration | null | undefined,
+    organizationId: string,
+  ): void {
+    if (
+      integration?.organizationId &&
+      integration.organizationId !== organizationId
+    ) {
+      this.logger.warn(
+        `GitHub installation ${integration.installationId} refused for organization ${organizationId}: it is bound to another organization`,
+      );
+      throw new RpcException({
+        message:
+          'This GitHub installation is already connected to another organization.',
+        code: status.ALREADY_EXISTS,
+      });
+    }
   }
 
   /**
@@ -2738,12 +2796,15 @@ export class GithubService implements OnModuleInit {
       );
 
       return data;
-    } catch (error: any) {
-      this.logger.error(
-        `Failed to retrieve installation details - metadata: { error: ${error} }`,
-      );
+    } catch (error: unknown) {
+      // The API's error is logged through the serializer; the caller gets a
+      // stable message.
+      this.logger.error({
+        err: error,
+        msg: 'Failed to retrieve installation details',
+      });
       throw new RpcException({
-        message: `Failed to retrieve installation details: ${error.message}`,
+        message: 'Failed to retrieve installation details',
         code: status.INTERNAL,
       });
     }
@@ -2759,12 +2820,15 @@ export class GithubService implements OnModuleInit {
   ): Promise<GithubRepositoryPayload[]> {
     try {
       return await this.fetchInstallationRepositories(installationId);
-    } catch (error: any) {
-      this.logger.error(
-        `Failed to retrieve installation repositories - metadata: { error: ${error} }`,
-      );
+    } catch (error: unknown) {
+      // The API's error is logged through the serializer; the caller gets a
+      // stable message.
+      this.logger.error({
+        err: error,
+        msg: 'Failed to retrieve installation repositories',
+      });
       throw new RpcException({
-        message: `Failed to retrieve installation repositories: ${error.message}`,
+        message: 'Failed to retrieve installation repositories',
         code: status.INTERNAL,
       });
     }

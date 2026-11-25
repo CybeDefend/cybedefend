@@ -242,39 +242,3 @@ describe('ReportRetentionService.purgeExpired', () => {
     ).toBe(false);
   });
 });
-
-describe('ReportRetentionService.failStaleQueued', () => {
-  const build = () => {
-    const generatedRepo = {
-      update: jest.fn().mockResolvedValue({ affected: 2 }),
-    };
-    const aggregatedRepo = {
-      update: jest.fn().mockResolvedValue({ affected: 1 }),
-    };
-    const logger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() } as any;
-    const svc = new ReportRetentionService(
-      {} as any, // entitlements (unused by purge/failStaleQueued)
-      {} as any,
-      generatedRepo as any,
-      aggregatedRepo as any,
-      {} as any,
-      logger,
-    );
-    return { svc, generatedRepo, aggregatedRepo };
-  };
-
-  it('flips stale queued rows older than the cutoff to failed (frees the slot)', async () => {
-    const now = new Date('2026-01-01T12:00:00.000Z');
-    const { svc, generatedRepo, aggregatedRepo } = build();
-
-    const res = await svc.failStaleQueued({ now, maxAgeMs: 60 * 60 * 1000 });
-
-    expect(res.generated).toBe(2);
-    expect(res.aggregated).toBe(1);
-    const [where, patch] = generatedRepo.update.mock.calls[0];
-    expect(where.status).toBe('queued');
-    expect(where.createdAt).toBeDefined(); // LessThan(cutoff)
-    expect(patch.status).toBe('failed');
-    expect(aggregatedRepo.update).toHaveBeenCalled();
-  });
-});

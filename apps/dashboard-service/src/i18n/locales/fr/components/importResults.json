@@ -62,7 +62,9 @@
         "producer": "Produisez le fichier avec Trivy",
         "copyCli": "Copier la commande de la CLI",
         "copyCurl": "Copier la commande curl",
-        "copyProducer": "Copier la commande Trivy"
+        "copyProducer": "Copier la commande Trivy",
+        "unavailable": "Les commandes s'affichent une fois le projet chargé.",
+        "placeholder": "La branche ou l'image contient des caractères qu'un terminal pourrait lire autrement : remplacez vous-même <branch> ou <image> avant de lancer la commande."
       },
       "errors": {
         "IMPORT_INVALID_REQUEST": "La demande d'import n'est pas valide. Vérifiez la branche, le commit et l'image, puis réessayez.",

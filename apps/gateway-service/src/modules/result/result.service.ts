@@ -479,11 +479,6 @@ export class ResultService implements OnModuleInit {
       dismissalReason?: string;
     }>,
     userId: string,
-    audit: {
-      agentToolCallId?: string;
-      agentConversationId?: string;
-      agentStreamId?: string;
-    } = {},
   ): Promise<{ taskId: string; status: 'queued'; total: number }> {
     const request: EnqueueBatchUpdateRequest = {
       projectId,
@@ -498,9 +493,10 @@ export class ResultService implements OnModuleInit {
         // async worker rebuilds every UpdateResultRequest from these items alone.
         dismissalReason: item.dismissalReason,
       })),
-      agentToolCallId: audit.agentToolCallId ?? '',
-      agentConversationId: audit.agentConversationId ?? '',
-      agentStreamId: audit.agentStreamId ?? '',
+      // The batch is the caller's triage (`userId`), never the assistant's.
+      agentToolCallId: '',
+      agentConversationId: '',
+      agentStreamId: '',
     };
     const res: EnqueueBatchUpdateResponse = await safeGrpcCall(
       this.resultServiceClient.enqueueBatchUpdate(request),

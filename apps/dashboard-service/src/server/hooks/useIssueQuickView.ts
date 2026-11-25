@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { isUuid } from "@/utils/uuid";
 
 export interface IssueQuickViewState {
-  /** Currently opened issue id (from the `?issue=` search param), or null. */
+  /** Currently opened issue id (from the `?issue=` search param, when it is a UUID), or null. */
   issueId: string | null;
   /** Open the quick-view drawer for an issue (pushes a history entry). */
   openIssue: (id: string) => void;
@@ -25,7 +26,10 @@ export const useIssueQuickView = (): IssueQuickViewState => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const issueId = new URLSearchParams(location.search).get("issue");
+  // The id ends up in request paths: only a UUID opens the drawer, so a link
+  // cannot steer a request to another route.
+  const rawIssue = new URLSearchParams(location.search).get("issue");
+  const issueId = isUuid(rawIssue) ? rawIssue : null;
 
   const buildSearch = useCallback(
     (id: string | null) => {

@@ -93,6 +93,11 @@ export class AggregatedReportsService {
     );
   }
 
+  /** The projects of a team the user can see (global-management). */
+  async teamProjectIds(teamId: string, userId: string): Promise<string[]> {
+    return this.reportAggregationService.getTeamProjects(teamId, userId);
+  }
+
   /**
    * Anti-IDOR for team reports — the owning org is client-supplied, so
    * verify the team actually belongs to it before the report is enqueued and
@@ -115,6 +120,10 @@ export class AggregatedReportsService {
   @Span()
   async runAggregatedReport(data: AggregatedReportJobData): Promise<void> {
     try {
+      if (!(await this.stillQueued(data.reportId))) {
+        this.logStopped(data.reportId);
+        return;
+      }
       const { projectIds, scopeName } = await this.resolveProjectIds(data);
       if (projectIds.length === 0) {
         throw new Error('No projects in scope');
@@ -145,18 +154,32 @@ export class AggregatedReportsService {
           name: scopeName,
         },
       });
+      if (!(await this.stillQueued(data.reportId))) {
+        this.logStopped(data.reportId);
+        return;
+      }
       const uploaded = await this.reportUpload.uploadReport({
         projectId: this.tenantKey(data),
         filename: built.filename,
         contentType: built.contentType,
         buffer: built.content,
       });
-      await this.aggregatedReportRepository.update(data.reportId, {
-        objectPath: uploaded.objectPath,
-        filename: uploaded.filename,
-        contentType: uploaded.contentType,
-        status: 'ready',
-      });
+      // Guarded on 'queued': a row deleted during the upload is not
+      // recreated, and its file is removed instead of being left behind.
+      const res = await this.aggregatedReportRepository.update(
+        { id: data.reportId, status: 'queued' },
+        {
+          objectPath: uploaded.objectPath,
+          filename: uploaded.filename,
+          contentType: uploaded.contentType,
+          status: 'ready',
+        },
+      );
+      if ((res?.affected ?? 0) === 0) {
+        await this.removeUpload(uploaded.objectPath, this.tenantKey(data));
+        this.logStopped(data.reportId);
+        return;
+      }
       await this.publishReady(data, 'ready');
     } catch (err) {
       const message =
@@ -169,6 +192,37 @@ export class AggregatedReportsService {
         error: message.slice(0, 2000),
       });
       await this.publishReady(data, 'failed');
+    }
+  }
+
+  /**
+   * True while the report row still exists and waits for this job. A report
+   * the user deleted (or one already settled) is neither rendered nor
+   * uploaded: the work would be thrown away and would hold the shared worker.
+   */
+  private async stillQueued(reportId: string): Promise<boolean> {
+    const row = await this.aggregatedReportRepository.findOne({
+      where: { id: reportId },
+    });
+    return row?.status === 'queued';
+  }
+
+  private logStopped(reportId: string): void {
+    this.logger.log(
+      `[agg-reports] reportId=${reportId} no longer queued (deleted or settled), job stopped`,
+    );
+  }
+
+  private async removeUpload(
+    objectPath: string,
+    tenant: string,
+  ): Promise<void> {
+    try {
+      await this.reportUpload.deleteReport(objectPath, tenant);
+    } catch (err) {
+      this.logger.warn(
+        `[agg-reports] could not remove the file of a deleted report ${objectPath}: ${(err as Error).message}`,
+      );
     }
   }
 

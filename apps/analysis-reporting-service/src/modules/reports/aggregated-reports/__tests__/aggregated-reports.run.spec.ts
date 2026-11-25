@@ -15,7 +15,25 @@ const baseJob: AggregatedReportJobData = {
 };
 
 function make() {
-  const repo = { update: jest.fn().mockResolvedValue(undefined) };
+  /** Report ids whose row the user deleted. */
+  const deleted = new Set<string>();
+  // Every row exists and is queued until a test deletes it.
+  const repo = {
+    findOne: jest.fn(({ where }: { where: { id: string } }) =>
+      Promise.resolve(
+        deleted.has(where.id) ? null : { id: where.id, status: 'queued' },
+      ),
+    ),
+    update: jest.fn((criteria: string | { id: string }) =>
+      Promise.resolve({
+        affected: deleted.has(
+          typeof criteria === 'string' ? criteria : criteria.id,
+        )
+          ? 0
+          : 1,
+      }),
+    ),
+  };
   const agg = {
     getOrganizationProjects: jest.fn().mockResolvedValue(['p1', 'p2']),
     getOrganizationMetadata: jest.fn().mockResolvedValue({ name: 'Org' }),
@@ -49,6 +67,7 @@ function make() {
       downloadUrl: 'u',
       expiresAtMs: 1,
     }),
+    deleteReport: jest.fn().mockResolvedValue(undefined),
   };
   const realtime = { publish: jest.fn().mockResolvedValue(undefined) };
   const svc = new AggregatedReportsService(
@@ -59,7 +78,7 @@ function make() {
     { log: jest.fn(), error: jest.fn(), warn: jest.fn() } as any,
     realtime as any,
   );
-  return { svc, repo, upload, realtime, builder, agg };
+  return { svc, repo, upload, realtime, builder, agg, deleted };
 }
 
 describe('AggregatedReportsService.runAggregatedReport', () => {
@@ -70,7 +89,7 @@ describe('AggregatedReportsService.runAggregatedReport', () => {
       expect.objectContaining({ projectId: 'org-1' }),
     );
     expect(repo.update).toHaveBeenCalledWith(
-      'r1',
+      { id: 'r1', status: 'queued' },
       expect.objectContaining({
         status: 'ready',
         objectPath: 'reports/org-1/abc.pdf',
@@ -119,6 +138,65 @@ describe('AggregatedReportsService.runAggregatedReport', () => {
     expect(realtime.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'AGGREGATED_REPORT_READY' }),
     );
+  });
+});
+
+describe('AggregatedReportsService.runAggregatedReport on a deleted report', () => {
+  const readyEvents = (realtime: { publish: jest.Mock }) =>
+    realtime.publish.mock.calls.filter(
+      (c: any[]) => c[0].type === 'AGGREGATED_REPORT_READY',
+    );
+
+  it('does not aggregate nor render a report deleted before the job started', async () => {
+    const { svc, agg, builder, upload, realtime, deleted } = make();
+    deleted.add('r1');
+
+    await svc.runAggregatedReport(baseJob);
+
+    expect(agg.aggregateVulnerabilities).not.toHaveBeenCalled();
+    expect(builder.buildReport).not.toHaveBeenCalled();
+    expect(upload.uploadReport).not.toHaveBeenCalled();
+    expect(readyEvents(realtime)).toHaveLength(0);
+  });
+
+  it('does not upload a report deleted while it rendered', async () => {
+    const { svc, builder, upload, realtime, deleted } = make();
+    builder.buildReport.mockImplementationOnce(async () => {
+      deleted.add('r1');
+      return {
+        content: Buffer.from('x'),
+        filename: 'f.pdf',
+        contentType: 'application/pdf',
+      };
+    });
+
+    await svc.runAggregatedReport(baseJob);
+
+    expect(builder.buildReport).toHaveBeenCalled();
+    expect(upload.uploadReport).not.toHaveBeenCalled();
+    expect(readyEvents(realtime)).toHaveLength(0);
+  });
+
+  it('removes the uploaded file of a report deleted during the upload', async () => {
+    const { svc, upload, realtime, deleted } = make();
+    upload.uploadReport.mockImplementationOnce(async () => {
+      deleted.add('r1');
+      return {
+        objectPath: 'reports/org-1/abc.pdf',
+        filename: 'f.pdf',
+        contentType: 'application/pdf',
+        downloadUrl: 'u',
+        expiresAtMs: 1,
+      };
+    });
+
+    await svc.runAggregatedReport(baseJob);
+
+    expect(upload.deleteReport).toHaveBeenCalledWith(
+      'reports/org-1/abc.pdf',
+      'org-1',
+    );
+    expect(readyEvents(realtime)).toHaveLength(0);
   });
 });
 

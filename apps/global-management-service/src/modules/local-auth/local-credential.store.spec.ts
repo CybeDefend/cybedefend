@@ -193,6 +193,72 @@ describe('LocalCredentialStore.changePassword', () => {
     expect(statements.filter(isInsert)).toHaveLength(1);
   });
 
+  it("runs the caller's revocations in the transaction that writes the new hash", async () => {
+    const hasher = new PasswordHasher();
+    const currentHash = await hasher.hash(CURRENT_PASSWORD);
+    const { store, tokens } = await storeWithStoredHash(currentHash);
+    const alsoInTransaction = jest.fn(async () => undefined);
+
+    await store.changePassword(
+      USER_ID,
+      CURRENT_PASSWORD,
+      NEW_PASSWORD,
+      NOW,
+      alsoInTransaction,
+    );
+
+    expect(alsoInTransaction).toHaveBeenCalledTimes(1);
+    const [manager] = alsoInTransaction.mock.calls[0] as unknown as [
+      EntityManager,
+    ];
+    const [, , resetManager] = tokens.expireOpenPasswordResets.mock
+      .calls[0] as unknown as [string, Date, EntityManager];
+    expect(manager).toBe(resetManager);
+  });
+
+  it('runs no revocation when the current password is wrong', async () => {
+    const hasher = new PasswordHasher();
+    const currentHash = await hasher.hash(CURRENT_PASSWORD);
+    const { store } = await storeWithStoredHash(currentHash);
+    const alsoInTransaction = jest.fn(async () => undefined);
+
+    await expect(
+      store.changePassword(
+        USER_ID,
+        'a wrong password',
+        NEW_PASSWORD,
+        NOW,
+        alsoInTransaction,
+      ),
+    ).rejects.toBeInstanceOf(RpcException);
+    expect(alsoInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('assertCurrentPassword accepts the right password and refuses a wrong or missing one', async () => {
+    const hasher = new PasswordHasher();
+    const currentHash = await hasher.hash(CURRENT_PASSWORD);
+    const { store } = await storeWithStoredHash(currentHash);
+    // It answers the hash it verified.
+    await expect(
+      store.assertCurrentPassword(USER_ID, CURRENT_PASSWORD),
+    ).resolves.toBe(currentHash);
+    for (const wrong of ['a wrong password', '']) {
+      await expect(
+        refusalOf(store.assertCurrentPassword(USER_ID, wrong)),
+      ).resolves.toEqual({
+        code: status.INVALID_ARGUMENT,
+        message: 'CURRENT_PASSWORD_INVALID',
+      });
+    }
+    const none = await storeWithStoredHash(null);
+    await expect(
+      refusalOf(none.store.assertCurrentPassword(USER_ID, CURRENT_PASSWORD)),
+    ).resolves.toEqual({
+      code: status.INVALID_ARGUMENT,
+      message: 'CURRENT_PASSWORD_INVALID',
+    });
+  });
+
   it('expires no reset link when the current password is wrong', async () => {
     const hasher = new PasswordHasher();
     const currentHash = await hasher.hash(CURRENT_PASSWORD);

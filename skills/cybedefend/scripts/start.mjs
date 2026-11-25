@@ -19,7 +19,9 @@ Exit: 0 ready for the AI scanner. 2 a scanner or an import did not finish and
 the rest went through (the lines above say which and why). 3 this machine cannot go on
 (Docker stopped, the dashboard does not answer, the token is refused).
 4 no project. 5 the dashboard was set up by someone else and needs the
-user's own token (SKILL.md, step 1). 64 usage error.
+user's own token (SKILL.md, step 1). 6 .cybedefend/config.json names a
+project that is not this repository's: the user chooses (SKILL.md, step 1).
+64 usage error.
 `;
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -123,7 +125,7 @@ export function closing({ block, said = '', seconds, rc, triage = null }) {
   let second = 'the triage to a sub-agent in the background (assess.md, the brief)';
   let told = 'The triage of what the scanners found starts in the background.';
   if (triage) {
-    const { found, left, stand, changed } = triage;
+    const { found, left, stand, changed, held = 0 } = triage;
     const standing = `${n(stand, 'verdict')} of the last run stand${stand === 1 ? 's' : ''}`;
     if (found === 0) {
       second = 'no triage to start: the scanners found nothing to judge';
@@ -136,6 +138,8 @@ export function closing({ block, said = '', seconds, rc, triage = null }) {
       second += `: ${rest}`;
       told = `The triage starts in the background: ${rest}.`;
     } else told = `The triage of the ${n(found, 'finding')} starts in the background.`;
+    // Verdicts written elsewhere and committed with the repository never judge a finding unasked.
+    if (held > 0) told += ` ${n(held, 'verdict')} that came with the repository ${held === 1 ? 'was' : 'were'} not applied: they are listed above, and apply only if you confirm them as yours (--accept-verdicts).`;
   }
   const message = `${String(said).replace(/\s+/g, ' ').trim() || 'The scan is done.'} ${told}`;
   return [
@@ -265,8 +269,13 @@ async function main(argv) {
     const check = node([join(here, 'cybedefend.mjs'), 'assess', '--check', '--fresh']);
     try {
       const d = JSON.parse(check.stdout);
-      if (d.triage) triage = { found: Number(d.triage.scannerFindings), left: Number(d.triage.notJudged), stand: Number(d.lastTriage?.stand ?? 0), changed: d.lastTriage?.changed ? d.lastTriage.changed.length : 0 };
-      const kept = String(check.stderr ?? '').split('\n').filter((l) => l.includes('of the last triage'));
+      const held = (d.fromFiles?.held ?? []).reduce((count, h) => count + Number(h.verdicts || 0), 0);
+      if (d.triage) triage = { found: Number(d.triage.scannerFindings), left: Number(d.triage.notJudged), stand: Number(d.lastTriage?.stand ?? 0), changed: d.lastTriage?.changed ? d.lastTriage.changed.length : 0, held };
+      // The verdicts of the last run, and those that came with the repository and were not applied, with what they judge.
+      const lines = String(check.stderr ?? '').split('\n');
+      const from = lines.findIndex((l) => l.includes('not written by this skill on this machine'));
+      const to = lines.findIndex((l) => l.includes('--accept-verdicts'));
+      const kept = [...lines.filter((l) => l.includes('of the last triage')), ...(from >= 0 && to >= from ? lines.slice(from, to + 1) : [])];
       if (kept.length) {
         say();
         say('▸ The triage of the last run');

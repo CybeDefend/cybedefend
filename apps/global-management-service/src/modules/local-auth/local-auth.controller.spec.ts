@@ -24,6 +24,7 @@ import { User } from 'src/entities/user.entity';
 import { InvitationAcceptanceService } from './invitation-acceptance.service';
 import { LocalAuthController } from './local-auth.controller';
 import { LocalAuthService } from './local-auth.service';
+import { LocalCredentialStore } from './local-credential.store';
 import { PasswordResetService } from './password-reset.service';
 import { SetupService } from './setup.service';
 import {
@@ -70,6 +71,8 @@ describe('LocalAuthController', () => {
   const passwordReset = { request: jest.fn(), reset: jest.fn() };
   // The AcceptInvitation handler.
   const invitations = { accept: jest.fn() };
+  // The password proof of CreatePersonalAccessToken.
+  const credentials = { assertCurrentPassword: jest.fn() };
   const controller = new LocalAuthController(
     service as unknown as LocalAuthService,
     pats as unknown as PersonalAccessTokenStore,
@@ -78,6 +81,7 @@ describe('LocalAuthController', () => {
     setup as unknown as SetupService,
     passwordReset as unknown as PasswordResetService,
     invitations as unknown as InvitationAcceptanceService,
+    credentials as unknown as LocalCredentialStore,
   );
 
   beforeEach(() => {
@@ -295,14 +299,22 @@ describe('LocalAuthController', () => {
 
   it('answers the secret as value and the metadata as token', async () => {
     pats.create.mockResolvedValue({ pat: patOf(), token: PAT_VALUE });
+    credentials.assertCurrentPassword.mockResolvedValueOnce(
+      'the-verified-hash',
+    );
 
     const response: CreateLocalPersonalAccessTokenResponse =
       await controller.createPersonalAccessToken({
         userId: SESSION.userId,
         name: 'ci',
         expiresAt: 0,
+        currentPassword: 'the account password',
       });
 
+    expect(credentials.assertCurrentPassword).toHaveBeenCalledWith(
+      SESSION.userId,
+      'the account password',
+    );
     expect(response.value).toBe(PAT_VALUE);
     expect(response.value).toMatch(PAT_PATTERN);
     expect(response.token).toEqual({
@@ -314,12 +326,45 @@ describe('LocalAuthController', () => {
       expiresAt: 0,
     });
     expect(response.token?.lastFour).toBe(response.value.slice(-4));
+    // The hash just verified travels to the store, which re-checks it under
+    // the credential row's lock.
     expect(pats.create).toHaveBeenCalledWith(
       SESSION.userId,
       'ci',
       null,
       expect.any(Date),
+      { verifiedPasswordHash: 'the-verified-hash' },
     );
+  });
+
+  it('refuses to create a token without the account password: CURRENT_PASSWORD_INVALID, nothing created', async () => {
+    credentials.assertCurrentPassword.mockRejectedValue(
+      new RpcException({
+        code: status.INVALID_ARGUMENT,
+        message: 'CURRENT_PASSWORD_INVALID',
+      }),
+    );
+
+    for (const currentPassword of ['a wrong password', '', undefined]) {
+      const thrown = await controller
+        .createPersonalAccessToken({
+          userId: SESSION.userId,
+          name: 'ci',
+          expiresAt: 0,
+          currentPassword,
+        })
+        .catch((e: unknown) => e);
+      expect((thrown as RpcException).getError()).toEqual({
+        code: status.INVALID_ARGUMENT,
+        message: 'CURRENT_PASSWORD_INVALID',
+      });
+    }
+    expect(credentials.assertCurrentPassword).toHaveBeenLastCalledWith(
+      SESSION.userId,
+      '',
+    );
+    expect(pats.create).not.toHaveBeenCalled();
+    credentials.assertCurrentPassword.mockReset();
   });
 
   it('reads a string expiresAt: an epoch-ms instant, 0 as no expiry', async () => {
@@ -330,24 +375,28 @@ describe('LocalAuthController', () => {
       name: 'ci',
       // int64 arrives as a string at runtime (longs: String)
       expiresAt: '1893456000000' as unknown as number,
+      currentPassword: 'the account password',
     });
     expect(pats.create).toHaveBeenLastCalledWith(
       SESSION.userId,
       'ci',
       new Date(1893456000000),
       expect.any(Date),
+      expect.anything(),
     );
 
     await controller.createPersonalAccessToken({
       userId: SESSION.userId,
       name: 'ci',
       expiresAt: '0' as unknown as number,
+      currentPassword: 'the account password',
     });
     expect(pats.create).toHaveBeenLastCalledWith(
       SESSION.userId,
       'ci',
       null,
       expect.any(Date),
+      expect.anything(),
     );
   });
 

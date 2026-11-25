@@ -13,6 +13,8 @@ const wrapperAt = (initialEntry: string) =>
 // under test (renderHook only exposes a single result).
 const useProbe = () => ({ quickView: useIssueQuickView(), location: useLocation() });
 
+const V42 = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';
+
 describe('useIssueQuickView', () => {
   it('returns null issueId when no ?issue param is present', () => {
     const { result } = renderHook(useProbe, {
@@ -23,9 +25,24 @@ describe('useIssueQuickView', () => {
 
   it('reads issueId from the ?issue param', () => {
     const { result } = renderHook(useProbe, {
-      wrapper: wrapperAt('/project/p1/sast?issue=v-42'),
+      wrapper: wrapperAt(`/project/p1/sast?issue=${V42}`),
     });
-    expect(result.current.quickView.issueId).toBe('v-42');
+    expect(result.current.quickView.issueId).toBe(V42);
+  });
+
+  // The id is put in request paths: a value that is not a UUID opens no
+  // drawer, whatever it holds.
+  it.each([
+    '../../../organization/x/report',
+    '..%2F..%2Fx',
+    'v-42',
+    `${V42}/../x`,
+    `${V42}?x`,
+  ])('ignores an ?issue param that is not a UUID: %s', (value) => {
+    const { result } = renderHook(useProbe, {
+      wrapper: wrapperAt(`/project/p1/sast?issue=${encodeURIComponent(value)}`),
+    });
+    expect(result.current.quickView.issueId).toBeNull();
   });
 
   it('openIssue sets ?issue while preserving existing params', () => {

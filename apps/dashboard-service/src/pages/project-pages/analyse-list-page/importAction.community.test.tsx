@@ -192,6 +192,8 @@ const mount = (type: string) => {
     isLoadingBranches: false,
     isBranchResolved: true,
     projectName: 'Demo',
+    // The dialog takes the id of the project the API answered for.
+    loadedProjectId: 'p1',
     integrationInfo: { type: 'none', repositoryId: null },
     linkedGithubRepo: null,
     linkedGitlabRepo: null,

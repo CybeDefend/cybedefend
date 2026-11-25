@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
+import { status } from '@grpc/grpc-js';
 import type {
   IdentityOrganization,
   IdentityProviderPort,
@@ -12,12 +14,23 @@ import {
 import { RefreshTokenStore } from 'src/modules/local-auth/refresh-token.store';
 
 /**
+ * Why the generic token routes refuse to create a personal access token in
+ * this edition, and where to create one instead: a token outlives every
+ * session, so creating one takes the account's password, which only
+ * POST /me/personal-access-tokens asks for. The code before the colon is
+ * stable; the gateway answers it as a 400.
+ */
+export const PAT_PASSWORD_REQUIRED_MESSAGE =
+  'PAT_PASSWORD_REQUIRED: create personal access tokens with POST /me/personal-access-tokens, which asks for the account password';
+
+/**
  * The community identity provider: there is no external identity provider to
  * mirror CybeDefend's tables into, so every mirror method resolves with
  * nothing done. A member leaving an organisation is signed out of the
  * instance (`memberLeaving`). The personal access tokens of the UserService
- * RPCs are local: they live in PersonalAccessTokenStore, and `value` is ''
- * except at creation, exactly once.
+ * RPCs are local: they live in PersonalAccessTokenStore, and `value` is ''.
+ * They list, delete and rename; they never create (see
+ * {@link PAT_PASSWORD_REQUIRED_MESSAGE}).
  */
 @Injectable()
 export class CommunityIdentityProvider implements IdentityProviderPort {
@@ -81,22 +94,24 @@ export class CommunityIdentityProvider implements IdentityProviderPort {
     return tokens.map((pat) => CommunityIdentityProvider.toView(pat, ''));
   }
 
-  /** Creates a token; the secret is returned exactly once, here. */
+  /**
+   * Refused: this path carries no password, and a token outlives every
+   * session, so a session alone must not mint one. FAILED_PRECONDITION
+   * (a 400 at the gateway) with PAT_PASSWORD_REQUIRED, which names the route
+   * that asks for the password. Nothing is created.
+   */
   async createPersonalAccessToken(
     userId: string,
     name: string,
     expiresAt?: number,
   ): Promise<PersonalAccessTokenView> {
-    // int64 arrives as a string at runtime (longs: String); 0 or absent = never.
-    const ms = Number(expiresAt ?? 0);
-    const expiry = ms > 0 ? new Date(ms) : null;
-    const { pat, token } = await this.pats.create(
-      userId,
-      name,
-      expiry,
-      new Date(),
-    );
-    return CommunityIdentityProvider.toView(pat, token);
+    void userId; // the port's signature: nothing of the request is used
+    void name;
+    void expiresAt;
+    throw new RpcException({
+      code: status.FAILED_PRECONDITION,
+      message: PAT_PASSWORD_REQUIRED_MESSAGE,
+    });
   }
 
   async deletePersonalAccessToken(userId: string, name: string): Promise<void> {

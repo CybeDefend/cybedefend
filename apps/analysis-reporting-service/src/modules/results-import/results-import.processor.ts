@@ -57,7 +57,11 @@ import {
 } from './sarif/vulnerability-parser';
 import { isLanguageEcosystem } from './sarif/ecosystems';
 import { VulnerabilityOsvAffected } from '../../entities/osv/vulnerability-osv-affected.entity';
-import type { VulnerabilityOsv } from '../../entities/osv/vulnerability-osv.entity';
+import { isMalwareAdvisory } from '../sca/malware.util';
+import {
+  ImportedAdvisoryContent,
+  advisoryViewOf,
+} from './imported-advisory.view';
 import type { ScaMatchedItem, ScaScanMeta } from '../sca/sca.service';
 import { SbomSkip, readCycloneDx } from './sbom/cyclonedx';
 import { SbomPicture } from './sbom/sbom-picture';
@@ -101,7 +105,9 @@ const MAX_IMAGE_ID = 255;
 /** `CompleteImportScan.tool_name` is cut there (security-scanning keeps the commas). */
 const MAX_TOOL_NAMES = 255;
 
-type SkipReason = Extract<MapOutcome, { kind: 'skipped' }>['reason'];
+type SkipReason =
+  | Extract<MapOutcome, { kind: 'skipped' }>['reason']
+  | 'invalid_advisory_id';
 const SKIP_REASONS: readonly SkipReason[] = [
   'suppressed',
   'not_a_failure',
@@ -109,7 +115,29 @@ const SKIP_REASONS: readonly SkipReason[] = [
   'no_location',
   'invalid_path',
   'kind_mismatch',
+  'invalid_advisory_id',
 ];
+
+/**
+ * The longest advisory id a package import keeps. The id is chosen by the
+ * file and becomes the key of the advisory's row, shown in lists, details,
+ * reports and issue tickets.
+ */
+export const MAX_IMPORT_ADVISORY_ID = 128;
+
+/**
+ * Control characters (C0, DEL, C1), line and paragraph separators and the
+ * bidirectional formatting characters: none of them belongs in an advisory
+ * id, and each can change how the text around the id is displayed.
+ */
+const ADVISORY_ID_FORBIDDEN =
+  /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+
+/** Whether a package import keeps an advisory id (else the result is skipped). */
+export const isAcceptableAdvisoryId = (id: string): boolean =>
+  id.length > 0 &&
+  id.length <= MAX_IMPORT_ADVISORY_ID &&
+  !ADVISORY_ID_FORBIDDEN.test(id);
 
 /** The part of SastIacService the import uses (token, as the SAST/IaC processor). */
 type SastIacIngestion = {
@@ -149,7 +177,11 @@ const isPackageCategory = (category: string): category is PackageCategory =>
   category === 'sca' || category === 'container';
 
 /** Why a package result is not imported (counted, never logged with the result). */
-type PackageSkip = 'suppressed' | 'not_a_failure' | 'kind_mismatch';
+type PackageSkip =
+  | 'suppressed'
+  | 'not_a_failure'
+  | 'kind_mismatch'
+  | 'invalid_advisory_id';
 
 interface RunContext {
   header: SarifRunHeader;
@@ -499,6 +531,11 @@ export class ResultsImportProcessor extends WorkerHost implements OnModuleInit {
     if (parsed.kind === 'unparsable') {
       return { kind: 'unparsable', reason: parsed.reason };
     }
+    // The advisory id becomes a row key shown everywhere: a result whose id
+    // is too long or holds a control character is skipped (and counted).
+    if (!isAcceptableAdvisoryId(parsed.item.advisoryId)) {
+      return { kind: 'skipped', reason: 'invalid_advisory_id' };
+    }
     return { kind: 'parsed', item: parsed.item };
   }
 
@@ -695,16 +732,21 @@ export class ResultsImportProcessor extends WorkerHost implements OnModuleInit {
     chunk: { next: number },
     sbom: SbomPicture | null,
   ): Promise<void> {
-    const advisories =
-      items.length > 0
-        ? await this.advisories.ensureAdvisories(
-            items.map((item) => advisoryInputOf(item, tool)),
-          )
-        : new Map<string, VulnerabilityOsv>();
+    if (items.length > 0) {
+      await this.advisories.ensureAdvisories(
+        {
+          projectId: data.projectId,
+          organizationId: data.organizationId || null,
+          scanId: data.scanId,
+        },
+        items.map((item) => advisoryInputOf(item, tool)),
+      );
+    }
 
     if (category === 'sca') {
-      const matched = scaItemsOf(items, advisories).map((item) =>
-        sbom ? { ...item, library: sbom.complete(item.library) } : item,
+      const matched = scaItemsOf(items, tool, keptSeveritiesOf(data)).map(
+        (item) =>
+          sbom ? { ...item, library: sbom.complete(item.library) } : item,
       );
       await this.withRetry(data.scanId, tool, () =>
         this.scaService.ingestMatched(scaMetaOf(data), matched),
@@ -806,13 +848,14 @@ export class ResultsImportProcessor extends WorkerHost implements OnModuleInit {
         }
       }
       // Each finding is ingested under its catalogue rule id: the
-      // organisation's own key for a rule outside the shipped catalogue,
-      // so no organisation sees the wording another one imported.
+      // project's own key for a rule outside the shipped catalogue, so no
+      // other project sees or sets the wording this one imported.
       const catalogueIds = await this.fallback.catalogueRuleIds(
         tool,
         data.category,
         [...byRuleId.values()],
         data.organizationId || data.projectId,
+        data.projectId,
       );
       vulnerabilities = vulnerabilities.map((dto) => {
         const ruleId = catalogueIds.get(dto.ruleId) ?? dto.ruleId;
@@ -965,13 +1008,52 @@ function advisoryInputOf(
 }
 
 /**
+ * The severities a job keeps (lower case); `all` keeps every one.
+ */
+const keptSeveritiesOf = (data: ResultsImportJobData): Set<string> =>
+  new Set(
+    severitiesOf(data)
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+/** The advisory content an item declares, as the project's row holds it. */
+const itemContentOf = (
+  item: ParsedVulnerability,
+  toolName: string,
+): ImportedAdvisoryContent => ({
+  advisoryId: item.advisoryId,
+  toolName,
+  summary: item.advisory.summary,
+  details: item.advisory.details,
+  severity: item.severity,
+  cvssV3Vector: item.advisory.cvssV3Vector,
+  cweIds: item.advisory.cweIds,
+  aliases: item.aliases,
+  referenceUrls: item.advisory.helpUri ? [item.advisory.helpUri] : [],
+  fixes: item.fixedVersions.map((fixed) => ({
+    ecosystem: item.ecosystem,
+    packageName: item.packageName,
+    fixed,
+  })),
+});
+
+/**
  * The SCA items of a batch, grouped by `lower(trim(name))@version` (the
  * package key of processScaBatch), each with one in-memory affected row per
  * item: a complete match for batchHandleVulnerabilities (I-13).
+ *
+ * The advisory of each affected row is built from the item itself: the
+ * severity, CVSS vector and text of an imported finding are what its own
+ * import declared, never a stored advisory row. An item whose declared
+ * severity the job does not keep attaches no advisory (its package is still
+ * ingested), so no stored row can decide whether an imported finding exists.
  */
 function scaItemsOf(
   items: ParsedVulnerability[],
-  advisories: Map<string, VulnerabilityOsv>,
+  toolName: string,
+  keptSeverities: Set<string>,
 ): ScaMatchedItem[] {
   const groups = new Map<string, ScaMatchedItem>();
   for (const item of items) {
@@ -993,8 +1075,18 @@ function scaItemsOf(
       group = { library, affected: [] };
       groups.set(key, group);
     }
-    const vulnerability = advisories.get(item.advisoryId);
-    if (!vulnerability) continue;
+    const vulnerability = advisoryViewOf(itemContentOf(item, toolName), {
+      packageName: item.packageName,
+      ecosystem: item.ecosystem,
+    });
+    if (
+      keptSeverities.size > 0 &&
+      !keptSeverities.has('all') &&
+      !keptSeverities.has(item.severity) &&
+      !isMalwareAdvisory(vulnerability)
+    ) {
+      continue;
+    }
     group.affected.push(
       Object.assign(new VulnerabilityOsvAffected(), {
         ecosystem: item.ecosystem,

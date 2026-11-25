@@ -9,6 +9,12 @@ import { Logger } from 'nestjs-pino';
 import { FileService } from './file.service';
 import { FileScan } from 'src/entities/file.entity';
 import { createLoggerMock, createMockRepository } from 'src/test-utils/mocks';
+
+/** The repository mock, with no pending upload counted for any project. */
+const fileScanRepository = () => ({
+  ...createMockRepository<FileScan>(),
+  count: jest.fn().mockResolvedValue(0),
+});
 import SecretsService from 'src/core/secrets/secrets.service';
 import { validationSchema } from '../core/config/validation.schema';
 
@@ -45,7 +51,7 @@ async function makeService(
   over: Record<string, unknown> = {},
   repo: ReturnType<
     typeof createMockRepository<FileScan>
-  > = createMockRepository<FileScan>(),
+  > = fileScanRepository(),
 ): Promise<{
   service: FileService;
   repo: ReturnType<typeof createMockRepository<FileScan>>;
@@ -153,7 +159,7 @@ describe('FileService — S3_PUBLIC_ENDPOINT', () => {
   });
 
   it('signs internal URLs on the internal endpoint', async () => {
-    const repo = createMockRepository<FileScan>();
+    const repo = fileScanRepository();
     repo.findOne.mockResolvedValue({
       scanId: S,
       objectPath: `scan/${P}/${S}.zip`,
@@ -188,7 +194,7 @@ describe('FileService — S3_PUBLIC_ENDPOINT', () => {
   });
 
   it('uses the internal endpoint everywhere when no public endpoint is set', async () => {
-    const repo = createMockRepository<FileScan>();
+    const repo = fileScanRepository();
     repo.findOne.mockResolvedValue({
       scanId: S,
       objectPath: `scan/${P}/${S}.zip`,
@@ -242,7 +248,7 @@ describe('FileService — getDownloadUrl audience (Community cluster scans)', ()
   });
 
   function scanRepo(): ReturnType<typeof createMockRepository<FileScan>> {
-    const repo = createMockRepository<FileScan>();
+    const repo = fileScanRepository();
     repo.findOne.mockResolvedValue({
       scanId: S,
       objectPath: `scan/${P}/${S}.zip`,

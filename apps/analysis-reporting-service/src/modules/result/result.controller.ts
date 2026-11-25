@@ -109,6 +109,7 @@ import { ReportUploadService } from '../reports/shared/report-upload.service';
 import { ReportRetentionService } from '../reports/retention/report-retention.service';
 import { ReportQuotaService } from '../reports/retention/report-quota.service';
 import { ProjectReportEnqueuer } from '../reports/shared/project-report-enqueuer.service';
+import { ProjectOrgResolver } from '../../core/realtime/project-org-resolver.service';
 // NOTE: the DeleteProjectVulnerabilityDetections RPC is declared in
 // analysis_reporting.proto against result.proto's ProjectDeleteRequest (which
 // carries organizationId ), NOT global-management's same-named
@@ -187,6 +188,24 @@ import {
 // SCA_AUTOFIX_MAX_VULNERABILITIES moved to the closed SCA autofix module
 // with the SCA autofix RPCs.
 
+/**
+ * The gRPC status code of a failure: a grpc-js ServiceError (what a gRPC
+ * client call rejects with) carries it as `code`, an RpcException in
+ * `getError().code`. Undefined for any other error.
+ */
+function grpcCodeOf(error: unknown): number | undefined {
+  if (error instanceof RpcException) {
+    const inner = error.getError();
+    const code =
+      typeof inner === 'object' && inner !== null
+        ? (inner as { code?: unknown }).code
+        : undefined;
+    return typeof code === 'number' ? code : undefined;
+  }
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'number' ? code : undefined;
+}
+
 // Every handler below declares its own
 // @GrpcMethod('ResultService', '<camelCase>') instead of the generated
 // @ResultServiceControllerMethods(), so the core controller still compiles
@@ -230,6 +249,8 @@ export class ResultController implements Partial<ResultServiceController> {
     private readonly dataPurgeService: DataPurgeService,
     // The premium-report enqueue, shared with the ee handlers.
     private readonly projectReportEnqueuer: ProjectReportEnqueuer,
+    // A team's organization, for team reports.
+    private readonly projectOrgResolver: ProjectOrgResolver,
   ) {}
 
   /**
@@ -259,22 +280,31 @@ export class ResultController implements Partial<ResultServiceController> {
     await this.reportQuota.assertWithinQuotaForOrg(
       input.organizationId || null,
     );
-    const reportId = ulid();
     // Plan-derived expiry from the owning org (already known here).
     const expiresAt = await this.reportRetention.computeExpiresAtForOrg(
       input.organizationId || null,
     );
-    await this.aggregatedReportRepo.save(
-      this.aggregatedReportRepo.create({
-        id: reportId,
-        scopeType: input.scopeType,
-        scopeId: input.scopeId,
-        organizationId: input.organizationId || null,
-        reportType: input.reportType,
-        format: input.format,
-        status: 'queued',
-        expiresAt,
-      }),
+    // At most a few reports of one org wait or render at once: the report
+    // worker is shared by every org of the instance.
+    const reportId = await this.reportQuota.admitQueuedReport(
+      input.organizationId || null,
+      async (reportId) => {
+        await this.aggregatedReportRepo.save(
+          this.aggregatedReportRepo.create({
+            id: reportId,
+            scopeType: input.scopeType,
+            scopeId: input.scopeId,
+            organizationId: input.organizationId || null,
+            reportType: input.reportType,
+            format: input.format,
+            status: 'queued',
+            expiresAt,
+          }),
+        );
+      },
+      async (reportId) => {
+        await this.aggregatedReportRepo.delete({ id: reportId });
+      },
     );
 
     // Surface the generation in the background-tasks widget.
@@ -326,9 +356,14 @@ export class ResultController implements Partial<ResultServiceController> {
           // best-effort rollback of the widget task
         }
       }
+      // The queue's error is logged; the caller gets a stable message.
+      this.logger.error({
+        err,
+        msg: 'Failed to enqueue aggregated report job',
+      });
       throw new RpcException({
         code: status.UNAVAILABLE,
-        message: `Failed to enqueue aggregated report job: ${(err as Error).message}`,
+        message: 'Failed to enqueue aggregated report job',
       });
     }
     return {
@@ -1371,9 +1406,11 @@ export class ResultController implements Partial<ResultServiceController> {
       });
     } catch (err) {
       await this.asyncTaskStore.delete(taskId);
+      // The queue's error is logged; the caller gets a stable message.
+      this.logger.error({ err, msg: 'Failed to enqueue batch update job' });
       throw new RpcException({
         code: status.UNAVAILABLE,
-        message: `Failed to enqueue batch update job: ${(err as Error).message}`,
+        message: 'Failed to enqueue batch update job',
       });
     }
 
@@ -1758,28 +1795,91 @@ export class ResultController implements Partial<ResultServiceController> {
 
     const detailed = request.detailed !== undefined ? request.detailed : true;
 
-    // Anti-IDOR: organizationId arrives from a client query param, so
-    // verify the team really belongs to it BEFORE enqueue — otherwise a manager
-    // of a team in their own org could tag the stored report to a victim org
-    // (consuming its quota / surfacing + exposing it in that org's report list).
-    // Runs synchronously so an unauthorized request is rejected without queuing.
-    if (request.organizationId) {
-      await this.aggregatedReportsService.validateTeamAccess(
-        request.teamId,
-        request.organizationId,
-      );
+    // The report is counted, capped and stored under the team's own
+    // organization, resolved here from the team, never taken from the
+    // caller: without it the report would escape the per-organization
+    // bounds. A caller's organizationId must name that same organization
+    // (anti-IDOR: a manager of a team must not tag its report to another
+    // org), and global-management confirms the team belongs to it.
+    const organizationId = await this.resolveTeamOrganization(
+      request.teamId,
+      request.userId,
+    );
+    if (!organizationId) {
+      throw new RpcException({
+        code: status.INVALID_ARGUMENT,
+        message: 'TEAM_ORGANIZATION_UNRESOLVED',
+      });
     }
+    if (request.organizationId && request.organizationId !== organizationId) {
+      throw new RpcException({
+        code: status.PERMISSION_DENIED,
+        message: 'Team does not belong to the specified organization',
+      });
+    }
+    await this.aggregatedReportsService.validateTeamAccess(
+      request.teamId,
+      organizationId,
+    );
 
     return this.enqueueAggregatedReport({
       scopeType: 'team',
       scopeId: request.teamId,
-      organizationId: request.organizationId || '',
+      organizationId,
       reportType: request.reportType,
       format: request.format,
       detailed,
       branchFilter: request.branchFilter || 'all',
       projectBranchSelections: request.projectBranchSelections || [],
       userId: request.userId,
+    });
+  }
+
+  /**
+   * The organization a team belongs to, from the team's projects (a team
+   * lives in one organization). Null when it has no project the caller can
+   * see, or when global-management answers that the team is missing or not
+   * readable: a team report of such a team has nothing to render anyway.
+   * Any other failure to read the list, or a list none of whose projects
+   * resolves to an organization, is a lookup failure the caller may retry:
+   * UNAVAILABLE, never a bad request.
+   */
+  private async resolveTeamOrganization(
+    teamId: string,
+    userId: string,
+  ): Promise<string | null> {
+    let projectIds: string[];
+    try {
+      projectIds = await this.aggregatedReportsService.teamProjectIds(
+        teamId,
+        userId,
+      );
+    } catch (error) {
+      const code = grpcCodeOf((error as { cause?: unknown })?.cause ?? error);
+      if (code === status.NOT_FOUND || code === status.PERMISSION_DENIED) {
+        return null;
+      }
+      this.logger.warn(
+        { err: error, teamId },
+        "Team report: the team's projects could not be read",
+      );
+      throw new RpcException({
+        code: status.UNAVAILABLE,
+        message: 'TEAM_ORGANIZATION_LOOKUP_UNAVAILABLE',
+      });
+    }
+    for (const projectId of projectIds) {
+      const orgId = await this.projectOrgResolver.resolveOrgId(projectId);
+      if (orgId) return orgId;
+    }
+    if (projectIds.length === 0) return null;
+    this.logger.warn(
+      { teamId, projects: projectIds.length },
+      "Team report: none of the team's projects resolved to an organization",
+    );
+    throw new RpcException({
+      code: status.UNAVAILABLE,
+      message: 'TEAM_ORGANIZATION_LOOKUP_UNAVAILABLE',
     });
   }
 
@@ -1882,6 +1982,11 @@ export class ResultController implements Partial<ResultServiceController> {
       id: report.id,
       projectId: request.projectId,
     });
+    // A queued report's job goes too: deleting must not leave work behind
+    // that still uses the shared worker (and its in-flight slot is freed).
+    await this.removeQueueJob(() =>
+      this.scanQueueService.removeReportJob(report.id),
+    );
     return { success: true };
   }
 
@@ -1930,7 +2035,21 @@ export class ResultController implements Partial<ResultServiceController> {
       await this.reportUpload.deleteReport(report.objectPath, tenant);
     }
     await this.aggregatedReportRepo.delete({ id: report.id });
+    await this.removeQueueJob(() =>
+      this.scanQueueService.removeAggregatedReportJob(report.id),
+    );
     return { success: true };
+  }
+
+  /** Best effort: a job already rendering stops at its next re-read. */
+  private async removeQueueJob(remove: () => Promise<void>): Promise<void> {
+    try {
+      await remove();
+    } catch (err) {
+      this.logger.warn(
+        `[reports] could not remove the job of a deleted report: ${(err as Error).message}`,
+      );
+    }
   }
 
   /**

@@ -40,8 +40,9 @@ export interface AnalysisReportingEntitlementsPort extends EntitlementsPort {
     organizationIds: Iterable<string>,
   ): Promise<AppsecOffOrganizations>;
   /**
-   * The plan's report limits. Community: `{ maxStoredReports: -1,
-   * reportRetentionDays: -1 }`. Cloud: billing GetEntitlements `.data`;
+   * The plan's report limits. Community: `{ maxStoredReports: 500,
+   * reportRetentionDays: -1 }` unless the instance's environment sets them.
+   * Cloud: billing GetEntitlements `.data`;
    * REJECTS on any error (callers fail open, unchanged).
    */
   getEntitlements(organizationId: string): Promise<ReportEntitlements>;

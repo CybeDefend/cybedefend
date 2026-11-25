@@ -39,6 +39,7 @@ import type {
 import { User } from 'src/entities/user.entity';
 import { InvitationAcceptanceService } from './invitation-acceptance.service';
 import { LocalAuthService } from './local-auth.service';
+import { LocalCredentialStore } from './local-credential.store';
 import { PasswordResetService } from './password-reset.service';
 import { SetupService } from './setup.service';
 
@@ -68,7 +69,8 @@ function toMessage(pat: LocalPat): LocalPersonalAccessToken {
  * only, never stored; the login rate limit is the gateway's.
  *
  * The PAT RPCs keep the original wire shape: `value` is the secret, `token`
- * the metadata. No token is ever logged.
+ * the metadata. Creating a token checks the account's password first
+ * (CURRENT_PASSWORD_INVALID). No token or password is ever logged.
  */
 @Controller()
 export class LocalAuthController {
@@ -81,6 +83,7 @@ export class LocalAuthController {
     private readonly setup: SetupService,
     private readonly passwordReset: PasswordResetService,
     private readonly invitations: InvitationAcceptanceService,
+    private readonly credentials: LocalCredentialStore,
   ) {}
 
   @GrpcMethod('LocalAuthService', 'GetSetupStatus')
@@ -219,6 +222,13 @@ export class LocalAuthController {
   async createPersonalAccessToken(
     request: CreateLocalPersonalAccessTokenRequest,
   ): Promise<CreateLocalPersonalAccessTokenResponse> {
+    // A personal access token outlives any session: creating one takes the
+    // account's password, so a short-lived access token alone cannot turn
+    // itself into a lasting credential. Never logged.
+    const verifiedPasswordHash = await this.credentials.assertCurrentPassword(
+      request.userId,
+      request.currentPassword ?? '',
+    );
     // int64 arrives as a string at runtime (longs: String): read it with
     // Number(). 0 = never expires.
     const expiresAtMs = Number(request.expiresAt);
@@ -228,6 +238,7 @@ export class LocalAuthController {
       request.name,
       expiresAt,
       new Date(),
+      { verifiedPasswordHash },
     );
     return { token: toMessage(pat), value: token };
   }

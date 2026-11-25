@@ -7,16 +7,18 @@ import { createLoggerOptions } from './logger';
  * An error that reaches the logger whole (Nest's RPC exception handler logs
  * every unexpected error as `{ err }`; a service may pass one as the context
  * argument) is serialized without the values of a failed statement: a
- * driver error keeps its class, code and stack frames, never its parameters,
- * statement, message or detail, which can carry a password hash, a token
- * digest, an e-mail address or a whole user-supplied text.
+ * driver error keeps its class, code, constraint and table names, its message
+ * with any quoted value replaced and its stack frames, never its parameters,
+ * statement or detail, which can carry a password hash, a token digest, an
+ * e-mail address or a whole user-supplied text.
  */
 
 const VALUE = 'user-supplied-value-4f1c';
 
 function failedQuery(): QueryFailedError {
   const driverError = Object.assign(
-    new Error(`value too long for type character varying(255): ${VALUE}`),
+    // PostgreSQL's message names the type only; the value is in `detail`.
+    new Error('value too long for type character varying(255)'),
     {
       code: '22001',
       detail: `Failing row contains (${VALUE}).`,

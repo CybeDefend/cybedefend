@@ -160,7 +160,7 @@ describe('GlobalExceptionFilter — instanceof inference (no message grep)', () 
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'something not found',
+        message: 'An unexpected error occurred',
       }),
     );
   });
@@ -177,13 +177,13 @@ describe('GlobalExceptionFilter — instanceof inference (no message grep)', () 
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
   });
 
-  it('plain Error → 500 with message preserved', () => {
+  it('plain Error → 500 with a fixed message, never its own text', () => {
     const { host, send } = makeHost();
     filter.catch(new Error('boom'), host);
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'boom',
+        message: 'An unexpected error occurred',
       }),
     );
   });

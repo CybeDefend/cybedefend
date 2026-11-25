@@ -94,6 +94,11 @@ const CODE_PATTERNS = [
   new RegExp(`\\b(?:[\\w$]*[cC]onfig[\\w$]*|cfg)\\s*\\??\\.get\\s*(?:<[^()]*?>)?\\s*\\(\\s*${Q}${KEY}${Q}`, 'g'),
   new RegExp(`\\bprocess\\.env\\.${KEY}\\b`, 'g'),
   new RegExp(`\\bprocess\\.env\\s*\\[\\s*${Q}${KEY}${Q}\\s*\\]`, 'g'),
+  // A function that builds a key's name from a prefix and a name (one key per
+  // caller, per server…) reads a family of keys: it is listed by its prefix,
+  // which ends in an underscore (SERVICE_AUTH_KEY_FOR_ for
+  // SERVICE_AUTH_KEY_FOR_<SERVER>).
+  new RegExp('\\breturn\\s+`([A-Z][A-Z0-9_]*_)\\$\\{[^`{}]*\\}`', 'g'),
 ];
 /** The keys a Joi validation schema declares (validated at boot, read through ConfigService). */
 const JOI_PATTERN = new RegExp(`^[ \\t]*['"]?${KEY}['"]?\\s*:\\s*Joi\\b`, 'gm');

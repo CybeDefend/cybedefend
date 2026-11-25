@@ -515,6 +515,17 @@ describe('ResultsImportController', () => {
     expect(err?.message).not.toContain('ECONNREFUSED');
   });
 
+  it('passes on the refusal of an organization with too many imports waiting', async () => {
+    addResultsImportJob.mockRejectedValue(
+      new RpcException({
+        code: status.RESOURCE_EXHAUSTED,
+        message: 'Too many imports are waiting for this organization.',
+      }),
+    );
+    const err = await codeOf(controller.importResults(request()));
+    expect(err?.code).toBe(status.RESOURCE_EXHAUSTED);
+  });
+
   it('answers accepted for a repeated call, the queue keeping one job', async () => {
     // BullMQ answers the existing job for a duplicate jobId: nothing is
     // queued twice, and the caller still reads accepted.

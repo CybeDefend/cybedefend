@@ -192,12 +192,8 @@ describe('ResultsImportProcessor', () => {
     scaFinalizeScan = jest.fn().mockResolvedValue(undefined);
     processContainerBatch = jest.fn().mockResolvedValue({ success: true });
     containerFinalizeScan = jest.fn().mockResolvedValue(undefined);
-    // the advisory rows, as stored: one per distinct id
-    ensureAdvisories = jest.fn(async (items: AdvisoryInput[]) => {
-      const map = new Map<string, { id: string }>();
-      for (const item of items) map.set(item.id, { id: item.id });
-      return map;
-    });
+    // the project's advisory rows are written; nothing is read back
+    ensureAdvisories = jest.fn().mockResolvedValue(undefined);
 
     const ssClient = {
       getService: () => ({ completeImportScan }),
@@ -705,7 +701,7 @@ describe('ResultsImportProcessor', () => {
       expect(ensureAdvisories.mock.invocationCallOrder[0]).toBeLessThan(
         ingestMatched.mock.invocationCallOrder[0],
       );
-      const inputs = ensureAdvisories.mock.calls[0][0] as AdvisoryInput[];
+      const inputs = ensureAdvisories.mock.calls[0][1] as AdvisoryInput[];
       expect(inputs).toHaveLength(5);
       expect(inputs.every((input) => input.toolName === 'trivy')).toBe(true);
       const qs = inputs.find((input) => input.id === 'CVE-2022-24999');
@@ -762,6 +758,93 @@ describe('ResultsImportProcessor', () => {
         findingsCount: 5,
         toolName: 'trivy',
       });
+    });
+
+    it("writes the advisories for the import's project, organization and scan", async () => {
+      withFile([fixture('trivy-fs-sca.sarif')]);
+      await processor.process(jobOf({ category: 'sca' }));
+      expect(ensureAdvisories.mock.calls[0][0]).toEqual({
+        projectId: PROJECT,
+        organizationId: 'org-1',
+        scanId: SCAN,
+      });
+    });
+
+    it('scores each imported finding from its own item, never from a stored advisory row', async () => {
+      withFile([fixture('trivy-fs-sca.sarif')]);
+      await processor.process(jobOf({ category: 'sca' }));
+      const inputs = ensureAdvisories.mock.calls[0][1] as AdvisoryInput[];
+      const [{ items }] = scaCalls();
+      const affected = items.flatMap((item) => item.affected);
+      expect(affected).toHaveLength(inputs.length);
+      for (const row of affected) {
+        const input = inputs.find((i) => i.id === row.vulnerability.id);
+        const severities = row.vulnerability.severities.map((s) => [
+          s.type,
+          s.score,
+        ]);
+        expect(severities).toContainEqual([
+          'DATABASE_SPECIFIC',
+          input.severity.toUpperCase(),
+        ]);
+        if (input.cvssV3Vector) {
+          expect(severities).toContainEqual(['CVSS_V3', input.cvssV3Vector]);
+        } else {
+          expect(severities.map(([type]) => type)).not.toContain('CVSS_V3');
+        }
+        expect(row.vulnerability.summary).toBe(input.summary);
+      }
+    });
+
+    it('drops an item whose declared severity the scan does not keep, before any advisory row decides', async () => {
+      withFile([fixture('trivy-fs-sca.sarif')]);
+      await processor.process(
+        jobOf({ category: 'sca', severities: 'critical' }),
+      );
+      const inputs = ensureAdvisories.mock.calls[0][1] as AdvisoryInput[];
+      const kept = inputs
+        .filter((input) => input.severity === 'critical')
+        .map((input) => input.id)
+        .sort();
+      const [{ items }] = scaCalls();
+      // every package is still ingested; only kept advisories are attached
+      expect(items).toHaveLength(5);
+      expect(
+        items
+          .flatMap((item) => item.affected)
+          .map((a) => a.vulnerability.id)
+          .sort(),
+      ).toEqual(kept);
+      expect(kept.length).toBeLessThan(inputs.length);
+    });
+
+    it('skips and counts an advisory id with a control character or over 128 characters, and imports the rest', async () => {
+      const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+      try {
+        withFile(
+          trivyOf([
+            { pkg: 'lodash', id: 'CVE-2099-0001' },
+            { pkg: 'qs', id: 'GHSA-bad\u0007bell' },
+            { pkg: 'minimist', id: `GHSA-${'x'.repeat(124)}` },
+            { pkg: 'tar', id: `GHSA-${'y'.repeat(123)}` },
+          ]),
+        );
+        await processor.process(jobOf({ category: 'sca' }));
+        const inputs = ensureAdvisories.mock.calls[0][1] as AdvisoryInput[];
+        expect(inputs.map((i) => i.id).sort()).toEqual(
+          ['CVE-2099-0001', `GHSA-${'y'.repeat(123)}`].sort(),
+        );
+        expect(completion()).toMatchObject({
+          status: 'completed',
+          findingsCount: 2,
+        });
+        const done = log.mock.calls
+          .map(([line]) => String(line))
+          .find((line) => line.startsWith('RESULTS_IMPORT_DONE'));
+        expect(done).toContain('skipped_invalid_advisory_id=2');
+      } finally {
+        log.mockRestore();
+      }
     });
 
     it('groups the items of one package into one library with every advisory', async () => {
@@ -922,7 +1005,7 @@ describe('ResultsImportProcessor', () => {
       expect(registerScanQueueType).toHaveBeenCalledWith(SCAN, 'container');
       expect(ensureAdvisories).toHaveBeenCalledTimes(1);
       expect(
-        (ensureAdvisories.mock.calls[0][0] as AdvisoryInput[]).map((i) => i.id),
+        (ensureAdvisories.mock.calls[0][1] as AdvisoryInput[]).map((i) => i.id),
       ).toEqual([
         'CVE-2023-2650',
         'CVE-2023-2650',
@@ -1180,7 +1263,7 @@ describe('ResultsImportProcessor', () => {
         500, 500, 201,
       ]);
       expect(
-        ensureAdvisories.mock.calls.map(([items]) => items.length),
+        ensureAdvisories.mock.calls.map(([, items]) => items.length),
       ).toEqual([500, 500, 201]);
       ensureAdvisories.mock.invocationCallOrder.forEach((order, i) => {
         expect(order).toBeLessThan(ingestMatched.mock.invocationCallOrder[i]);

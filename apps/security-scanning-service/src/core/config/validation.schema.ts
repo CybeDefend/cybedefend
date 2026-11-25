@@ -169,6 +169,11 @@ export const validationSchema = Joi.object({
     .empty('')
     .pattern(SCANNER_MAX_CONCURRENT_PATTERN)
     .optional(),
+  // Scans of one organization at once; the reader clamps it to the maximum.
+  CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: Joi.string()
+    .empty('')
+    .pattern(SCANNER_MAX_CONCURRENT_PATTERN)
+    .optional(),
   // JSON per adapter; the reader checks the adapters and the quantities.
   CYBEDEFEND_SCANNER_RESOURCES: Joi.string().empty('').optional(),
   CYBEDEFEND_SCANNER_KEEP_PODS: Joi.string()

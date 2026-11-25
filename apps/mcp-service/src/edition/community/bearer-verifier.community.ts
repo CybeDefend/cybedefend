@@ -27,8 +27,13 @@ const CHECK_TIMEOUT_MS = 10_000;
 /** An authenticated route that every valid token may read. */
 const CHECK_PATH = '/user/profile';
 
-interface CachedAnswer {
+interface Answer {
   accepted: boolean;
+  /** The id of the token's owner, from the profile the gateway answers. */
+  ownerId?: string;
+}
+
+interface CachedAnswer extends Answer {
   expiresAt: number;
 }
 
@@ -44,14 +49,17 @@ interface CachedAnswer {
  * network error, 429, 5xx) is not cached and refuses the request.
  *
  * The userId is a hash prefix of the token, never the token: it keys the
- * session store, the cache, and appears in logs.
+ * session store, the cache, and appears in logs. `subject` names the owner
+ * of the token (the profile's id), so the request budget is per person.
  */
 @Injectable()
 export class PersonalAccessTokenBearerVerifier implements BearerVerifier {
+  /** Each bearer not cached costs one call to the gateway. */
+  readonly remote = true;
   protected readonly maxEntries: number = MAX_CACHED_ANSWERS;
   private readonly http: AxiosInstance;
   private readonly answers = new Map<string, CachedAnswer>();
-  private readonly inFlight = new Map<string, Promise<boolean>>();
+  private readonly inFlight = new Map<string, Promise<Answer>>();
 
   constructor(config: ConfigService) {
     this.http = axios.create({
@@ -67,10 +75,13 @@ export class PersonalAccessTokenBearerVerifier implements BearerVerifier {
       return null;
     }
     const digest = createHash('sha256').update(token).digest('hex');
-    const accepted = await this.isAccepted(token, digest);
-    return accepted
-      ? { userId: `pat:${digest.slice(0, 32)}`, accessToken: token }
-      : null;
+    const answer = await this.answerFor(token, digest);
+    if (!answer.accepted) return null;
+    return {
+      userId: `pat:${digest.slice(0, 32)}`,
+      accessToken: token,
+      ...(answer.ownerId ? { subject: `user:${answer.ownerId}` } : {}),
+    };
   }
 
   // No resource_metadata: the OAuth discovery routes are closed (cloud only).
@@ -80,10 +91,10 @@ export class PersonalAccessTokenBearerVerifier implements BearerVerifier {
       : 'Bearer error="invalid_token"';
   }
 
-  private async isAccepted(token: string, digest: string): Promise<boolean> {
+  private async answerFor(token: string, digest: string): Promise<Answer> {
     const cached = this.answers.get(digest);
     if (cached && cached.expiresAt > Date.now()) {
-      return cached.accepted;
+      return { accepted: cached.accepted, ownerId: cached.ownerId };
     }
     if (cached) {
       this.answers.delete(digest);
@@ -97,21 +108,24 @@ export class PersonalAccessTokenBearerVerifier implements BearerVerifier {
       );
       this.inFlight.set(digest, pending);
     }
-    const accepted = await pending;
-    this.remember(digest, accepted);
-    return accepted;
+    const answer = await pending;
+    this.remember(digest, answer);
+    return answer;
   }
 
-  /** true or false for a definite answer; throws when there is none. */
-  private async askGateway(token: string): Promise<boolean> {
-    const { status } = await this.http.get(CHECK_PATH, {
+  /** A definite answer; throws when there is none. */
+  private async askGateway(token: string): Promise<Answer> {
+    const { status, data } = await this.http.get(CHECK_PATH, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (status >= 200 && status < 300) {
-      return true;
+      const id = (data as { id?: unknown } | undefined)?.id;
+      return typeof id === 'string' && id !== ''
+        ? { accepted: true, ownerId: id }
+        : { accepted: true };
     }
     if (status === 401 || status === 403) {
-      return false;
+      return { accepted: false };
     }
     throw Object.assign(
       new Error(`personal access token check answered ${status}`),
@@ -119,15 +133,16 @@ export class PersonalAccessTokenBearerVerifier implements BearerVerifier {
     );
   }
 
-  private remember(digest: string, accepted: boolean): void {
+  private remember(digest: string, answer: Answer): void {
     this.answers.delete(digest);
     while (this.answers.size >= this.maxEntries) {
       const oldest = this.answers.keys().next().value as string;
       this.answers.delete(oldest);
     }
     this.answers.set(digest, {
-      accepted,
-      expiresAt: Date.now() + (accepted ? POSITIVE_TTL_MS : NEGATIVE_TTL_MS),
+      ...answer,
+      expiresAt:
+        Date.now() + (answer.accepted ? POSITIVE_TTL_MS : NEGATIVE_TTL_MS),
     });
   }
 }

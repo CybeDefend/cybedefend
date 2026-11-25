@@ -4,10 +4,12 @@ import { ReportJobData } from '../scan-queue.service';
 
 describe('ReportsQueueProcessor', () => {
   let processor: ReportsQueueProcessor;
-  let reportRepo: { update: jest.Mock };
+  let reportRepo: { update: jest.Mock; findOne: jest.Mock };
+  /** Report ids whose row the user deleted. */
+  let deleted: Set<string>;
   let owaspReportService: { generateReport: jest.Mock };
   let cweReportService: { generateReport: jest.Mock };
-  let reportUpload: { uploadReport: jest.Mock };
+  let reportUpload: { uploadReport: jest.Mock; deleteReport: jest.Mock };
   let realtime: { publish: jest.Mock };
   let orgResolver: { resolveOrgId: jest.Mock };
   let asyncTaskStore: { update: jest.Mock; markTerminal: jest.Mock };
@@ -21,7 +23,24 @@ describe('ReportsQueueProcessor', () => {
   };
 
   beforeEach(() => {
-    reportRepo = { update: jest.fn().mockResolvedValue(undefined) };
+    deleted = new Set();
+    // Every row exists and is queued until a test deletes it.
+    reportRepo = {
+      findOne: jest.fn(({ where }: { where: { id: string } }) =>
+        Promise.resolve(
+          deleted.has(where.id) ? null : { id: where.id, status: 'queued' },
+        ),
+      ),
+      update: jest.fn((criteria: string | { id: string }) =>
+        Promise.resolve({
+          affected: deleted.has(
+            typeof criteria === 'string' ? criteria : criteria.id,
+          )
+            ? 0
+            : 1,
+        }),
+      ),
+    };
     owaspReportService = {
       generateReport: jest.fn().mockResolvedValue({
         content: Buffer.from('%PDF owasp'),
@@ -36,7 +55,10 @@ describe('ReportsQueueProcessor', () => {
         contentType: 'application/pdf',
       }),
     };
-    reportUpload = { uploadReport: jest.fn().mockResolvedValue(uploaded) };
+    reportUpload = {
+      uploadReport: jest.fn().mockResolvedValue(uploaded),
+      deleteReport: jest.fn().mockResolvedValue(undefined),
+    };
     realtime = { publish: jest.fn().mockResolvedValue(undefined) };
     orgResolver = { resolveOrgId: jest.fn().mockResolvedValue('org-1') };
     asyncTaskStore = {
@@ -82,12 +104,15 @@ describe('ReportsQueueProcessor', () => {
       contentType: 'application/pdf',
       buffer: expect.any(Buffer),
     });
-    expect(reportRepo.update).toHaveBeenCalledWith('rep-1', {
-      objectPath: 'reports/p1/report.pdf',
-      filename: 'report.pdf',
-      contentType: 'application/pdf',
-      status: 'ready',
-    });
+    expect(reportRepo.update).toHaveBeenCalledWith(
+      { id: 'rep-1', status: 'queued' },
+      {
+        objectPath: 'reports/p1/report.pdf',
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+        status: 'ready',
+      },
+    );
     const env = realtime.publish.mock.calls[0][0];
     expect(env.type).toBe('REPORT_READY');
     expect(env.scope).toEqual({ projectId: 'p1', organizationId: 'org-1' });
@@ -163,12 +188,15 @@ describe('ReportsQueueProcessor', () => {
 
     expect(generator.buildAndUpload).toHaveBeenCalledWith(data);
     expect(owaspReportService.generateReport).not.toHaveBeenCalled();
-    expect(reportRepo.update).toHaveBeenCalledWith('rep-7', {
-      objectPath: 'reports/p1/report.pdf',
-      filename: 'report.pdf',
-      contentType: 'application/pdf',
-      status: 'ready',
-    });
+    expect(reportRepo.update).toHaveBeenCalledWith(
+      { id: 'rep-7', status: 'queued' },
+      {
+        objectPath: 'reports/p1/report.pdf',
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+        status: 'ready',
+      },
+    );
   });
 
   it('throws Unknown report kind when no generator serves it', async () => {
@@ -231,6 +259,173 @@ describe('ReportsQueueProcessor', () => {
 
     const env = realtime.publish.mock.calls[0][0];
     expect(env.scope).toEqual({ projectId: 'p1' });
+  });
+
+  describe('a report deleted while its job waits or renders', () => {
+    const owasp: ReportJobData = {
+      reportId: 'rep-del',
+      kind: 'owasp',
+      projectId: 'p1',
+      format: 'pdf',
+      detailed: true,
+      taskId: 't1',
+      userId: 'u1',
+    };
+    const readyEvents = () =>
+      realtime.publish.mock.calls.filter(
+        (c: any[]) =>
+          c[0].type === 'REPORT_READY' &&
+          c[0].payload.reportReady.status === 'ready',
+      );
+
+    it('is not rendered when it was deleted before the job started', async () => {
+      deleted.add('rep-del');
+
+      await processor.process(job(owasp));
+
+      expect(owaspReportService.generateReport).not.toHaveBeenCalled();
+      expect(reportUpload.uploadReport).not.toHaveBeenCalled();
+      expect(readyEvents()).toHaveLength(0);
+      expect(asyncTaskStore.markTerminal).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ status: 'failed' }),
+        expect.any(Number),
+      );
+    });
+
+    it('is not rendered when it is no longer queued (already failed)', async () => {
+      reportRepo.findOne.mockResolvedValueOnce({
+        id: 'rep-del',
+        status: 'failed',
+      });
+
+      await processor.process(job(owasp));
+
+      expect(owaspReportService.generateReport).not.toHaveBeenCalled();
+    });
+
+    it('tells a report settled as timed out apart from a deleted one', async () => {
+      reportRepo.findOne.mockResolvedValueOnce({
+        id: 'rep-del',
+        status: 'failed',
+        error: 'Report generation timed out',
+      });
+
+      await processor.process(job(owasp));
+
+      expect(asyncTaskStore.markTerminal).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({
+          status: 'failed',
+          error: 'Report generation timed out',
+        }),
+        expect.any(Number),
+      );
+    });
+
+    it('is not uploaded when it was deleted while rendering', async () => {
+      owaspReportService.generateReport.mockImplementationOnce(async () => {
+        deleted.add('rep-del');
+        return {
+          content: Buffer.from('%PDF'),
+          filename: 'owasp.pdf',
+          contentType: 'application/pdf',
+        };
+      });
+
+      await processor.process(job(owasp));
+
+      expect(owaspReportService.generateReport).toHaveBeenCalled();
+      expect(reportUpload.uploadReport).not.toHaveBeenCalled();
+      expect(readyEvents()).toHaveLength(0);
+    });
+
+    it('removes the uploaded file when it was deleted during the upload', async () => {
+      reportUpload.uploadReport.mockImplementationOnce(async () => {
+        deleted.add('rep-del');
+        return uploaded;
+      });
+
+      await processor.process(job(owasp));
+
+      expect(reportUpload.deleteReport).toHaveBeenCalledWith(
+        'reports/p1/report.pdf',
+        'p1',
+      );
+      expect(readyEvents()).toHaveLength(0);
+    });
+
+    it('does not run a registered generator for a deleted report', async () => {
+      const generator = {
+        kind: 'eu_ai_act' as const,
+        buildAndUpload: jest.fn().mockResolvedValue(uploaded),
+      };
+      const withGenerator = new ReportsQueueProcessor(
+        reportRepo as any,
+        owaspReportService as any,
+        cweReportService as any,
+        reportUpload as any,
+        realtime as any,
+        orgResolver as any,
+        asyncTaskStore as any,
+        [generator],
+      );
+      deleted.add('rep-del');
+
+      await withGenerator.process(job({ ...owasp, kind: 'eu_ai_act' }));
+
+      expect(generator.buildAndUpload).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stale sweep', () => {
+    const queueWith = (states: Record<string, string>) => ({
+      getJob: jest.fn(async (id: string) =>
+        states[id] ? { getState: async () => states[id] } : undefined,
+      ),
+    });
+    const withQueue = (queue: unknown) =>
+      new ReportsQueueProcessor(
+        reportRepo as any,
+        owaspReportService as any,
+        cweReportService as any,
+        reportUpload as any,
+        realtime as any,
+        orgResolver as any,
+        asyncTaskStore as any,
+        undefined,
+        queue as any,
+      );
+
+    it('its timer never keeps the process alive, and stops with the module', () => {
+      const processorWithQueue = withQueue(queueWith({}));
+      processorWithQueue.onModuleInit();
+      const timer = (processorWithQueue as any).sweepTimer as NodeJS.Timeout;
+      expect(timer.hasRef()).toBe(false);
+      processorWithQueue.onModuleDestroy();
+      expect((timer as any)._destroyed).toBe(true);
+    });
+
+    it('fails an old queued report whose job is gone, never one whose job still waits', async () => {
+      const find = jest
+        .fn()
+        .mockResolvedValue([{ id: 'lost' }, { id: 'behind-backlog' }]);
+      Object.assign(reportRepo, { find });
+      const processorWithQueue = withQueue(
+        queueWith({ 'report-behind-backlog': 'prioritized' }),
+      );
+
+      await processorWithQueue.sweepLostReports();
+
+      expect(reportRepo.update).toHaveBeenCalledWith(
+        { id: 'lost', status: 'queued' },
+        { status: 'failed', error: 'Report generation timed out' },
+      );
+      expect(reportRepo.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'behind-backlog' }),
+        expect.anything(),
+      );
+    });
   });
 
   describe('onFailed (queue-level failure, e.g. stall after a worker crash)', () => {

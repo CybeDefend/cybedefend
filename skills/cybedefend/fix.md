@@ -35,7 +35,7 @@ When the fixes of a round are in, the audit file, the scan and the verdict follo
 
 The scanner may be wrong, or the code may be safe for a reason it cannot see (the input never comes from a user, a check upstream). Then:
 
-1. Add it to `.cybedefend/out/assessments.json` with the verdict `not_exploitable` and your reason (what you tried, why it does not reproduce, the file and line of the check that protects it): [assess.md](assess.md) has the format. The next `finish` sets it aside in the dashboard with that reason, and the policies stop counting it.
+1. Write an entry with the verdict `not_exploitable` and your reason (what you tried, why it does not reproduce, the file and line of the check that protects it) to a file of your own outside `.cybedefend`, and save it with `node <skill>/scripts/cybedefend.mjs assess --save <that file> --part fix`: [assess.md](assess.md) has the format. The next `finish` sets it aside in the dashboard with that reason, and the policies stop counting it.
 2. Tell the user in one line which finding you set aside and why: they can open it again from the dashboard's "ignored" list.
 
 ## 4. Ignore a finding, only on the user's yes

@@ -64,6 +64,7 @@ const ResultsScaPage: React.FC = () => {
     isLoadingBranches,
     isBranchResolved,
     projectName: pageDataProjectName,
+    loadedProjectId,
     integrationInfo,
     linkedGithubRepo,
     linkedGitlabRepo,
@@ -944,7 +945,7 @@ const ResultsScaPage: React.FC = () => {
 
       {showImport && projectId && (
         <ImportResultsDialog
-          projectId={projectId}
+          projectId={loadedProjectId ?? ""}
           defaultType="sca"
           defaultBranch={selectedBranch || defaultBranch || ''}
           onClose={() => setShowImport(false)}

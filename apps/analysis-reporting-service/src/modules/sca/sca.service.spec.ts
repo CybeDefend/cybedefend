@@ -35,6 +35,7 @@ import {
   ScanAddScaResultRequest,
 } from '@grpc/analysis-reporting/result';
 import {
+  makeChainableQueryBuilder,
   makeEmptyRepository,
   makeProjectLookupHarness,
   ProjectLookupHarness,
@@ -199,6 +200,11 @@ describe('ScaService', () => {
           provide: getDataSourceToken(),
           useValue: {
             createQueryBuilder: jest.fn(),
+            // The advisory reads: no imported advisory, no catalogue row.
+            manager: {
+              find: jest.fn().mockResolvedValue([]),
+              createQueryBuilder: jest.fn(() => makeChainableQueryBuilder()),
+            },
           },
         },
         { provide: CyberiskRecomputeEnqueuer, useValue: cyberiskEnqueuer },
@@ -2067,13 +2073,22 @@ describe('ScaService', () => {
         andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([
-          { osvId: 'GHSA-1', fixedVersion: '1.2.3' },
-          { osvId: 'GHSA-2', fixedVersion: '' },
+          {
+            osvId: 'GHSA-1',
+            ecosystem: 'npm',
+            packageName: 'a',
+            fixedVersion: '1.2.3',
+          },
+          {
+            osvId: 'GHSA-2',
+            ecosystem: 'npm',
+            packageName: 'a',
+            fixedVersion: '',
+          },
         ]),
       };
-      const dataSource: any = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
-      };
+      const createQueryBuilder = jest.fn().mockReturnValue(queryBuilder);
+      const dataSource: any = { manager: { createQueryBuilder } };
 
       // tslint:disable-next-line:no-any
       const result = await (service as any).loadFixedVersionsByOsv(
@@ -2081,12 +2096,14 @@ describe('ScaService', () => {
         dataSource,
       );
 
-      expect(result.get('GHSA-1')).toEqual(['1.2.3']);
+      expect(result.get('GHSA-1')).toEqual([
+        { ecosystem: 'npm', packageName: 'a', fixed: '1.2.3' },
+      ]);
       // Empty `fixed` strings are skipped; ids with no fixed row are absent
       // (the caller defaults to an empty list → hasFix=false).
       expect(result.get('GHSA-2')).toBeUndefined();
       expect(result.get('GHSA-3')).toBeUndefined();
-      expect(dataSource.createQueryBuilder).toHaveBeenCalledTimes(1);
+      expect(createQueryBuilder).toHaveBeenCalledTimes(1);
     });
 
     it('returns an empty map for an empty osvIds list and does not hit the DB', async () => {
@@ -2112,24 +2129,57 @@ describe('ScaService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([
-          { osvId: 'GHSA-X', fixedVersion: '1.10.0' },
-          { osvId: 'GHSA-X', fixedVersion: '1.2.3' },
-          { osvId: 'GHSA-X', fixedVersion: '2.0.0' },
-          { osvId: 'GHSA-Y', fixedVersion: '1.0.10' },
-          { osvId: 'GHSA-Y', fixedVersion: '1.0.0' },
+          {
+            osvId: 'GHSA-X',
+            ecosystem: 'npm',
+            packageName: 'x',
+            fixedVersion: '1.10.0',
+          },
+          {
+            osvId: 'GHSA-X',
+            ecosystem: 'npm',
+            packageName: 'x',
+            fixedVersion: '1.2.3',
+          },
+          {
+            osvId: 'GHSA-X',
+            ecosystem: 'PyPI',
+            packageName: 'y',
+            fixedVersion: '2.0.0',
+          },
+          {
+            osvId: 'GHSA-Y',
+            ecosystem: 'npm',
+            packageName: 'z',
+            fixedVersion: '1.0.10',
+          },
+          {
+            osvId: 'GHSA-Y',
+            ecosystem: 'npm',
+            packageName: 'z',
+            fixedVersion: '1.0.0',
+          },
         ]),
       };
-      const dataSource: any = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
-      };
+      const createQueryBuilder = jest.fn().mockReturnValue(queryBuilder);
+      const dataSource: any = { manager: { createQueryBuilder } };
 
       const result = await (service as any).loadFixedVersionsByOsv(
         ['GHSA-X', 'GHSA-Y'],
         dataSource,
       );
 
-      expect(result.get('GHSA-X')).toEqual(['1.10.0', '1.2.3', '2.0.0']);
-      expect(result.get('GHSA-Y')).toEqual(['1.0.10', '1.0.0']);
+      // Each entry keeps the package of its affected row: the caller keeps
+      // only the detection's own package.
+      expect(result.get('GHSA-X')).toEqual([
+        { ecosystem: 'npm', packageName: 'x', fixed: '1.10.0' },
+        { ecosystem: 'npm', packageName: 'x', fixed: '1.2.3' },
+        { ecosystem: 'PyPI', packageName: 'y', fixed: '2.0.0' },
+      ]);
+      expect(result.get('GHSA-Y')?.map((e) => e.fixed)).toEqual([
+        '1.0.10',
+        '1.0.0',
+      ]);
     });
   });
 
@@ -2272,11 +2322,15 @@ describe('ScaService', () => {
       };
       stubGrpcClients({ parsedBranches: [] });
       stubResultServiceCounts();
-      // loadFixedVersionsByOsv now returns the raw fixed-version list per OSV;
-      // the call site picks the installed-aware fix. lodash@4.0.0 -> 4.17.21 is
-      // a real upgrade (fixAvailable true); axios has no listed fix (false).
+      // loadFixedVersionsByOsv returns the fixed versions per OSV with the
+      // package of each; the call site keeps the detection's own package and
+      // picks the installed-aware fix. lodash@4.0.0 -> 4.17.21 is a real
+      // upgrade (fixAvailable true); axios has no listed fix (false).
       const fixedVersionsMap = new Map([
-        ['GHSA-1', ['4.17.21']],
+        [
+          'GHSA-1',
+          [{ ecosystem: 'npm', packageName: 'lodash', fixed: '4.17.21' }],
+        ],
         ['GHSA-2', []],
       ]);
       const spy = jest

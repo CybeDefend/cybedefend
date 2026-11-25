@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, MessageEvent } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  MessageEvent,
+  Optional,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 import {
   Observable,
@@ -17,16 +23,57 @@ import {
 } from './broad-scope-envelope';
 import { MembershipRegistry } from './membership.registry';
 import { REALTIME_REDIS_SUB } from './redis-subscriber.factory';
+import {
+  StreamAuthorizer,
+  type StreamPermissionCheck,
+} from './stream-authorization';
 
 export interface CreateStreamInput {
   channels: string[];
   membershipScope?: { scopeKey: string; userId: string };
   request: any; // Fastify req — needs req.raw.on('close'), req.user.exp, req.user.sub
   lastEventId?: string | null; // ignored for now (Phase 2)
+  /**
+   * The permission checks the route passed (`@StreamAuthorization()`). The
+   * stream repeats them while it is open and closes once one fails.
+   */
+  authorization?: StreamPermissionCheck[];
 }
 
 const HEARTBEAT_MS = 20_000;
 const AUTH_REFRESH_LEAD_MS = 60_000;
+/**
+ * How often an open stream repeats its permission checks, in milliseconds
+ * (`REALTIME_PERMISSION_RECHECK_MS`, 5 s to 1 h), within 20 % either way so
+ * that streams opened together do not check together; the first check falls
+ * at a random point between 20 % and 100 % of the period. A membership change
+ * of the user re-checks at once; no event ever triggers a check.
+ */
+export const REALTIME_PERMISSION_RECHECK_MS = 60_000;
+/**
+ * The longest a stream lives when the request carries no token expiry (a
+ * personal access token): the client reconnects, and its token is verified
+ * again (`REALTIME_STREAM_MAX_LIFETIME_MS`, 1 min to 24 h).
+ */
+export const REALTIME_STREAM_MAX_LIFETIME_MS = 15 * 60_000;
+/**
+ * A check the permission engine cannot answer keeps the stream, and the next
+ * period tries again; this many failures in a row close it. Only an explicit
+ * deny closes a stream at once.
+ */
+export const REALTIME_PERMISSION_MAX_CONSECUTIVE_ERRORS = 3;
+
+function boundedEnvMs(
+  name: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const raw = process.env[name]?.trim();
+  if (!raw || !/^\d+$/.test(raw)) return fallback;
+  const value = Number(raw);
+  return value >= min && value <= max ? value : fallback;
+}
 
 @Injectable()
 export class RealtimeStreamFactory {
@@ -47,6 +94,7 @@ export class RealtimeStreamFactory {
   constructor(
     @Inject(REALTIME_REDIS_SUB) private readonly sub: Redis,
     private readonly membership: MembershipRegistry,
+    @Optional() private readonly authorizer?: StreamAuthorizer,
   ) {}
 
   createScopedStream(input: CreateStreamInput): Observable<MessageEvent> {
@@ -89,12 +137,14 @@ export class RealtimeStreamFactory {
       );
     }
 
-    // ── 4. JWT expiry timers ────────────────────────────────────────────────
-    const exp = input.request?.user?.exp ? input.request.user.exp * 1000 : null;
+    // ── 4. Token expiry, or the longest a stream without one may live ──────
+    const exp =
+      typeof input.request?.user?.exp === 'number'
+        ? input.request.user.exp * 1000
+        : null;
+    const now = Date.now();
     if (exp !== null) {
-      const now = Date.now();
       const warnIn = exp - AUTH_REFRESH_LEAD_MS - now;
-      const closeIn = exp - now;
       if (warnIn > 0) {
         timers.push(
           setTimeout(() => {
@@ -105,13 +155,79 @@ export class RealtimeStreamFactory {
           }, warnIn),
         );
       }
-      if (closeIn > 0) {
-        timers.push(
-          setTimeout(() => {
-            disconnect$.next();
-          }, closeIn),
-        );
-      }
+    }
+    // The earlier of the token's expiry and the maximum lifetime: a stream
+    // never outlives either, and the delay always fits a timer (24 h at most).
+    const lifetimeEnd =
+      now +
+      boundedEnvMs(
+        'REALTIME_STREAM_MAX_LIFETIME_MS',
+        REALTIME_STREAM_MAX_LIFETIME_MS,
+        60_000,
+        86_400_000,
+      );
+    const closeAt = exp === null ? lifetimeEnd : Math.min(exp, lifetimeEnd);
+    timers.push(
+      setTimeout(() => disconnect$.next(), Math.max(0, closeAt - now)),
+    );
+
+    // ── 4b. Permission re-check: on a period and on a membership change ────
+    let closed = false;
+    let recheckTimer: NodeJS.Timeout | undefined;
+    const userId: string | undefined = input.request?.user?.sub;
+    const checks = input.authorization ?? [];
+    if (this.authorizer && userId && checks.length > 0) {
+      const authorizer = this.authorizer;
+      const period = boundedEnvMs(
+        'REALTIME_PERMISSION_RECHECK_MS',
+        REALTIME_PERMISSION_RECHECK_MS,
+        5_000,
+        3_600_000,
+      );
+      let checking = false;
+      let requested = false;
+      let consecutiveErrors = 0;
+      const recheck = () => {
+        if (closed) return;
+        if (checking) {
+          // Asked for during a check that may have read the old answer:
+          // run again once it ends.
+          requested = true;
+          return;
+        }
+        checking = true;
+        requested = false;
+        authorizer
+          .isAllowed(userId, checks)
+          .then(
+            (allowed) => {
+              consecutiveErrors = 0;
+              if (!allowed) disconnect$.next();
+            },
+            () => {
+              // The engine could not answer: keep the stream, try again at
+              // the next period, close after too many failures in a row.
+              consecutiveErrors += 1;
+              if (
+                consecutiveErrors >= REALTIME_PERMISSION_MAX_CONSECUTIVE_ERRORS
+              ) {
+                disconnect$.next();
+              }
+            },
+          )
+          .finally(() => {
+            checking = false;
+            if (requested) recheck();
+          });
+      };
+      const schedule = (delay: number) => {
+        recheckTimer = setTimeout(() => {
+          recheck();
+          schedule(period * (0.8 + 0.4 * Math.random()));
+        }, delay);
+      };
+      schedule(period * (0.2 + 0.8 * Math.random()));
+      this.membership.registerRecheck(userId, connectionId, recheck);
     }
 
     // ── 5. Client disconnect (Fastify raw socket close) ─────────────────────
@@ -137,8 +253,11 @@ export class RealtimeStreamFactory {
     return merge(connected$, subject$, heartbeat$).pipe(
       takeUntil(disconnect$),
       finalize(() => {
+        closed = true;
         // Clear all scheduled timers
         for (const t of timers) clearTimeout(t);
+        clearTimeout(recheckTimer);
+        if (userId) this.membership.unregisterRecheck(userId, connectionId);
 
         // Decrement refcounts; unsubscribe from Redis when reaching zero
         for (const ch of input.channels) {

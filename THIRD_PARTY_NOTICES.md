@@ -68,7 +68,6 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `@fastify/middie` | 9.3.6 | MIT | Copyright (c) 2017-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | gateway, mcp |
 | `@fastify/multipart` | 10.1.9 | MIT | Copyright (c) 2017-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | gateway |
 | `@fastify/proxy-addr` | 5.1.0 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson<br>Copyright (c) 2021-present The Fastify team | [T7](#t7) | gateway, mcp |
-| `@fastify/rate-limit` | 10.3.0 | MIT | Copyright (c) 2018 Fastify | [T1](#t1) | mcp |
 | `@fastify/send` | 4.2.1 | MIT | Copyright (c) 2012 TJ Holowaychuk<br>Copyright (c) 2014-2022 Douglas Christopher Wilson<br>Copyright (c) 2023-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | gateway |
 | `@fastify/static` | 10.1.12 | MIT | Copyright (c) 2017-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | gateway |
 | `@floating-ui/core` | 1.8.0 | MIT | Copyright (c) 2021-present Floating UI contributors<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T8](#t8) | dashboard |
@@ -111,7 +110,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `@jsep-plugin/regex` | 1.0.4 | MIT | Copyright (c) 2013 Stephen Oney, https://ericsmekens.github.io/jsep/ | [T15](#t15) | security-scanning |
 | `@kubernetes/client-node` | 1.4.0 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright {yyyy} {name of copyright owner} | [T2](#t2) | security-scanning |
 | `@lukeed/csprng` | 1.1.0 | MIT | Copyright (c) Luke Edwards &lt;luke.edwards05@gmail.com&gt; (lukeed.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `@lukeed/ms` | 2.0.2 | MIT | Copyright (c) Luke Edwards &lt;luke.edwards05@gmail.com&gt; (lukeed.com) | [T1](#t1) | gateway, mcp |
+| `@lukeed/ms` | 2.0.2 | MIT | Copyright (c) Luke Edwards &lt;luke.edwards05@gmail.com&gt; (lukeed.com) | [T1](#t1) | gateway |
 | `@microsoft/fetch-event-source` | 2.0.1 | MIT | Copyright (c) Microsoft Corporation. | [T16](#t16) | dashboard |
 | `@microsoft/tsdoc` | 0.17.1 | MIT | Copyright (c) Microsoft Corporation. All rights reserved. | [T1](#t1) | gateway |
 | `@modelcontextprotocol/sdk` | 1.32.2 | MIT | Copyright (c) 2024 Anthropic, PBC | [T1](#t1) | mcp |
@@ -561,7 +560,6 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `before-after-hook` | 4.0.0 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright 2018 Gregor Martynus and other contributors. | [T2](#t2) | external-integrations |
 | `bignumber.js` | 9.3.1 | MIT | Copyright © `&lt;2025&gt;` `Michael Mclaughlin` | [T33](#t33) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `binary-extensions` | 2.3.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com)<br>Copyright (c) Paul Miller (https://paulmillr.com) | [T1](#t1) | dashboard |
-| `bluebird` | 3.7.2 | MIT | Copyright (c) 2013-2018 Petka Antonov | [T5](#t5) | file-management |
 | `body-parser` | 2.4.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `bottleneck` | 2.19.5 | MIT | Copyright (c) 2014 Simon Grondin<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | external-integrations |
 | `bowser` | 2.15.0 | MIT | Copyright 2015, Dustin Diaz (the "Original Author") | [T35](#t35) | file-management |
@@ -675,7 +673,6 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `dotenv` | 18.0.3 | BSD-2-Clause | Copyright (c) 2015, Scott Motte | [T50](#t50) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `dprint-node` | 1.0.8 | MIT | Copyright (c) 2021 Devon Govett | [T1](#t1) | file-management |
 | `dunder-proto` | 1.0.1 | MIT | Copyright (c) 2024 ECMAScript Shims | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `duplexer2` | 0.1.4 | BSD-3-Clause | Copyright (c) 2013, Deoxxa Development | [T51](#t51) | file-management |
 | `duplexify` | 3.7.1 | MIT | Copyright (c) 2014 Mathias Buus | [T5](#t5) | gateway |
 | `duplexify` | 4.1.3 | MIT | Copyright (c) 2014 Mathias Buus | [T5](#t5) | gateway |
 | `eastasianwidth` | 0.2.0 | MIT | (author) Masaki Komagata |  | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
@@ -702,7 +699,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `event-target-shim` | 5.0.1 | MIT | Copyright (c) 2015 Toru Nagashima | [T5](#t5) | external-integrations, file-management, gateway |
 | `eventemitter3` | 4.0.7 | MIT | Copyright (c) 2014 Arnout Kazemier | [T5](#t5) | dashboard |
 | `events-universal` | 1.0.1 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | external-integrations, file-management, security-scanning |
-| `events` | 3.3.0 | MIT | Copyright Joyent, Inc. and other Node contributors. | [T52](#t52) | external-integrations, file-management, gateway |
+| `events` | 3.3.0 | MIT | Copyright Joyent, Inc. and other Node contributors. | [T51](#t51) | external-integrations, file-management, gateway |
 | `eventsource-parser` | 3.1.1 | MIT | Copyright (c) 2026 Espen Hovlandsdal &lt;espen@hovlandsdal.com&gt; | [T1](#t1) | mcp |
 | `eventsource` | 3.0.7 | MIT | Copyright (c) EventSource GitHub organisation | [T19](#t19) | mcp |
 | `expect` | 29.7.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. | [T1](#t1) | dashboard |
@@ -720,12 +717,12 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `fast-png` | 6.4.0 | MIT | Copyright (c) 2015 Michaël Zasso | [T1](#t1) | dashboard |
 | `fast-querystring` | 1.1.2 | MIT | Copyright (c) 2022 Yagiz Nizipli | [T15](#t15) | gateway, mcp |
 | `fast-safe-stringify` | 2.1.1 | MIT | Copyright (c) 2016 David Mark Clements<br>Copyright (c) 2017 David Mark Clements & Matteo Collina<br>Copyright (c) 2018 David Mark Clements, Matteo Collina & Ruben Bridgewater | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `fast-uri` | 3.1.9 | BSD-3-Clause | Copyright (c) 2011-2021, Gary Court until https://github.com/garycourt/uri-js/commit/a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae<br>Copyright (c) 2021-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T53](#t53) | gateway, mcp |
-| `fastify-plugin` | 5.1.0 | MIT | Copyright (c) 2017-present The Fastify team | [T7](#t7) | gateway, mcp |
+| `fast-uri` | 3.1.9 | BSD-3-Clause | Copyright (c) 2011-2021, Gary Court until https://github.com/garycourt/uri-js/commit/a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae<br>Copyright (c) 2021-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T52](#t52) | gateway, mcp |
+| `fastify-plugin` | 5.1.0 | MIT | Copyright (c) 2017-present The Fastify team | [T7](#t7) | gateway |
 | `fastify-plugin` | 6.0.1 | MIT | Copyright (c) 2017-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | gateway, mcp |
 | `fastify` | 5.12.8 | MIT | Copyright (c) 2016-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | gateway, mcp |
-| `fastq` | 1.20.1 | ISC | Copyright (c) 2015-2020, Matteo Collina &lt;matteo.collina@gmail.com&gt;<br>copyright notice and this permission notice appear in all copies. | [T54](#t54) | dashboard |
-| `fastq` | 1.20.3 | ISC | Copyright (c) 2015-2020, Matteo Collina &lt;matteo.collina@gmail.com&gt;<br>copyright notice and this permission notice appear in all copies. | [T54](#t54) | gateway, mcp |
+| `fastq` | 1.20.1 | ISC | Copyright (c) 2015-2020, Matteo Collina &lt;matteo.collina@gmail.com&gt;<br>copyright notice and this permission notice appear in all copies. | [T53](#t53) | dashboard |
+| `fastq` | 1.20.3 | ISC | Copyright (c) 2015-2020, Matteo Collina &lt;matteo.collina@gmail.com&gt;<br>copyright notice and this permission notice appear in all copies. | [T53](#t53) | gateway, mcp |
 | `fdir` | 6.5.0 | MIT | Copyright 2023 Abdullah Atta | [T15](#t15) | dashboard |
 | `fetch-blob` | 3.2.0 | MIT | Copyright (c) 2019 David Frank | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `fflate` | 0.8.3 | MIT | Copyright (c) 2026 Arjun Barrett | [T1](#t1) | dashboard |
@@ -744,7 +741,6 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `forwarded` | 0.2.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `framer-motion` | 12.38.0 | MIT | Copyright (c) 2018 Framer B.V. | [T5](#t5) | dashboard |
 | `fresh` | 2.0.0 | MIT | Copyright (c) 2012 TJ Holowaychuk &lt;tj@vision-media.ca&gt;<br>Copyright (c) 2016-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `fs-extra` | 11.3.1 | MIT | Copyright (c) 2011-2024 JP Richardson | [T18](#t18) | file-management |
 | `fsevents` | 2.3.2 | MIT | Copyright (C) 2010-2020 by Philipp Dunkel, Ben Noordhuis, Elan Shankar, Paul Miller | [T39](#t39) | dashboard |
 | `fsevents` | 2.3.3 | MIT | Copyright (C) 2010-2020 by Philipp Dunkel, Ben Noordhuis, Elan Shankar, Paul Miller | [T39](#t39) | dashboard |
 | `function-bind` | 1.1.2 | MIT | Copyright (c) 2013 Raynos. | [T15](#t15) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
@@ -754,14 +750,14 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `gcp-metadata` | 8.1.2 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | analysis-reporting, gateway, mcp, security-scanning |
 | `gcp-metadata` | 8.1.4 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | external-integrations, file-management, global-management, policy-management |
 | `generate-function` | 2.3.1 | MIT | Copyright (c) 2014 Mathias Buus | [T5](#t5) | analysis-reporting, external-integrations, file-management, global-management, security-scanning |
-| `get-caller-file` | 2.0.5 | ISC | Copyright 2018 Stefan Penner | [T55](#t55) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `get-caller-file` | 2.0.5 | ISC | Copyright 2018 Stefan Penner | [T54](#t54) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `get-intrinsic` | 1.3.0 | MIT | Copyright (c) 2020 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `get-nonce` | 1.0.1 | MIT | Copyright (c) 2020 Anton Korzunov | [T1](#t1) | dashboard |
 | `get-proto` | 1.0.1 | MIT | Copyright (c) 2025 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `glob-parent` | 5.1.2 | ISC | Copyright (c) 2015, 2019 Elan Shanker<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | dashboard |
 | `glob-parent` | 6.0.2 | ISC | Copyright (c) 2015, 2019 Elan Shanker, 2021 Blaine Bublitz &lt;blaine.bublitz@gmail.com&gt;, Eric Schoffstall &lt;yo@contra.io&gt; and other contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | dashboard |
 | `glob` | 10.5.0 | ISC | Copyright (c) 2009-2023 Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `glob` | 14.0.6 | BlueOak-1.0.0 | copyright in it. | [T56](#t56) | gateway |
+| `glob` | 14.0.6 | BlueOak-1.0.0 | copyright in it. | [T55](#t55) | gateway |
 | `google-logging-utils` | 1.1.3 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `gopd` | 1.2.0 | MIT | Copyright (c) 2022 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `graceful-fs` | 4.2.11 | ISC | Copyright (c) 2011-2022 Isaac Z. Schlueter, Ben Noordhuis, and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | dashboard |
@@ -780,14 +776,14 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `hpagent` | 1.2.0 | MIT | Copyright (c) 2020 Tomas Della Vedova | [T1](#t1) | security-scanning |
 | `html-parse-stringify` | 3.0.1 | MIT | (author) Henrik Joreteg |  | dashboard |
 | `html-to-image` | 1.11.13 | MIT | Copyright (c) 2017-2025 W.Y. | [T1](#t1) | dashboard |
-| `html-url-attributes` | 3.0.1 | MIT | Copyright (c) Titus Wormer | [T57](#t57) | dashboard |
+| `html-url-attributes` | 3.0.1 | MIT | Copyright (c) Titus Wormer | [T56](#t56) | dashboard |
 | `html2canvas` | 1.4.1 | MIT | Copyright (c) 2012 Niklas von Hertzen | [T15](#t15) | dashboard |
 | `http-errors` | 2.0.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com<br>Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `https-proxy-agent` | 5.0.1 | MIT | (author) Nathan Rajlich |  | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `https-proxy-agent` | 7.0.6 | MIT | Copyright (c) 2013 Nathan Rajlich &lt;nathan@tootallnate.net&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `i18next` | 26.3.4 | MIT | Copyright (c) 2011-present i18next | [T5](#t5) | dashboard |
 | `iconv-lite` | 0.7.3 | MIT | Copyright (c) 2011 Alexander Shtuchkin | [T15](#t15) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `ieee754` | 1.2.1 | BSD-3-Clause | Copyright 2008 Fair Oaks Labs, Inc. | [T58](#t58) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `ieee754` | 1.2.1 | BSD-3-Clause | Copyright 2008 Fair Oaks Labs, Inc. | [T57](#t57) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `immer` | 11.1.4 | MIT | Copyright (c) 2017 Michel Weststrate | [T1](#t1) | dashboard |
 | `import-in-the-middle` | 3.0.1 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | analysis-reporting, gateway, mcp, security-scanning |
 | `import-in-the-middle` | 3.6.0 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | external-integrations, file-management, global-management, policy-management |
@@ -825,7 +821,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `isexe` | 2.0.0 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting, external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
 | `isomorphic-ws` | 5.0.0 | MIT | Copyright (c) 2018 Zejin Zhuang &lt;heineiuo@gmail.com&gt; | [T5](#t5) | security-scanning |
 | `iterare` | 1.2.1 | ISC | Copyright (c) 2016, Felix Frederick Becker<br>copyright notice and this permission notice appear in all copies. | [T26](#t26) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `jackspeak` | 3.4.3 | BlueOak-1.0.0 | copyright in it. | [T59](#t59) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
+| `jackspeak` | 3.4.3 | BlueOak-1.0.0 | copyright in it. | [T58](#t58) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `jest-diff` | 29.7.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. | [T1](#t1) | dashboard |
 | `jest-get-type` | 29.6.3 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. | [T1](#t1) | dashboard |
 | `jest-matcher-utils` | 29.7.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. | [T1](#t1) | dashboard |
@@ -838,16 +834,15 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `jose` | 6.2.3 | MIT | Copyright (c) 2018 Filip Skokan | [T5](#t5) | security-scanning |
 | `joycon` | 3.1.1 | MIT | Copyright (c) egoist &lt;0x142857@gmail.com&gt; (https://github.com/egoist) | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `js-tokens` | 4.0.0 | MIT | Copyright (c) 2014, 2015, 2016, 2017, 2018 Simon Lydell | [T5](#t5) | dashboard |
-| `js-yaml` | 4.3.2 | MIT | Copyright (C) 2011-2015 by Vitaly Puzrin | [T57](#t57) | security-scanning |
-| `js-yaml` | 5.4.3 | MIT | Copyright (C) 2011-2015 by Vitaly Puzrin | [T57](#t57) | dashboard, gateway |
+| `js-yaml` | 4.3.2 | MIT | Copyright (C) 2011-2015 by Vitaly Puzrin | [T56](#t56) | security-scanning |
+| `js-yaml` | 5.4.3 | MIT | Copyright (C) 2011-2015 by Vitaly Puzrin | [T56](#t56) | dashboard, gateway |
 | `jsep` | 1.4.0 | MIT | Copyright (c) 2013 Stephen Oney, https://ericsmekens.github.io/jsep/ | [T15](#t15) | security-scanning |
 | `json-bigint` | 1.0.0 | MIT | Copyright (c) 2013 Andrey Sidorov<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `json-schema-ref-resolver` | 3.0.0 | MIT | Copyright (c) 2023 Fastify | [T1](#t1) | gateway, mcp |
 | `json-schema-traverse` | 1.0.0 | MIT | Copyright (c) 2017 Evgeny Poberezkin | [T1](#t1) | gateway, mcp |
-| `json-schema-typed` | 8.0.2 | BSD-2-Clause | (author) Remy Rylan | [T60](#t60) | mcp |
+| `json-schema-typed` | 8.0.2 | BSD-2-Clause | (author) Remy Rylan | [T59](#t59) | mcp |
 | `json-with-bigint` | 3.5.12 | MIT | Copyright (c) 2023 Ivan Korolenko | [T1](#t1) | external-integrations |
-| `jsonfile` | 6.2.1 | MIT | Copyright (c) 2012-2015, JP Richardson &lt;jprichardson@gmail.com&gt; | [T18](#t18) | file-management |
-| `jsonpath-plus` | 10.4.0 | MIT | Copyright (c) 2011-2019 Stefan Goessner, Subbu Allamaraju, Mike Brevoort, | [T61](#t61) | security-scanning |
+| `jsonpath-plus` | 10.4.0 | MIT | Copyright (c) 2011-2019 Stefan Goessner, Subbu Allamaraju, Mike Brevoort, | [T60](#t60) | security-scanning |
 | `jsonwebtoken` | 9.0.3 | MIT | Copyright (c) 2015 Auth0, Inc. &lt;support@auth0.com&gt; (http://auth0.com) | [T5](#t5) | gateway |
 | `jspdf` | 4.2.1 | MIT | Copyright<br>(c) 2010-2025 James Hall, https://github.com/MrRio/jsPDF<br>(c) 2015-2025 yWorks GmbH, https://www.yworks.com/ | [T15](#t15) | dashboard |
 | `jwa` | 2.0.1 | MIT | Copyright (c) 2013 Brian J. Brennan | [T15](#t15) | gateway |
@@ -856,22 +851,22 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `libphonenumber-js` | 1.12.42 | MIT | Copyright (c) 2016 @catamphetamine &lt;purecatamphetamine@gmail.com&gt; | [T18](#t18) | analysis-reporting, gateway, mcp |
 | `libphonenumber-js` | 1.13.16 | MIT | Copyright (c) 2016 @catamphetamine &lt;purecatamphetamine@gmail.com&gt; | [T18](#t18) | external-integrations, file-management, global-management, policy-management |
 | `libphonenumber-js` | 1.13.4 | MIT | Copyright (c) 2016 @catamphetamine &lt;purecatamphetamine@gmail.com&gt; | [T18](#t18) | security-scanning |
-| `light-my-request` | 6.6.0 | BSD-3-Clause | Copyright (c) 2017 The Fastify Team<br>Copyright (c) 2012-2017, Project contributors<br>Copyright (c) 2012-2014, Walmart | [T62](#t62) | gateway, mcp |
-| `light-my-request` | 6.8.0 | BSD-3-Clause | Copyright (c) 2012-2014, Walmart<br>Copyright (c) 2012-2017, Project contributors<br>Copyright (c) 2017-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T62](#t62) | gateway, mcp |
+| `light-my-request` | 6.6.0 | BSD-3-Clause | Copyright (c) 2017 The Fastify Team<br>Copyright (c) 2012-2017, Project contributors<br>Copyright (c) 2012-2014, Walmart | [T61](#t61) | gateway, mcp |
+| `light-my-request` | 6.8.0 | BSD-3-Clause | Copyright (c) 2012-2014, Walmart<br>Copyright (c) 2012-2017, Project contributors<br>Copyright (c) 2017-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T61](#t61) | gateway, mcp |
 | `lilconfig` | 3.1.3 | MIT | Copyright (c) 2022 Anton Kastritskiy | [T1](#t1) | analysis-reporting, dashboard |
 | `lines-and-columns` | 1.2.4 | MIT | Copyright (c) 2015 Brian Donovan | [T5](#t5) | dashboard |
 | `load-esm` | 1.0.3 | MIT | Copyright © 2025 Borewit | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `lodash.camelcase` | 4.3.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `lodash.defaults` | 4.2.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | analysis-reporting, global-management |
-| `lodash.includes` | 4.3.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | gateway |
-| `lodash.isarguments` | 3.1.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | analysis-reporting, global-management |
-| `lodash.isboolean` | 3.0.3 | MIT | Copyright 2012-2016 The Dojo Foundation &lt;http://dojofoundation.org/&gt; | [T64](#t64) | gateway |
-| `lodash.isinteger` | 4.0.4 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | gateway |
-| `lodash.isnumber` | 3.0.3 | MIT | Copyright 2012-2016 The Dojo Foundation &lt;http://dojofoundation.org/&gt; | [T64](#t64) | gateway |
-| `lodash.isplainobject` | 4.0.6 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | gateway |
-| `lodash.isstring` | 4.0.1 | MIT | Copyright 2012-2016 The Dojo Foundation &lt;http://dojofoundation.org/&gt; | [T64](#t64) | gateway |
-| `lodash.once` | 4.1.1 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | gateway |
-| `lodash` | 4.18.1 | MIT | Copyright OpenJS Foundation and other contributors &lt;https://openjsf.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T63](#t63) | dashboard, external-integrations, file-management |
+| `lodash.camelcase` | 4.3.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `lodash.defaults` | 4.2.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | analysis-reporting, global-management |
+| `lodash.includes` | 4.3.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | gateway |
+| `lodash.isarguments` | 3.1.0 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | analysis-reporting, global-management |
+| `lodash.isboolean` | 3.0.3 | MIT | Copyright 2012-2016 The Dojo Foundation &lt;http://dojofoundation.org/&gt; | [T63](#t63) | gateway |
+| `lodash.isinteger` | 4.0.4 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | gateway |
+| `lodash.isnumber` | 3.0.3 | MIT | Copyright 2012-2016 The Dojo Foundation &lt;http://dojofoundation.org/&gt; | [T63](#t63) | gateway |
+| `lodash.isplainobject` | 4.0.6 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | gateway |
+| `lodash.isstring` | 4.0.1 | MIT | Copyright 2012-2016 The Dojo Foundation &lt;http://dojofoundation.org/&gt; | [T63](#t63) | gateway |
+| `lodash.once` | 4.1.1 | MIT | Copyright jQuery Foundation and other contributors &lt;https://jquery.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | gateway |
+| `lodash` | 4.18.1 | MIT | Copyright OpenJS Foundation and other contributors &lt;https://openjsf.org/&gt;<br>Copyright and related rights for sample code are waived via CC0. Sample | [T62](#t62) | dashboard, external-integrations, file-management |
 | `long` | 5.3.2 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `longest-streak` | 3.1.0 | MIT | Copyright (c) 2015 Titus Wormer &lt;mailto:tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `loose-envify` | 1.4.0 | MIT | Copyright (c) 2015 Andres Suarez &lt;zertosh@gmail.com&gt; | [T5](#t5) | dashboard |
@@ -940,10 +935,10 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `mime-types` | 3.0.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `mime` | 3.0.0 | MIT | Copyright (c) 2010 Benjamin Thomas, Robert Kieffer | [T5](#t5) | gateway |
 | `mini-svg-data-uri` | 1.4.4 | MIT | Copyright (c) 2018 Taylor Hunt | [T1](#t1) | dashboard |
-| `minimatch` | 11.0.9 | BlueOak-1.0.0 | copyright in it. | [T59](#t59) | gateway |
+| `minimatch` | 11.0.9 | BlueOak-1.0.0 | copyright in it. | [T58](#t58) | gateway |
 | `minimatch` | 5.1.9 | ISC | Copyright (c) 2011-2023 Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | external-integrations, file-management |
 | `minimatch` | 9.0.9 | ISC | Copyright (c) 2011-2023 Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `minimist` | 1.2.8 | MIT | COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T65](#t65) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `minimist` | 1.2.8 | MIT | COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T64](#t64) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `minipass` | 7.1.3 | BlueOak-1.0.0 | copyright in it. | [T14](#t14) | analysis-reporting, external-integrations, file-management, gateway, global-management, policy-management, security-scanning |
 | `mitt` | 3.0.1 | MIT | Copyright (c) 2021 Jason Miller | [T1](#t1) | analysis-reporting |
 | `modern-tar` | 0.7.6 | MIT | Copyright (c) 2025 Ayuhito | [T1](#t1) | analysis-reporting |
@@ -963,8 +958,8 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `nanoid` | 3.3.20 | MIT | Copyright 2017 Andrey Sitnik &lt;andrey@sitnik.ru&gt;<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | dashboard |
 | `negotiator` | 1.0.0 | MIT | Copyright (c) 2012-2014 Federico Romero<br>Copyright (c) 2012-2014 Isaac Z. Schlueter<br>Copyright (c) 2014-2015 Douglas Christopher Wilson | [T18](#t18) | analysis-reporting |
 | `negotiator` | 1.1.0 | MIT | Copyright (c) 2012-2014 Federico Romero<br>Copyright (c) 2012-2014 Isaac Z. Schlueter<br>Copyright (c) 2014-2015 Douglas Christopher Wilson | [T18](#t18) | external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `neo-async` | 2.6.2 | MIT | Copyright (c) 2014-2018 Suguru Motegi | [T66](#t66) | global-management |
-| `nestjs-otel` | 8.1.1 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works | [T67](#t67) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `neo-async` | 2.6.2 | MIT | Copyright (c) 2014-2018 Suguru Motegi | [T65](#t65) | global-management |
+| `nestjs-otel` | 8.1.1 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works | [T66](#t66) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `nestjs-pino` | 5.3.1 | MIT | Copyright (c) 2019 iamolegga | [T1](#t1) | analysis-reporting |
 | `nestjs-pino` | 5.3.2 | MIT | Copyright (c) 2019 iamolegga | [T1](#t1) | external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `nice-grpc-common` | 2.0.3 | MIT | Copyright (c) 2021 Deeplay<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | gateway |
@@ -976,8 +971,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `node-fetch` | 2.7.0 | MIT | Copyright (c) 2016 David Frank | [T5](#t5) | security-scanning |
 | `node-fetch` | 3.3.2 | MIT | Copyright (c) 2016 - 2020 Node Fetch Team | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `node-gyp-build-optional-packages` | 5.2.2 | MIT | Copyright (c) 2017 Mathias Buus | [T5](#t5) | analysis-reporting, external-integrations, policy-management |
-| `node-int64` | 0.4.0 | MIT | Copyright (c) 2014 Robert Kieffer | [T15](#t15) | file-management |
-| `nodemailer` | 10.5.0 | MIT-0 | Copyright (c) 2011-2023 Andris Reinman | [T68](#t68) | global-management |
+| `nodemailer` | 10.5.0 | MIT-0 | Copyright (c) 2011-2023 Andris Reinman | [T67](#t67) | global-management |
 | `normalize-path` | 3.0.0 | MIT | Copyright (c) 2014-2018, Jon Schlinkert. | [T5](#t5) | dashboard, external-integrations, file-management |
 | `oauth4webapi` | 3.8.6 | MIT | Copyright (c) 2022 Filip Skokan | [T5](#t5) | security-scanning |
 | `object-assign` | 4.1.1 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (sindresorhus.com) | [T5](#t5) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
@@ -991,8 +985,8 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `otlp-logger` | 2.0.0 | MIT | Copyright (c) 2023 Vladimir Adamić | [T1](#t1) | analysis-reporting, gateway, mcp |
 | `otlp-logger` | 2.1.0 | MIT | Copyright (c) 2023 Vladimir Adamić | [T1](#t1) | security-scanning |
 | `otlp-logger` | 2.1.1 | MIT | Copyright (c) 2023 Vladimir Adamić | [T1](#t1) | external-integrations, file-management, global-management, policy-management |
-| `package-json-from-dist` | 1.0.1 | BlueOak-1.0.0 | copyright in it. | [T56](#t56) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `pako` | 2.1.0 | (MIT AND Zlib) | Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn | [T57](#t57) | dashboard |
+| `package-json-from-dist` | 1.0.1 | BlueOak-1.0.0 | copyright in it. | [T55](#t55) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
+| `pako` | 2.1.0 | (MIT AND Zlib) | Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn | [T56](#t56) | dashboard |
 | `parse-entities` | 4.0.2 | MIT | Copyright (c) Titus Wormer &lt;mailto:tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `parseurl` | 1.3.3 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2014-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `path-key` | 3.1.1 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
@@ -1001,11 +995,11 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `path-scurry` | 3.0.0 | BlueOak-1.0.0 | copyright in it. | [T14](#t14) | gateway |
 | `path-to-regexp` | 8.4.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `peek-stream` | 1.1.3 | MIT | Copyright (c) 2014 Mathias Buus | [T5](#t5) | gateway |
-| `pend` | 1.2.0 | MIT | Copyright (c) 2014 Andrew Kelley | [T69](#t69) | external-integrations, file-management |
+| `pend` | 1.2.0 | MIT | Copyright (c) 2014 Andrew Kelley | [T68](#t68) | external-integrations, file-management |
 | `performance-now` | 2.1.0 | MIT | Copyright (c) 2013 Braveg1rl | [T15](#t15) | dashboard |
 | `pg-cloudflare` | 1.4.1 | MIT | Copyright (c) 2010 - 2021 Brian Carlson | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `pg-connection-string` | 2.14.1 | MIT | Copyright (c) 2014 Iced Development | [T5](#t5) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `pg-int8` | 1.0.1 | ISC | Copyright © 2017, Charmander &lt;~@charmander.me&gt;<br>copyright notice and this permission notice appear in all copies. | [T70](#t70) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `pg-int8` | 1.0.1 | ISC | Copyright © 2017, Charmander &lt;~@charmander.me&gt;<br>copyright notice and this permission notice appear in all copies. | [T69](#t69) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `pg-pool` | 3.14.0 | MIT | Copyright (c) 2017 Brian M. Carlson | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `pg-protocol` | 1.13.0 | MIT | Copyright (c) 2010 - 2021 Brian Carlson | [T1](#t1) | analysis-reporting, gateway, mcp |
 | `pg-protocol` | 1.14.0 | MIT | Copyright (c) 2010 - 2021 Brian Carlson | [T1](#t1) | security-scanning |
@@ -1043,23 +1037,23 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `pretty-format` | 27.5.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
 | `pretty-format` | 29.7.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. | [T1](#t1) | dashboard |
 | `prism-react-renderer` | 2.4.1 | MIT | Copyright (c) 2018 Nearform | [T1](#t1) | dashboard |
-| `process-nextick-args` | 2.0.1 | MIT |  | [T71](#t71) | external-integrations, file-management, gateway |
+| `process-nextick-args` | 2.0.1 | MIT |  | [T70](#t70) | external-integrations, file-management, gateway |
 | `process-warning` | 4.0.1 | MIT | Copyright (c) Fastify | [T1](#t1) | gateway, mcp |
 | `process-warning` | 5.1.0 | MIT | Copyright (c) 2020-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | analysis-reporting, gateway |
 | `process-warning` | 5.1.1 | MIT | Copyright (c) 2020-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T1](#t1) | external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
 | `process` | 0.11.10 | MIT | Copyright (c) 2013 Roman Shtylman &lt;shtylman@gmail.com&gt; | [T18](#t18) | external-integrations, file-management, gateway |
 | `prop-types` | 15.8.1 | MIT | Copyright (c) 2013-present, Facebook, Inc. | [T1](#t1) | dashboard |
 | `property-information` | 7.1.0 | MIT | Copyright (c) Titus Wormer &lt;mailto:tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
-| `protobufjs` | 7.6.6 | BSD-3-Clause | Copyright (c) 2016, Daniel Wirtz  All rights reserved. | [T72](#t72) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `protobufjs` | 8.8.0 | BSD-3-Clause | Copyright (c) 2016, Daniel Wirtz  All rights reserved. | [T72](#t72) | analysis-reporting, gateway, mcp, security-scanning |
+| `protobufjs` | 7.6.6 | BSD-3-Clause | Copyright (c) 2016, Daniel Wirtz  All rights reserved. | [T71](#t71) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `protobufjs` | 8.8.0 | BSD-3-Clause | Copyright (c) 2016, Daniel Wirtz  All rights reserved. | [T71](#t71) | analysis-reporting, gateway, mcp, security-scanning |
 | `proxy-addr` | 2.0.8 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `proxy-from-env` | 2.1.0 | MIT | Copyright (C) 2016-2018 Rob Wu &lt;rob@robwu.nl&gt;<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T73](#t73) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `proxy-from-env` | 2.1.0 | MIT | Copyright (C) 2016-2018 Rob Wu &lt;rob@robwu.nl&gt;<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T72](#t72) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `pump` | 3.0.4 | MIT | Copyright (c) 2014 Mathias Buus | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `pumpify` | 2.0.1 | MIT | Copyright (c) 2014 Mathias Buus | [T5](#t5) | gateway |
 | `puppeteer-core` | 25.1.0 | Apache-2.0 | (author) The Chromium Authors |  | analysis-reporting |
 | `puppeteer` | 25.1.0 | Apache-2.0 | (author) The Chromium Authors |  | analysis-reporting |
-| `qs` | 6.16.1 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [T74](#t74) | analysis-reporting, gateway, mcp, security-scanning |
-| `qs` | 6.17.1 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [T74](#t74) | dashboard, external-integrations, file-management, global-management, policy-management |
+| `qs` | 6.16.1 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [T73](#t73) | analysis-reporting, gateway, mcp, security-scanning |
+| `qs` | 6.17.1 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [T73](#t73) | dashboard, external-integrations, file-management, global-management, policy-management |
 | `queue-microtask` | 1.2.3 | MIT | Copyright (c) Feross Aboukhadijeh<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | dashboard |
 | `quick-format-unescaped` | 4.0.4 | MIT | Copyright (c) 2016-2019 David Mark Clements | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `raf` | 3.4.1 | MIT | Copyright 2013 Chris Dickinson &lt;chris@neversaw.us&gt; | [T15](#t15) | dashboard |
@@ -1068,7 +1062,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `raw-body` | 3.0.2 | MIT | Copyright (c) 2013-2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `react-dom` | 18.3.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
 | `react-i18next` | 15.7.4 | MIT | Copyright (c) 2025 i18next | [T5](#t5) | dashboard |
-| `react-icons` | 5.6.0 | MIT | Copyright 2018 kamijin_fanta &lt;kamijin@live.jp&gt; | [T75](#t75) | dashboard |
+| `react-icons` | 5.6.0 | MIT | Copyright 2018 kamijin_fanta &lt;kamijin@live.jp&gt; | [T74](#t74) | dashboard |
 | `react-is` | 16.13.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
 | `react-is` | 17.0.2 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
 | `react-is` | 18.3.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
@@ -1077,18 +1071,18 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `react-redux` | 9.2.0 | MIT | Copyright (c) 2015-present Dan Abramov | [T5](#t5) | dashboard |
 | `react-remove-scroll-bar` | 2.3.8 | MIT | (author) Anton Korzunov |  | dashboard |
 | `react-remove-scroll` | 2.7.2 | MIT | Copyright (c) 2017 Anton Korzunov | [T1](#t1) | dashboard |
-| `react-router-dom` | 7.18.6 | MIT | Copyright (c) React Training LLC 2015-2019<br>Copyright (c) Remix Software Inc. 2020-2021<br>Copyright (c) Shopify Inc. 2022-2023 | [T1](#t1) | dashboard |
-| `react-router` | 7.18.6 | MIT | Copyright (c) React Training LLC 2015-2019<br>Copyright (c) Remix Software Inc. 2020-2021<br>Copyright (c) Shopify Inc. 2022-2023 | [T1](#t1) | dashboard |
+| `react-router-dom` | 7.18.7 | MIT | Copyright (c) React Training LLC 2015-2019<br>Copyright (c) Remix Software Inc. 2020-2021<br>Copyright (c) Shopify Inc. 2022-2023 | [T1](#t1) | dashboard |
+| `react-router` | 7.18.7 | MIT | Copyright (c) React Training LLC 2015-2019<br>Copyright (c) Remix Software Inc. 2020-2021<br>Copyright (c) Shopify Inc. 2022-2023 | [T1](#t1) | dashboard |
 | `react-smooth` | 4.0.4 | MIT | Copyright (c) 2016 recharts | [T5](#t5) | dashboard |
 | `react-style-singleton` | 2.2.3 | MIT | Copyright (c) 2017 Anton Korzunov | [T1](#t1) | dashboard |
 | `react-toastify` | 11.1.0 | MIT | Copyright (c) Fadi Khadra | [T1](#t1) | dashboard |
-| `react-transition-group` | 4.4.5 | BSD-3-Clause | Copyright (c) 2018, React Community | [T76](#t76) | dashboard |
+| `react-transition-group` | 4.4.5 | BSD-3-Clause | Copyright (c) 2018, React Community | [T75](#t75) | dashboard |
 | `react` | 18.3.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
 | `read-cache` | 1.0.0 | MIT | Copyright 2016 Bogdan Chadkin &lt;trysound@yandex.ru&gt;<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | dashboard |
-| `readable-stream` | 2.3.8 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T77](#t77) | external-integrations, file-management, gateway |
-| `readable-stream` | 3.6.2 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T77](#t77) | gateway |
-| `readable-stream` | 4.7.0 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T77](#t77) | gateway |
-| `readable-stream` | 4.8.0 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T77](#t77) | external-integrations, file-management |
+| `readable-stream` | 2.3.8 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T76](#t76) | external-integrations, file-management, gateway |
+| `readable-stream` | 3.6.2 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T76](#t76) | gateway |
+| `readable-stream` | 4.7.0 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T76](#t76) | gateway |
+| `readable-stream` | 4.8.0 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T76](#t76) | external-integrations, file-management |
 | `readdir-glob` | 1.1.3 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright 2020 Yann Armelin | [T3](#t3) | external-integrations, file-management |
 | `readdirp` | 3.6.0 | MIT | Copyright (c) 2012-2019 Thorsten Lorenz, Paul Miller (https://paulmillr.com) | [T1](#t1) | dashboard |
 | `real-require` | 0.2.0 | MIT | Copyright (c) 2021 Paolo Insogna and the real-require contributors | [T5](#t5) | analysis-reporting, gateway |
@@ -1099,12 +1093,12 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `redis-parser` | 3.0.0 | MIT | Copyright (c) 2015 NodeRedis | [T5](#t5) | analysis-reporting, external-integrations, gateway, global-management, mcp, policy-management, security-scanning |
 | `redux-thunk` | 3.1.0 | MIT | Copyright (c) 2015-present Dan Abramov | [T5](#t5) | dashboard |
 | `redux` | 5.0.1 | MIT | Copyright (c) 2015-present Dan Abramov | [T5](#t5) | dashboard |
-| `reflect-metadata` | 0.2.2 | Apache-2.0 | (author) Ron Buckton | [T78](#t78) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `reflect-metadata` | 0.2.2 | Apache-2.0 | (author) Ron Buckton | [T77](#t77) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `regenerator-runtime` | 0.13.11 | MIT | Copyright (c) 2014-present, Facebook, Inc. | [T1](#t1) | dashboard |
 | `remark-gfm` | 4.0.1 | MIT | Copyright (c) Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
-| `remark-parse` | 11.0.0 | MIT | Copyright (c) 2014 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T57](#t57) | dashboard |
+| `remark-parse` | 11.0.0 | MIT | Copyright (c) 2014 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T56](#t56) | dashboard |
 | `remark-rehype` | 11.1.2 | MIT | Copyright (c) Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
-| `remark-stringify` | 11.0.0 | MIT | Copyright (c) 2014 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T57](#t57) | dashboard |
+| `remark-stringify` | 11.0.0 | MIT | Copyright (c) 2014 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T56](#t56) | dashboard |
 | `require-directory` | 2.1.1 | MIT | Copyright (c) 2011 Troy Goode &lt;troygoode@gmail.com&gt; | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `require-from-string` | 2.0.2 | MIT | Copyright (c) Vsevolod Strukchinsky &lt;floatdrop@gmail.com&gt; (github.com/floatdrop) | [T5](#t5) | gateway, mcp |
 | `require-in-the-middle` | 8.0.1 | MIT | Copyright (c) 2016-2019, Thomas Watson Steen<br>Copyright (c) 2019-2025, Elasticsearch B.V.<br>Copyright (c) 2025+, require-in-the-middle contributors | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
@@ -1114,7 +1108,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `reusify` | 1.1.0 | MIT | Copyright (c) 2015-2024 Matteo Collina | [T5](#t5) | dashboard, gateway, mcp |
 | `rfc4648` | 1.5.4 | MIT | Copyright © 2022 William R Swanson | [T38](#t38) | security-scanning |
 | `rfdc` | 1.4.1 | MIT | Copyright 2019 "David Mark Clements &lt;david.mark.clements@gmail.com&gt;" | [T15](#t15) | gateway, mcp |
-| `rgbcolor` | 1.0.1 | MIT OR SEE LICENSE IN FEEL-FREE.md | Copyright (c) 2016 Stoyan Stefanov, http://phpied.com/ | [T79](#t79) | dashboard |
+| `rgbcolor` | 1.0.1 | MIT OR SEE LICENSE IN FEEL-FREE.md | Copyright (c) 2016 Stoyan Stefanov, http://phpied.com/ | [T78](#t78) | dashboard |
 | `rimraf` | 5.0.10 | ISC | Copyright (c) 2011-2023 Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | external-integrations, file-management, global-management, policy-management |
 | `router` | 2.2.0 | MIT | Copyright (c) 2013 Roman Shtylman<br>Copyright (c) 2014-2022 Douglas Christopher Wilson | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `run-parallel` | 1.2.0 | MIT | Copyright (c) Feross Aboukhadijeh<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | dashboard |
@@ -1125,8 +1119,8 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `safe-stable-stringify` | 2.5.0 | MIT | Copyright (c) Ruben Bridgewater | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `safer-buffer` | 2.1.2 | MIT | Copyright (c) 2018 Nikita Skovoroda &lt;chalkerx@gmail.com&gt; | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `scheduler` | 0.23.2 | MIT | Copyright (c) Facebook, Inc. and its affiliates. | [T1](#t1) | dashboard |
-| `secure-json-parse` | 4.1.0 | BSD-3-Clause | Copyright (c) 2019, Sideway Inc, and project contributors<br>Copyright (c) 2019-present The Fastify team | [T80](#t80) | analysis-reporting, gateway, mcp, security-scanning |
-| `secure-json-parse` | 4.1.1 | BSD-3-Clause | Copyright (c) 2019, Sideway Inc, and project contributors<br>Copyright (c) 2019-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T81](#t81) | external-integrations, file-management, global-management, policy-management |
+| `secure-json-parse` | 4.1.0 | BSD-3-Clause | Copyright (c) 2019, Sideway Inc, and project contributors<br>Copyright (c) 2019-present The Fastify team | [T79](#t79) | analysis-reporting, gateway, mcp, security-scanning |
+| `secure-json-parse` | 4.1.1 | BSD-3-Clause | Copyright (c) 2019, Sideway Inc, and project contributors<br>Copyright (c) 2019-present The Fastify team &lt;https://github.com/fastify/fastify#team&gt; | [T80](#t80) | external-integrations, file-management, global-management, policy-management |
 | `semver` | 7.7.4 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | gateway |
 | `semver` | 7.8.0 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting |
 | `semver` | 7.8.1 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting |
@@ -1136,25 +1130,25 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `set-cookie-parser` | 2.7.3 | MIT | Copyright (c) 2015 Nathan Friedly &lt;nathan@nfriedly.com&gt; (http://nfriedly.com/) | [T5](#t5) | dashboard, gateway, mcp |
 | `set-cookie-parser` | 3.2.2 | MIT | Copyright (c) 2015 Nathan Friedly &lt;nathan@nfriedly.com&gt; (http://nfriedly.com/) | [T5](#t5) | gateway, mcp |
 | `set-function-length` | 1.2.2 | MIT | Copyright (c) Jordan Harband and contributors | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `setprototypeof` | 1.2.0 | ISC | Copyright (c) 2015, Wes Todd<br>copyright notice and this permission notice appear in all copies. | [T54](#t54) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `sha.js` | 2.4.12 | (MIT AND BSD-3-Clause) | Copyright (c) 2013-2018 sha.js contributors<br>Copyright (c) 1998 - 2009, Paul Johnston & Contributors | [T82](#t82) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
+| `setprototypeof` | 1.2.0 | ISC | Copyright (c) 2015, Wes Todd<br>copyright notice and this permission notice appear in all copies. | [T53](#t53) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `sha.js` | 2.4.12 | (MIT AND BSD-3-Clause) | Copyright (c) 2013-2018 sha.js contributors<br>Copyright (c) 1998 - 2009, Paul Johnston & Contributors | [T81](#t81) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `shebang-command` | 2.0.0 | MIT | Copyright (c) Kevin Mårtensson &lt;kevinmartensson@gmail.com&gt; (github.com/kevva) | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
 | `shebang-regex` | 3.0.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
 | `side-channel-list` | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `side-channel-map` | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `side-channel-weakmap` | 1.0.2 | MIT | Copyright (c) 2019 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `side-channel` | 1.1.1 | MIT | Copyright (c) 2019 Jordan Harband | [T1](#t1) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `signal-exit` | 4.1.0 | ISC | Copyright (c) 2015-2023 Benjamin Coe, Isaac Z. Schlueter, and Contributors | [T83](#t83) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
+| `signal-exit` | 4.1.0 | ISC | Copyright (c) 2015-2023 Benjamin Coe, Isaac Z. Schlueter, and Contributors | [T82](#t82) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `slash` | 3.0.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (sindresorhus.com) | [T1](#t1) | dashboard |
 | `smart-buffer` | 4.2.0 | MIT | Copyright (c) 2013-2017 Josh Glazebrook<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | security-scanning |
 | `socks-proxy-agent` | 8.0.5 | MIT | Copyright (c) 2013 Nathan Rajlich &lt;nathan@tootallnate.net&gt; | [T18](#t18) | security-scanning |
 | `socks` | 2.8.9 | MIT | Copyright (c) 2013 Josh Glazebrook<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T34](#t34) | security-scanning |
 | `sonic-boom` | 4.2.1 | MIT | Copyright (c) 2017 Matteo Collina | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `sonic-boom` | 5.0.2 | MIT | Copyright (c) 2017 Matteo Collina | [T1](#t1) | external-integrations, file-management, global-management, policy-management |
-| `source-map-js` | 1.2.2 | BSD-3-Clause | Copyright (c) 2009-2011, Mozilla Foundation and contributors | [T84](#t84) | dashboard |
-| `source-map` | 0.6.1 | BSD-3-Clause | Copyright (c) 2009-2011, Mozilla Foundation and contributors | [T84](#t84) | global-management |
+| `source-map-js` | 1.2.2 | BSD-3-Clause | Copyright (c) 2009-2011, Mozilla Foundation and contributors | [T83](#t83) | dashboard |
+| `source-map` | 0.6.1 | BSD-3-Clause | Copyright (c) 2009-2011, Mozilla Foundation and contributors | [T83](#t83) | global-management |
 | `space-separated-tokens` | 2.0.2 | MIT | Copyright (c) 2016 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
-| `split2` | 4.2.0 | ISC | Copyright (c) 2014-2018, Matteo Collina &lt;hello@matteocollina.com&gt;<br>copyright notice and this permission notice appear in all copies. | [T54](#t54) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `split2` | 4.2.0 | ISC | Copyright (c) 2014-2018, Matteo Collina &lt;hello@matteocollina.com&gt;<br>copyright notice and this permission notice appear in all copies. | [T53](#t53) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `sql-escaper` | 1.5.1 | MIT | Copyright (c) 2026 Weslley Araújo, Andrey Sidorov, Douglas Wilson, and contributors. | [T1](#t1) | security-scanning |
 | `sql-escaper` | 1.5.2 | MIT | Copyright (c) 2026 Weslley Araújo, Andrey Sidorov, Douglas Wilson, and contributors. | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management |
 | `sql-highlight` | 6.1.0 | MIT | Copyright (c) 2018 Malcolm Nihlén | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
@@ -1163,16 +1157,16 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `standard-as-callback` | 2.1.0 | MIT | Copyright (c) 2018 Zihua Li<br>Copyright (c) 2013-2017 Petka Antonov | [T1](#t1) | analysis-reporting, external-integrations, gateway, global-management, mcp, policy-management, security-scanning |
 | `statuses` | 2.0.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `stream-buffers` | 3.0.3 | Unlicense | (author) Sam Day |  | security-scanning |
-| `stream-chain` | 4.4.1 | BSD-3-Clause | Copyright 2005-2026 Eugene Lazutkin | [T58](#t58) | analysis-reporting |
-| `stream-json` | 3.7.0 | BSD-3-Clause | Copyright 2005-2026 Eugene Lazutkin | [T58](#t58) | analysis-reporting |
+| `stream-chain` | 4.4.1 | BSD-3-Clause | Copyright 2005-2026 Eugene Lazutkin | [T57](#t57) | analysis-reporting |
+| `stream-json` | 3.7.0 | BSD-3-Clause | Copyright 2005-2026 Eugene Lazutkin | [T57](#t57) | analysis-reporting |
 | `stream-shift` | 1.0.3 | MIT | Copyright (c) 2016 Mathias Buus | [T5](#t5) | gateway |
 | `streamsearch` | 1.1.0 | MIT | Copyright Brian White. All rights reserved. | [T15](#t15) | analysis-reporting, external-integrations, file-management, gateway, global-management, policy-management, security-scanning |
 | `streamx` | 2.26.0 | MIT | Copyright (c) 2019 Mathias Buus | [T5](#t5) | security-scanning |
 | `streamx` | 2.28.1 | MIT | Copyright (c) 2019 Mathias Buus | [T5](#t5) | external-integrations, file-management |
 | `string-width` | 4.2.3 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `string-width` | 5.1.2 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `string_decoder` | 1.1.1 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T77](#t77) | external-integrations, file-management, gateway |
-| `string_decoder` | 1.3.0 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T77](#t77) | external-integrations, file-management, gateway |
+| `string_decoder` | 1.1.1 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T76](#t76) | external-integrations, file-management, gateway |
+| `string_decoder` | 1.3.0 | MIT | Copyright Node.js contributors. All rights reserved.<br>Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [T76](#t76) | external-integrations, file-management, gateway |
 | `stringify-entities` | 4.0.4 | MIT | Copyright (c) 2015 Titus Wormer &lt;mailto:tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `strip-ansi` | 6.0.1 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `strip-ansi` | 7.2.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
@@ -1201,55 +1195,52 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `thenify` | 3.3.1 | MIT | Copyright (c) 2014-2016 Jonathan Ong me@jongleberry.com and contributors | [T5](#t5) | dashboard |
 | `thread-stream` | 4.0.0 | MIT | Copyright (c) 2021 Matteo Collina | [T1](#t1) | analysis-reporting, gateway |
 | `thread-stream` | 4.2.1 | MIT | Copyright (c) 2021 Matteo Collina | [T1](#t1) | external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
-| `through2` | 2.0.5 | MIT | (author) Rod Vagg | [T85](#t85) | gateway |
+| `through2` | 2.0.5 | MIT | (author) Rod Vagg | [T84](#t84) | gateway |
 | `time-span` | 5.1.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [T1](#t1) | dashboard |
 | `tiny-invariant` | 1.3.3 | MIT | Copyright (c) 2019 Alexander Reardon | [T1](#t1) | dashboard |
 | `tinyglobby` | 0.2.17 | MIT | Copyright (c) 2024 Madeline Gurriarán | [T1](#t1) | dashboard |
 | `to-buffer` | 1.2.2 | MIT | Copyright (c) 2016 Mathias Buus | [T5](#t5) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `to-regex-range` | 5.0.1 | MIT | Copyright (c) 2015-present, Jon Schlinkert. | [T5](#t5) | dashboard |
-| `toad-cache` | 3.7.0 | MIT | Copyright (c) 2023 Igor Savin | [T1](#t1) | mcp |
 | `toad-cache` | 3.7.4 | MIT | Copyright (c) 2023 Igor Savin | [T1](#t1) | external-integrations, gateway, mcp |
 | `toidentifier` | 1.0.1 | MIT | Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `token-types` | 6.1.2 | MIT | Copyright © 2026 Borewit | [T5](#t5) | analysis-reporting, gateway, mcp, security-scanning |
 | `token-types` | 6.2.0 | MIT | Copyright © 2026 Borewit | [T5](#t5) | external-integrations, file-management, global-management, policy-management |
 | `tr46` | 0.0.3 | MIT | (author) Sebastian Mayr |  | security-scanning |
 | `trim-lines` | 3.0.1 | MIT | Copyright (c) 2015 Titus Wormer &lt;mailto:tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
-| `trough` | 2.2.0 | MIT | Copyright (c) 2016 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T57](#t57) | dashboard |
+| `trough` | 2.2.0 | MIT | Copyright (c) 2016 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T56](#t56) | dashboard |
 | `ts-error` | 1.0.6 | MIT | Copyright (c) 2018 Frédérique Mittelstaedt | [T1](#t1) | gateway, global-management |
 | `ts-interface-checker` | 0.1.13 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright {yyyy} {name of copyright owner} | [T2](#t2) | dashboard |
 | `ts-node` | 10.9.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [T5](#t5) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `ts-poet` | 6.12.0 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | file-management |
 | `ts-proto-descriptors` | 2.1.0 | ISC |  |  | file-management |
 | `ts-proto` | 2.20.0 | ISC | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright [yyyy] [name of copyright owner] | [T3](#t3) | file-management |
-| `tslib` | 2.8.1 | 0BSD | Copyright (c) Microsoft Corporation. | [T86](#t86) | analysis-reporting, dashboard, external-integrations, gateway, mcp, policy-management, security-scanning |
-| `tslib` | 2.9.1 | 0BSD | Copyright (c) Microsoft Corporation. | [T86](#t86) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
+| `tslib` | 2.8.1 | 0BSD | Copyright (c) Microsoft Corporation. | [T85](#t85) | analysis-reporting, dashboard, external-integrations, gateway, mcp, policy-management, security-scanning |
+| `tslib` | 2.9.1 | 0BSD | Copyright (c) Microsoft Corporation. | [T85](#t85) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `type-is` | 1.6.18 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, policy-management, security-scanning |
 | `type-is` | 2.1.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;<br>Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `typed-array-buffer` | 1.0.3 | MIT | Copyright (c) 2023 Jordan Harband | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `typed-query-selector` | 2.12.2 | MIT | Copyright (c) 2020-present Pig Fang | [T1](#t1) | analysis-reporting |
 | `typeorm` | 0.3.31 | MIT | (author) TypeORM |  | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
-| `typescript` | 6.0.3 | Apache-2.0 | (author) Microsoft Corp. | [T78](#t78) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, policy-management, security-scanning |
-| `uglify-js` | 3.19.3 | BSD-2-Clause | Copyright 2012-2024 (c) Mihai Bazon &lt;mihai.bazon@gmail.com&gt;<br>copyright notice, this list of conditions and the following<br>copyright notice, this list of conditions and the following | [T87](#t87) | global-management |
+| `typescript` | 6.0.3 | Apache-2.0 | (author) Microsoft Corp. | [T77](#t77) | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, policy-management, security-scanning |
+| `uglify-js` | 3.19.3 | BSD-2-Clause | Copyright 2012-2024 (c) Mihai Bazon &lt;mihai.bazon@gmail.com&gt;<br>copyright notice, this list of conditions and the following<br>copyright notice, this list of conditions and the following | [T86](#t86) | global-management |
 | `uid` | 2.0.2 | MIT | Copyright (c) Luke Edwards &lt;luke.edwards05@gmail.com&gt; (lukeed.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `uint8array-extras` | 1.6.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `ulid` | 3.0.2 | MIT | Copyright (c) 2017 Alizain Feerasta | [T5](#t5) | analysis-reporting, gateway, global-management, policy-management, security-scanning |
 | `undici-types` | 7.16.0 | MIT | Copyright (c) Matteo Collina and Undici contributors | [T1](#t1) | analysis-reporting, dashboard, gateway, mcp, security-scanning |
 | `undici-types` | 7.24.6 | MIT | Copyright (c) Matteo Collina and Undici contributors | [T1](#t1) | external-integrations, file-management, global-management, policy-management |
-| `unified` | 11.0.5 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T57](#t57) | dashboard |
-| `unist-util-is` | 6.0.1 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T88](#t88) | dashboard |
+| `unified` | 11.0.5 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T56](#t56) | dashboard |
+| `unist-util-is` | 6.0.1 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T87](#t87) | dashboard |
 | `unist-util-position` | 5.0.0 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `unist-util-stringify-position` | 4.0.0 | MIT | Copyright (c) 2016 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `unist-util-visit-parents` | 6.0.2 | MIT | Copyright (c) 2016 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `unist-util-visit` | 5.1.0 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
 | `universal-github-app-jwt` | 2.2.2 | MIT | Copyright (c) 2019 Gregor Martynus | [T19](#t19) | external-integrations |
-| `universal-user-agent` | 7.0.3 | ISC | Copyright (c) 2018-2021, Gregor Martynus (https://github.com/gr2m) | [T89](#t89) | external-integrations |
-| `universalify` | 2.0.1 | MIT | Copyright (c) 2017, Ryan Zimmerman &lt;opensrc@ryanzim.com&gt;<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T90](#t90) | file-management |
+| `universal-user-agent` | 7.0.3 | ISC | Copyright (c) 2018-2021, Gregor Martynus (https://github.com/gr2m) | [T88](#t88) | external-integrations |
 | `unpipe` | 1.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `unzipper` | 0.12.5 | MIT | Copyright (c) 2012 - 2013 Near Infinity Corporation | [T91](#t91) | file-management |
 | `use-callback-ref` | 1.3.3 | MIT | Copyright (c) 2017 Anton Korzunov | [T1](#t1) | dashboard |
 | `use-sidecar` | 1.1.3 | MIT | Copyright (c) 2017 Anton Korzunov | [T1](#t1) | dashboard |
 | `use-sync-external-store` | 1.6.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. | [T1](#t1) | dashboard |
-| `util-deprecate` | 1.0.2 | MIT | Copyright (c) 2014 Nathan Rajlich &lt;nathan@tootallnate.net&gt; | [T57](#t57) | dashboard, external-integrations, file-management, gateway |
+| `util-deprecate` | 1.0.2 | MIT | Copyright (c) 2014 Nathan Rajlich &lt;nathan@tootallnate.net&gt; | [T56](#t56) | dashboard, external-integrations, file-management, gateway |
 | `utrie` | 1.0.2 | MIT | Copyright (c) 2021 Niklas von Hertzen | [T15](#t15) | dashboard |
 | `uuid` | 11.1.1 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [T5](#t5) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `uuid` | 14.0.3 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [T5](#t5) | external-integrations, file-management, gateway, policy-management, security-scanning |
@@ -1257,23 +1248,23 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `validator` | 13.15.35 | MIT | Copyright (c) 2018 Chris O'Hara &lt;cohara87@gmail.com&gt; | [T15](#t15) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `vary` | 1.1.2 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `vfile-message` | 4.0.3 | MIT | Copyright (c) Titus Wormer &lt;tituswormer@gmail.com&gt; | [T18](#t18) | dashboard |
-| `vfile` | 6.0.3 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T57](#t57) | dashboard |
+| `vfile` | 6.0.3 | MIT | Copyright (c) 2015 Titus Wormer &lt;tituswormer@gmail.com&gt; | [T56](#t56) | dashboard |
 | `victory-vendor` | 36.9.2 | MIT AND ISC | (author) Formidable |  | dashboard |
 | `void-elements` | 3.1.0 | MIT | Copyright (c) 2014 hemanth | [T18](#t18) | dashboard |
 | `web-streams-polyfill` | 3.3.3 | MIT | Copyright (c) 2024 Mattias Buelens<br>Copyright (c) 2016 Diwank Singh Tomer | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `web-vitals` | 4.2.4 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright 2020 Google LLC | [T92](#t92) | dashboard |
+| `web-vitals` | 4.2.4 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright 2020 Google LLC | [T89](#t89) | dashboard |
 | `webdriver-bidi-protocol` | 0.4.2 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works<br>Copyright 2024 Google Inc. | [T3](#t3) | analysis-reporting |
-| `webidl-conversions` | 3.0.1 | BSD-2-Clause | Copyright (c) 2014, Domenic Denicola | [T93](#t93) | security-scanning |
+| `webidl-conversions` | 3.0.1 | BSD-2-Clause | Copyright (c) 2014, Domenic Denicola | [T90](#t90) | security-scanning |
 | `whatwg-url` | 5.0.0 | MIT | Copyright (c) 2015–2016 Sebastian Mayr | [T5](#t5) | security-scanning |
 | `which-typed-array` | 1.1.20 | MIT | Copyright (c) 2015 Jordan Harband | [T5](#t5) | analysis-reporting |
 | `which-typed-array` | 1.1.22 | MIT | Copyright (c) 2015 Jordan Harband | [T5](#t5) | security-scanning |
 | `which-typed-array` | 1.1.24 | MIT | Copyright (c) 2015 Jordan Harband | [T5](#t5) | external-integrations, file-management, global-management, policy-management |
 | `which` | 2.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting, external-integrations, file-management, global-management, mcp, policy-management, security-scanning |
-| `wordwrap` | 1.0.0 | MIT | COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T65](#t65) | global-management |
+| `wordwrap` | 1.0.0 | MIT | COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T64](#t64) | global-management |
 | `wrap-ansi` | 7.0.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `wrap-ansi` | 8.1.0 | MIT | Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [T1](#t1) | analysis-reporting, external-integrations, file-management, global-management, policy-management, security-scanning |
 | `wrappy` | 1.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors<br>copyright notice and this permission notice appear in all copies. | [T28](#t28) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `ws` | 8.22.0 | MIT | Copyright (c) 2011 Einar Otto Stangvik &lt;einaros@gmail.com&gt;<br>Copyright (c) 2013 Arnout Kazemier and contributors<br>Copyright (c) 2016 Luigi Pinca and contributors<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T94](#t94) | analysis-reporting, security-scanning |
+| `ws` | 8.22.0 | MIT | Copyright (c) 2011 Einar Otto Stangvik &lt;einaros@gmail.com&gt;<br>Copyright (c) 2013 Arnout Kazemier and contributors<br>Copyright (c) 2016 Luigi Pinca and contributors<br>COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER | [T91](#t91) | analysis-reporting, security-scanning |
 | `xtend` | 4.0.2 | MIT | Copyright (c) 2012-2014 Raynos. | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `y18n` | 5.0.8 | ISC | Copyright (c) 2015, Contributors | [T13](#t13) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `yaml` | 2.8.4 | ISC | Copyright Eemeli Aro &lt;eemeli@gmail.com&gt; | [T13](#t13) | analysis-reporting, mcp |
@@ -1857,7 +1848,7 @@ Each image also contains the Alpine packages listed below, under their own licen
 Each text below is reproduced from the packages that ship it, with their copyright lines set apart in section 1.
 A package with no text here ships no licence file; its licence is the SPDX identifier in section 1 (https://spdx.org/licenses/).
 
-### <a id="t1"></a>T1: MIT (307 packages)
+### <a id="t1"></a>T1: MIT (305 packages)
 
 ```text
 MIT License
@@ -2447,7 +2438,7 @@ Apache License
       of your accepting any such warranty or additional liability.
 ```
 
-### <a id="t5"></a>T5: MIT (153 packages)
+### <a id="t5"></a>T5: MIT (152 packages)
 
 ```text
 The MIT License (MIT)
@@ -2888,7 +2879,7 @@ will be liable to anyone for any damages related to this
 software or this license, under any kind of legal claim.***
 ```
 
-### <a id="t15"></a>T15: MIT (68 packages)
+### <a id="t15"></a>T15: MIT (67 packages)
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2978,7 +2969,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### <a id="t18"></a>T18: MIT (142 packages)
+### <a id="t18"></a>T18: MIT (140 packages)
 
 ```text
 (The MIT License)
@@ -4300,37 +4291,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t51"></a>T51: BSD-3-Clause (1 package)
-
-```text
-======================================
-All rights reserved.
---------------------
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-3. Neither the name of Deoxxa Development nor the names of its contributors
-   may be used to endorse or promote products derived from this software
-   without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY DEOXXA DEVELOPMENT ''AS IS'' AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL DEOXXA DEVELOPMENT BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-### <a id="t52"></a>T52: MIT (1 package)
+### <a id="t51"></a>T51: MIT (1 package)
 
 ```text
 MIT
@@ -4355,7 +4316,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### <a id="t53"></a>T53: BSD-3-Clause (1 package)
+### <a id="t52"></a>T52: BSD-3-Clause (1 package)
 
 ```text
 All rights reserved.
@@ -4388,7 +4349,7 @@ The complete list of contributors can be found at:
 - https://github.com/garycourt/uri-js/graphs/contributors
 ```
 
-### <a id="t54"></a>T54: ISC (4 packages)
+### <a id="t53"></a>T53: ISC (4 packages)
 
 ```text
 Permission to use, copy, modify, and/or distribute this software for any
@@ -4403,7 +4364,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### <a id="t55"></a>T55: ISC (1 package)
+### <a id="t54"></a>T54: ISC (1 package)
 
 ```text
 ISC License (ISC)
@@ -4413,7 +4374,7 @@ Permission to use, copy, modify, and/or distribute this software for any purpose
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### <a id="t56"></a>T56: BlueOak-1.0.0 (2 packages)
+### <a id="t55"></a>T55: BlueOak-1.0.0 (2 packages)
 
 ```text
 All packages under `src/` are licensed according to the terms in
@@ -4480,7 +4441,7 @@ will be liable to anyone for any damages related to this
 software or this license, under any kind of legal claim.***
 ```
 
-### <a id="t57"></a>T57: (MIT AND Zlib), MIT (10 packages)
+### <a id="t56"></a>T56: (MIT AND Zlib), MIT (10 packages)
 
 ```text
 (The MIT License)
@@ -4504,7 +4465,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### <a id="t58"></a>T58: BSD-3-Clause (3 packages)
+### <a id="t57"></a>T57: BSD-3-Clause (3 packages)
 
 ```text
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -4518,7 +4479,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t59"></a>T59: BlueOak-1.0.0 (2 packages)
+### <a id="t58"></a>T58: BlueOak-1.0.0 (2 packages)
 
 ```text
 # Blue Oak Model License
@@ -4577,7 +4538,7 @@ will be liable to anyone for any damages related to this
 software or this license, under any kind of legal claim._**
 ```
 
-### <a id="t60"></a>T60: BSD-2-Clause (1 package)
+### <a id="t59"></a>T59: BSD-2-Clause (1 package)
 
 ```text
 BSD 2-Clause License
@@ -4639,7 +4600,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t61"></a>T61: MIT (1 package)
+### <a id="t60"></a>T60: MIT (1 package)
 
 ```text
 MIT License
@@ -4665,7 +4626,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### <a id="t62"></a>T62: BSD-3-Clause (2 packages)
+### <a id="t61"></a>T61: BSD-3-Clause (2 packages)
 
 ```text
 All rights reserved.
@@ -4699,7 +4660,7 @@ The complete list of contributors can be found at:
 - https://github.com/fastify/light-my-request/graphs/contributors
 ```
 
-### <a id="t63"></a>T63: MIT (8 packages)
+### <a id="t62"></a>T62: MIT (8 packages)
 
 ```text
 Based on Underscore.js, copyright Jeremy Ashkenas,
@@ -4748,7 +4709,7 @@ licenses; we recommend you read them, as their terms may differ from the
 terms above.
 ```
 
-### <a id="t64"></a>T64: MIT (3 packages)
+### <a id="t63"></a>T63: MIT (3 packages)
 
 ```text
 Based on Underscore.js, copyright 2009-2016 Jeremy Ashkenas,
@@ -4774,7 +4735,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### <a id="t65"></a>T65: MIT (2 packages)
+### <a id="t64"></a>T64: MIT (2 packages)
 
 ```text
 This software is released under the MIT license:
@@ -4796,7 +4757,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### <a id="t66"></a>T66: MIT (1 package)
+### <a id="t65"></a>T65: MIT (1 package)
 
 ```text
 MIT License
@@ -4822,7 +4783,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### <a id="t67"></a>T67: Apache-2.0 (1 package)
+### <a id="t66"></a>T66: Apache-2.0 (1 package)
 
 ```text
 Apache License
@@ -5000,7 +4961,7 @@ Apache License
    END OF TERMS AND CONDITIONS
 ```
 
-### <a id="t68"></a>T68: MIT-0 (1 package)
+### <a id="t67"></a>T67: MIT-0 (1 package)
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -5019,7 +4980,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### <a id="t69"></a>T69: MIT (1 package)
+### <a id="t68"></a>T68: MIT (1 package)
 
 ```text
 The MIT License (Expat)
@@ -5045,7 +5006,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### <a id="t70"></a>T70: ISC (1 package)
+### <a id="t69"></a>T69: ISC (1 package)
 
 ```text
 Permission to use, copy, modify, and/or distribute this software for any
@@ -5060,7 +5021,7 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### <a id="t71"></a>T71: MIT (1 package)
+### <a id="t70"></a>T70: MIT (1 package)
 
 ```text
 # Copyright (c) 2015 Calvin Metcalf
@@ -5084,7 +5045,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.**
 ```
 
-### <a id="t72"></a>T72: BSD-3-Clause (2 packages)
+### <a id="t71"></a>T71: BSD-3-Clause (2 packages)
 
 ```text
 This license applies to all parts of protobuf.js except those files
@@ -5126,7 +5087,7 @@ standalone and requires a support library to be linked with it. This
 support library is itself covered by the above license.
 ```
 
-### <a id="t73"></a>T73: MIT (1 package)
+### <a id="t72"></a>T72: MIT (1 package)
 
 ```text
 The MIT License
@@ -5148,7 +5109,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### <a id="t74"></a>T74: BSD-3-Clause (2 packages)
+### <a id="t73"></a>T73: BSD-3-Clause (2 packages)
 
 ```text
 BSD 3-Clause License
@@ -5181,7 +5142,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t75"></a>T75: MIT (1 package)
+### <a id="t74"></a>T74: MIT (1 package)
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -5288,7 +5249,7 @@ Icons8 Line Awesome - https://icons8.com/line-awesome
 License: MIT https://github.com/icons8/line-awesome/blob/master/LICENSE.md
 ```
 
-### <a id="t76"></a>T76: BSD-3-Clause (1 package)
+### <a id="t75"></a>T75: BSD-3-Clause (1 package)
 
 ```text
 BSD 3-Clause License
@@ -5322,7 +5283,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t77"></a>T77: MIT (6 packages)
+### <a id="t76"></a>T76: MIT (6 packages)
 
 ```text
 Node.js is licensed for use as follows:
@@ -5372,7 +5333,7 @@ IN THE SOFTWARE.
 """
 ```
 
-### <a id="t78"></a>T78: Apache-2.0 (2 packages)
+### <a id="t77"></a>T77: Apache-2.0 (2 packages)
 
 ```text
 Apache License
@@ -5432,7 +5393,7 @@ If the Work includes a "NOTICE" text file as part of its distribution, then any 
 END OF TERMS AND CONDITIONS
 ```
 
-### <a id="t79"></a>T79: MIT OR SEE LICENSE IN FEEL-FREE.md (1 package)
+### <a id="t78"></a>T78: MIT OR SEE LICENSE IN FEEL-FREE.md (1 package)
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining
@@ -5460,7 +5421,7 @@ Exemptions
 Please either apply this, the MIT license, or the license in './FEEL-FREE.md'
 ```
 
-### <a id="t80"></a>T80: BSD-3-Clause (1 package)
+### <a id="t79"></a>T79: BSD-3-Clause (1 package)
 
 ```text
 All rights reserved.
@@ -5482,7 +5443,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t81"></a>T81: BSD-3-Clause (1 package)
+### <a id="t80"></a>T80: BSD-3-Clause (1 package)
 
 ```text
 All rights reserved.
@@ -5502,7 +5463,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t82"></a>T82: (MIT AND BSD-3-Clause) (1 package)
+### <a id="t81"></a>T81: (MIT AND BSD-3-Clause) (1 package)
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -5551,7 +5512,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t83"></a>T83: ISC (1 package)
+### <a id="t82"></a>T82: ISC (1 package)
 
 ```text
 The ISC License
@@ -5570,7 +5531,7 @@ WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
 ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### <a id="t84"></a>T84: BSD-3-Clause (2 packages)
+### <a id="t83"></a>T83: BSD-3-Clause (2 packages)
 
 ```text
 All rights reserved.
@@ -5601,7 +5562,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t85"></a>T85: MIT (1 package)
+### <a id="t84"></a>T84: MIT (1 package)
 
 ```text
 # The MIT License (MIT)
@@ -5615,7 +5576,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### <a id="t86"></a>T86: 0BSD (2 packages)
+### <a id="t85"></a>T85: 0BSD (2 packages)
 
 ```text
 Permission to use, copy, modify, and/or distribute this software for any
@@ -5630,7 +5591,7 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### <a id="t87"></a>T87: BSD-2-Clause (1 package)
+### <a id="t86"></a>T86: BSD-2-Clause (1 package)
 
 ```text
 UglifyJS is released under the BSD license:
@@ -5660,7 +5621,7 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 ```
 
-### <a id="t88"></a>T88: MIT (1 package)
+### <a id="t87"></a>T87: MIT (1 package)
 
 ```text
 (The MIT license)
@@ -5685,7 +5646,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### <a id="t89"></a>T89: ISC (1 package)
+### <a id="t88"></a>T88: ISC (1 package)
 
 ```text
 # [ISC License](https://spdx.org/licenses/ISC)
@@ -5695,57 +5656,7 @@ Permission to use, copy, modify, and/or distribute this software for any purpose
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### <a id="t90"></a>T90: MIT (1 package)
-
-```text
-(The MIT License)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the 'Software'), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-### <a id="t91"></a>T91: MIT (1 package)
-
-```text
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
----
-
-Commits in this fork are (c) Ziggy Jonsson (ziggy.jonsson.nyc@gmail.com)
-and fall under same licence structure as the original repo (MIT)
-```
-
-### <a id="t92"></a>T92: Apache-2.0 (1 package)
+### <a id="t89"></a>T89: Apache-2.0 (1 package)
 
 ```text
 Apache License
@@ -5946,7 +5857,7 @@ Apache License
    limitations under the License.
 ```
 
-### <a id="t93"></a>T93: BSD-2-Clause (1 package)
+### <a id="t90"></a>T90: BSD-2-Clause (1 package)
 
 ```text
 # The BSD 2-Clause License
@@ -5962,7 +5873,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### <a id="t94"></a>T94: MIT (1 package)
+### <a id="t91"></a>T91: MIT (1 package)
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining a copy of

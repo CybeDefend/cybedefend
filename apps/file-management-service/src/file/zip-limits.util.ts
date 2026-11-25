@@ -1,5 +1,4 @@
 import { Readable, Transform } from 'node:stream';
-import * as yauzl from 'yauzl';
 
 /**
  * Size limits of an uploaded full-scan archive.
@@ -8,7 +7,8 @@ import * as yauzl from 'yauzl';
  * compressed size alone bounds nothing. The archive is checked twice:
  *
  *  - before it is filtered, from its central directory (no byte inflated):
- *    entry count, every entry's declared size and their total;
+ *    entry count, every entry's declared size and their total
+ *    (`openCheckedZip`, zip-archive.util.ts, whose reading the filter uses);
  *  - while it is filtered, by counting the bytes each entry actually inflates
  *    to ({@link InflateMeter}), because the sizes a ZIP declares are written by
  *    whoever built it and can be false.
@@ -198,95 +198,6 @@ export function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MiB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KiB`;
   return `${bytes} bytes`;
-}
-
-/**
- * Refuse `zipPath` when its central directory exceeds `limits`.
- *
- * Reads the central directory only: no entry is inflated, so it costs
- * O(entries) time and O(1) memory whatever the archive holds. Names are not
- * decoded (`decodeStrings: false`): unsafe names are the filter's business,
- * which skips them, and decoding would refuse the whole archive instead.
- *
- * @throws ArchiveLimitError past a limit; a plain Error when the file is not a
- *   readable ZIP.
- */
-export function assertZipWithinLimits(
-  zipPath: string,
-  limits: ZipLimits,
-): Promise<{ entries: number; totalBytes: number }> {
-  return new Promise((resolve, reject) => {
-    yauzl.open(
-      zipPath,
-      { lazyEntries: true, autoClose: true, decodeStrings: false },
-      (openErr, zipfile) => {
-        if (openErr || !zipfile) {
-          return reject(openErr ?? new Error('Cannot open the ZIP archive'));
-        }
-        let settled = false;
-        const finish = (
-          err: Error | null,
-          value?: { entries: number; totalBytes: number },
-        ) => {
-          if (settled) return;
-          settled = true;
-          try {
-            zipfile.close();
-          } catch {
-            /* already closed */
-          }
-          if (err) reject(err);
-          else resolve(value);
-        };
-
-        // Before reading a single entry: the end-of-central-directory record
-        // gives the count.
-        if (exceedsEntryLimit(zipfile.entryCount, limits)) {
-          return finish(
-            new ArchiveLimitError(
-              'ARCHIVE_TOO_MANY_ENTRIES',
-              `The archive holds more than ${limits.maxEntries} entries (${zipfile.entryCount})`,
-            ),
-          );
-        }
-
-        let entries = 0;
-        let totalBytes = 0;
-        zipfile.on('entry', (entry: yauzl.Entry) => {
-          entries++;
-          if (exceedsEntryLimit(entries, limits)) {
-            return finish(
-              new ArchiveLimitError(
-                'ARCHIVE_TOO_MANY_ENTRIES',
-                `The archive holds more than ${limits.maxEntries} entries`,
-              ),
-            );
-          }
-          if (entry.uncompressedSize > limits.maxEntryBytes) {
-            return finish(
-              new ArchiveLimitError(
-                'ARCHIVE_ENTRY_TOO_LARGE',
-                `An archive entry is too large: ${formatBytes(entry.uncompressedSize)} uncompressed exceeds the ${formatBytes(limits.maxEntryBytes)} entry limit`,
-              ),
-            );
-          }
-          totalBytes += entry.uncompressedSize;
-          if (totalBytes > limits.maxTotalBytes) {
-            return finish(
-              new ArchiveLimitError(
-                'ARCHIVE_INFLATED_TOO_LARGE',
-                `The archive is too large: ${formatBytes(totalBytes)} uncompressed exceeds the ${formatBytes(limits.maxTotalBytes)} limit`,
-              ),
-            );
-          }
-          zipfile.readEntry();
-        });
-        zipfile.on('end', () => finish(null, { entries, totalBytes }));
-        zipfile.on('error', (err: Error) => finish(err));
-        zipfile.readEntry();
-      },
-    );
-  });
 }
 
 /**

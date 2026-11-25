@@ -10,14 +10,21 @@ export type OverviewBlock = 'sev' | 'state' | 'time';
 export const overviewGenerationKey = (orgId: string): string =>
   `ovw:gen:${orgId}`;
 
-/** A block entry key, scoped by org + user (Permify scope) + generation + filter hash. */
+/**
+ * A block entry key, scoped by org + user + a digest of the projects the
+ * caller may read on this call + generation + filter hash. The readable
+ * projects are part of the key so that a caller whose access changed never
+ * reads an entry computed with the projects of before.
+ */
 export const overviewBlockKey = (
   block: OverviewBlock,
   orgId: string,
   userId: string,
+  scopeDigest: string,
   generation: number,
   filterHash: string,
-): string => `ovw:${block}:${orgId}:${userId}:${generation}:${filterHash}`;
+): string =>
+  `ovw:${block}:${orgId}:${userId}:${scopeDigest}:${generation}:${filterHash}`;
 
 /** TTL (seconds) for a cached block entry. Override via OVERVIEW_BLOCK_CACHE_TTL_SECONDS. */
 export const OVERVIEW_BLOCK_CACHE_TTL_SECONDS = 60;

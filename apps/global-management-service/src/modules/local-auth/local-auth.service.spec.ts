@@ -22,6 +22,7 @@ import {
   REFRESH_FAMILY_TTL_MS,
   RefreshTokenStore,
 } from './refresh-token.store';
+import { PersonalAccessTokenStore } from './personal-access-token.store';
 import { SigningKeyService } from './signing-key.service';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -70,6 +71,7 @@ describe('LocalAuthService', () => {
     revokeFamilyOf: jest.Mock;
     revokeAllOfUser: jest.Mock;
   };
+  let pats: { revokeAllOfUser: jest.Mock };
   let logger: ReturnType<typeof createLoggerMock>;
 
   beforeEach(async () => {
@@ -96,6 +98,7 @@ describe('LocalAuthService', () => {
       revokeFamilyOf: jest.fn(async () => undefined),
       revokeAllOfUser: jest.fn(async () => undefined),
     };
+    pats = { revokeAllOfUser: jest.fn(async () => 0) };
     logger = createLoggerMock();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -107,6 +110,7 @@ describe('LocalAuthService', () => {
         { provide: SigningKeyService, useValue: signingKeys },
         AccessTokenIssuer,
         { provide: RefreshTokenStore, useValue: refreshTokens },
+        { provide: PersonalAccessTokenStore, useValue: pats },
         { provide: Logger, useValue: logger },
       ],
     }).compile();
@@ -311,8 +315,17 @@ describe('LocalAuthService', () => {
     ]);
   });
 
-  it('changes the password, signs every session out and opens a new one', async () => {
-    credentials.changePassword.mockResolvedValue(undefined);
+  it('changes the password, revokes every session and token in its transaction, and opens a new session', async () => {
+    const manager = { the: 'transaction' };
+    credentials.changePassword.mockImplementation(
+      async (
+        _u: string,
+        _c: string,
+        _n: string,
+        _now: Date,
+        alsoInTransaction: (m: unknown) => Promise<void>,
+      ) => alsoInTransaction(manager),
+    );
     userRepo.findOne!.mockResolvedValue(ada);
     refreshTokens.issue.mockResolvedValue({
       token: 'the-fresh-refresh-token',
@@ -329,8 +342,15 @@ describe('LocalAuthService', () => {
       'the current password',
       'the new password',
       NOW,
+      expect.any(Function),
     );
-    expect(refreshTokens.revokeAllOfUser).toHaveBeenCalledWith(USER_ID, NOW);
+    // Both revocations run inside the transaction that writes the password.
+    expect(refreshTokens.revokeAllOfUser).toHaveBeenCalledWith(
+      USER_ID,
+      NOW,
+      manager,
+    );
+    expect(pats.revokeAllOfUser).toHaveBeenCalledWith(USER_ID, NOW, manager);
     // The credential change comes first, then the revocation, then the session.
     expect(credentials.changePassword.mock.invocationCallOrder[0]).toBeLessThan(
       refreshTokens.revokeAllOfUser.mock.invocationCallOrder[0],
@@ -354,6 +374,7 @@ describe('LocalAuthService', () => {
       message: 'CURRENT_PASSWORD_INVALID',
     });
     expect(refreshTokens.revokeAllOfUser).not.toHaveBeenCalled();
+    expect(pats.revokeAllOfUser).not.toHaveBeenCalled();
     expect(refreshTokens.issue).not.toHaveBeenCalled();
   });
 

@@ -300,6 +300,14 @@ export class ImportScanService implements OnModuleInit {
         downstreamCode !== undefined ? status[downstreamCode] : 'UNKNOWN'
       }`,
     );
+    // Too many imports already waiting for the organization: a deliberate
+    // refusal (429), not an outage. The caller sends the file again later.
+    if (downstreamCode === status.RESOURCE_EXHAUSTED) {
+      throw new HandledScanStartError({
+        code: status.RESOURCE_EXHAUSTED,
+        message: 'IMPORT_QUEUE_FULL',
+      });
+    }
     const handledCode =
       downstreamCode === undefined ||
       downstreamCode === status.UNAVAILABLE ||

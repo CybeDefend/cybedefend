@@ -21,7 +21,24 @@ export enum EvaluationStatus {
 /**
  * Compliance result structure (stored in JSONB)
  */
+/**
+ * A glob pattern the evaluation could not apply: one that cannot be matched
+ * in bounded time, or a path too long to match. A skipped exclusion hides
+ * nothing and a skipped branch pattern matches no branch, so the gate is
+ * stricter, never looser; this entry says so.
+ */
+export interface EvaluationWarning {
+  policyId: string;
+  policyName?: string;
+  /** Set for a branch pattern of a rule; absent for an exclusion. */
+  ruleId?: string;
+  pattern: string;
+  reason: string;
+}
+
 export interface ComplianceResultDetails {
+  /** Patterns skipped during the evaluation; absent when none was. */
+  warnings?: EvaluationWarning[];
   violationCount: number;
   action: ViolationAction;
   violations: {

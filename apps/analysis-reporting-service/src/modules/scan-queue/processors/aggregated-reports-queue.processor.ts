@@ -1,14 +1,29 @@
-import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import {
+  InjectQueue,
+  Processor,
+  WorkerHost,
+  OnWorkerEvent,
+} from '@nestjs/bullmq';
+import {
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import { ulid } from 'ulid';
 
 import { QUEUE_NAMES } from '../queue-names';
 import { AggregatedReportJobData } from '../scan-queue.service';
 import { AggregatedReportsService } from '../../reports/aggregated-reports/aggregated-reports.service';
 import { getQueueConcurrency } from '../concurrency.config';
+import {
+  failLostQueuedReports,
+  isQueueJobPending,
+  STALE_REPORT_SWEEP_INTERVAL_MS,
+} from '../../reports/retention/stale-report-sweep';
 import { AggregatedReport } from '../../../entities/aggregated-report.entity';
 import { AsyncTaskStore } from '../../../core/realtime/async-task-store.service';
 import { RealtimeEventPublisher } from '@cybedefend/realtime-publisher';
@@ -29,7 +44,10 @@ import { RealtimeEventPublisher } from '@cybedefend/realtime-publisher';
   lockDuration: 300000,
   lockRenewTime: 60000,
 })
-export class AggregatedReportsQueueProcessor extends WorkerHost {
+export class AggregatedReportsQueueProcessor
+  extends WorkerHost
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(AggregatedReportsQueueProcessor.name);
   private readonly ttlMs = Number(process.env.ASYNC_TASK_TTL_MS) || 3_600_000;
 
@@ -39,8 +57,50 @@ export class AggregatedReportsQueueProcessor extends WorkerHost {
     private readonly aggregatedRepo: Repository<AggregatedReport>,
     private readonly asyncTaskStore: AsyncTaskStore,
     private readonly realtime: RealtimeEventPublisher,
+    // Its own queue, for the stale sweep's job lookups.
+    @Optional()
+    @InjectQueue(QUEUE_NAMES.AGGREGATED_REPORTS)
+    private readonly aggregatedQueue?: Queue<AggregatedReportJobData>,
   ) {
     super();
+  }
+
+  private sweepTimer?: NodeJS.Timeout;
+
+  onModuleInit(): void {
+    if (!this.aggregatedQueue) return;
+    this.sweepTimer = setInterval(
+      () => void this.sweepLostReports(),
+      STALE_REPORT_SWEEP_INTERVAL_MS,
+    );
+    this.sweepTimer.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.sweepTimer) clearInterval(this.sweepTimer);
+  }
+
+  /**
+   * Fail the old queued aggregated reports whose job is gone; never one whose
+   * job still waits or renders (it still ends ready).
+   */
+  async sweepLostReports(): Promise<void> {
+    const queue = this.aggregatedQueue;
+    if (!queue) return;
+    try {
+      const failed = await failLostQueuedReports(this.aggregatedRepo, (id) =>
+        isQueueJobPending(queue, `aggregated-report-${id}`),
+      );
+      if (failed > 0) {
+        this.logger.log(
+          `[AggReports] stale sweep failed ${failed} lost report(s)`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[AggReports] stale sweep failed: ${(err as Error).message}`,
+      );
+    }
   }
 
   async process(job: Job<AggregatedReportJobData>): Promise<void> {

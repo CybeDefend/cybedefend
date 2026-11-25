@@ -49,7 +49,7 @@
     "react-markdown": "^10.1.0",
     "react-rebac": "^1.0.5",
     "react-redux": "^9.2.0",
-    "react-router-dom": "^7.18.6",
+    "react-router-dom": "^7.18.7",
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.4",
     "remark-gfm": "^4.0.1",

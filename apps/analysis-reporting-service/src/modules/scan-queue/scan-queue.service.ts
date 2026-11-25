@@ -6,6 +6,8 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
+import { RpcException } from '@nestjs/microservices';
+import { status } from '@grpc/grpc-js';
 import { Queue, JobsOptions } from 'bullmq';
 import {
   ScanAddScaResultRequest,
@@ -65,6 +67,115 @@ export interface ResultsImportJobData {
    */
   sbomFileKey?: string;
 }
+
+/**
+ * Files a user sent for import that one organization may have waiting in the
+ * results-import queue (the files of the instance's own scans are never
+ * refused, only ordered). Tunable with RESULTS_IMPORT_MAX_WAITING_PER_ORG (a
+ * positive integer; anything else keeps the default).
+ */
+export const DEFAULT_MAX_WAITING_IMPORTS_PER_ORG = 50;
+
+export function maxWaitingImportsPerOrg(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = Number(env.RESULTS_IMPORT_MAX_WAITING_PER_ORG);
+  return Number.isInteger(raw) && raw > 0
+    ? raw
+    : DEFAULT_MAX_WAITING_IMPORTS_PER_ORG;
+}
+
+/** BullMQ's lowest priority (the largest number it accepts). */
+const BULLMQ_MAX_PRIORITY = 2_097_152;
+/** The turns are renumbered past this value, well under the limit. */
+const RESULTS_IMPORT_TURN_REBASE_AT = 1_048_576;
+/**
+ * A reserved place counts for this long even before its job is visible in
+ * the queue (the add follows the reservation).
+ */
+const RESULTS_IMPORT_RESERVATION_GRACE_MS = 30_000;
+
+/**
+ * One atomic step for a new results-import job: the cap of user imports
+ * waiting per organization, and the job's turn.
+ *
+ * KEYS: 1 prioritized, 2 wait, 3 delayed, 4 paused (the queue's own keys),
+ *   5 turn being served, 6 highest turn given, 7 hash org -> next turn,
+ *   8 the organization's waiting user imports (sorted set id -> reserved at).
+ * ARGV: 1 org, 2 jobId, 3 user import (1/0), 4 cap, 5 now (ms),
+ *   6 grace (ms), 7 renumber above, 8 queue key prefix (for job hashes).
+ *
+ * The waiting set forgets a job once it left the queue's waiting lists
+ * (taken by the worker, removed): there is no counter to keep in step with
+ * the worker. A place reserved but not yet added counts for its grace
+ * period; once the job is added its score is 0 and only its presence in the
+ * queue counts. The turn being served is the
+ * head of the prioritized set minus one, or the highest turn given when
+ * nothing waits. Past ARGV[7] every turn is lowered by the turn being
+ * served, the waiting jobs' priorities included, so their order is
+ * unchanged. Returns the turn, or -1 when the user import is refused.
+ */
+const RESERVE_RESULTS_IMPORT_TURN = `
+local SHIFT = 4294967296
+if ARGV[3] == '1' then
+  local now = tonumber(ARGV[5])
+  local grace = tonumber(ARGV[6])
+  local members = redis.call('ZRANGE', KEYS[8], 0, -1, 'WITHSCORES')
+  local live = 0
+  for i = 1, #members, 2 do
+    local id = members[i]
+    local at = tonumber(members[i + 1])
+    local present = redis.call('ZSCORE', KEYS[1], id)
+      or redis.call('ZSCORE', KEYS[3], id)
+      or redis.call('LPOS', KEYS[2], id)
+      or redis.call('LPOS', KEYS[4], id)
+    if present or (at > 0 and (now - at) < grace) then
+      live = live + 1
+    else
+      redis.call('ZREM', KEYS[8], id)
+    end
+  end
+  if live >= tonumber(ARGV[4]) then
+    return -1
+  end
+  redis.call('ZADD', KEYS[8], now, ARGV[2])
+end
+local turn = tonumber(redis.call('GET', KEYS[5]) or '0')
+local maxturn = tonumber(redis.call('GET', KEYS[6]) or '0')
+local head = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
+if #head > 0 then
+  local served = math.floor(tonumber(head[2]) / SHIFT) - 1
+  if served > turn then turn = served end
+elseif maxturn > turn then
+  turn = maxturn
+end
+local nextTurn = tonumber(redis.call('HGET', KEYS[7], ARGV[1]) or '0')
+local mine = math.max(turn, nextTurn) + 1
+if mine > maxturn then maxturn = mine end
+if mine > tonumber(ARGV[7]) and turn > 0 then
+  local base = turn
+  local waiting = redis.call('ZRANGE', KEYS[1], 0, -1, 'WITHSCORES')
+  for i = 1, #waiting, 2 do
+    local score = tonumber(waiting[i + 1])
+    local prio = math.floor(score / SHIFT)
+    local counter = score - prio * SHIFT
+    local lowered = math.max(1, prio - base)
+    redis.call('ZADD', KEYS[1], lowered * SHIFT + counter, waiting[i])
+    redis.call('HSET', ARGV[8] .. waiting[i], 'priority', lowered)
+  end
+  local nexts = redis.call('HGETALL', KEYS[7])
+  for i = 1, #nexts, 2 do
+    redis.call('HSET', KEYS[7], nexts[i], math.max(0, tonumber(nexts[i + 1]) - base))
+  end
+  turn = turn - base
+  maxturn = math.max(0, maxturn - base)
+  mine = math.max(1, mine - base)
+end
+redis.call('HSET', KEYS[7], ARGV[1], mine)
+redis.call('SET', KEYS[5], turn)
+redis.call('SET', KEYS[6], maxturn)
+return mine
+`;
 
 /**
  * Job data for SCA scan processing
@@ -219,6 +330,11 @@ export class ScanQueueService implements OnModuleInit {
   private static readonly REDIS_ARG_CHUNK = 1000;
 
   private readonly logger = new Logger(ScanQueueService.name);
+  /**
+   * Turn above which the results-import turns are renumbered, so a priority
+   * never reaches BullMQ's limit (2^21). Lowered by specs only.
+   */
+  resultsImportTurnRebaseAt = RESULTS_IMPORT_TURN_REBASE_AT;
   private redisClient: Redis | null = null;
 
   constructor(
@@ -1529,6 +1645,21 @@ return 0
   }
 
   /**
+   * Remove the job of a deleted project report, so it neither renders nor
+   * holds the shared worker. A job already rendering is locked and cannot be
+   * removed: the worker then stops at its next re-read of the report. Throws
+   * what BullMQ throws; callers treat it as best effort.
+   */
+  async removeReportJob(reportId: string): Promise<void> {
+    await this.reportsQueue.remove(`report-${reportId}`);
+  }
+
+  /** The same for an aggregated (org / team / batch) report. */
+  async removeAggregatedReportJob(reportId: string): Promise<void> {
+    await this.aggregatedReportsQueue.remove(`aggregated-report-${reportId}`);
+  }
+
+  /**
    * Enqueue an async AGGREGATED-report generation job (org / team / batch).
    *
    * Mirrors addReportJob: the jobId is derived from the reportId so BullMQ
@@ -1551,8 +1682,20 @@ return 0
    * The jobId is derived from the scanId, so a repeated ImportResults call
    * collapses into the job already queued (BullMQ answers the existing job).
    * No automatic retry: the processor ends the scan itself, completed or
-   * failed, through CompleteImportScan. Priority 1, the highest: a user is
-   * waiting on it.
+   * failed, through CompleteImportScan.
+   *
+   * The queue is shared by every organization of the instance and BullMQ
+   * serves the lowest priority number first. Each job gets a turn
+   * (RESERVE_RESULTS_IMPORT_TURN, one atomic step with the cap below):
+   * max(the turn being served, the organization's next turn) + 1. An
+   * organization with a backlog therefore gets one file in every round,
+   * whatever the other organizations keep sending, and its own files keep
+   * the order in which they were sent.
+   *
+   * A file a user sent (no `containerId`) is refused with RESOURCE_EXHAUSTED
+   * when its organization already has maxWaitingImportsPerOrg() of them
+   * waiting; the files of the instance's own scans are only ordered, never
+   * refused.
    */
   async addResultsImportJob(data: ResultsImportJobData): Promise<string> {
     // One job per scan, or per scanner container of a Community cluster scan.
@@ -1560,19 +1703,127 @@ return 0
       data.containerId !== undefined
         ? `results-import-${data.scanId}-${data.containerId}`
         : `results-import-${data.scanId}`;
-    const job = await this.resultsImportQueue.add('import-results', data, {
+    // A repeated call answers the job already there, untouched.
+    const existing = await this.resultsImportQueue.getJob(jobId);
+    if (existing) return existing.id!;
+
+    const userImport = data.containerId === undefined;
+    const turn = await this.reserveResultsImportTurn(
+      data.organizationId,
       jobId,
-      attempts: 1,
-      priority: 1,
-      removeOnComplete: { age: 3600 },
-      removeOnFail: { age: 86400 },
-    });
+      userImport,
+    );
+    if (turn === null) {
+      throw new RpcException({
+        code: status.RESOURCE_EXHAUSTED,
+        message:
+          'IMPORT_QUEUE_FULL: too many imports are waiting for this organization. Try again once some of them are processed.',
+      });
+    }
+    let addedId: string;
+    try {
+      const job = await this.resultsImportQueue.add('import-results', data, {
+        jobId,
+        attempts: 1,
+        priority: Math.min(turn, BULLMQ_MAX_PRIORITY),
+        removeOnComplete: { age: 3600 },
+        removeOnFail: { age: 86400 },
+      });
+      addedId = job.id!;
+      if (userImport) {
+        await this.markResultsImportPlaceQueued(data.organizationId, jobId);
+      }
+    } catch (err) {
+      if (userImport) {
+        await this.releaseResultsImportPlace(data.organizationId, jobId);
+      }
+      throw err;
+    }
 
     this.logger.log(
-      `[Results Import Queue] Added job ${job.id} scan=${data.scanId} project=${data.projectId} type=${data.category}`,
+      `[Results Import Queue] Added job ${addedId} scan=${data.scanId} project=${data.projectId} type=${data.category} turn=${turn}`,
     );
 
-    return job.id!;
+    return addedId;
+  }
+
+  private resultsImportFairKey(part: string): string {
+    return this.resultsImportQueue.toKey(`fair:${part}`);
+  }
+
+  /**
+   * Run RESERVE_RESULTS_IMPORT_TURN: the job's turn, or null when a user
+   * import is refused because its organization is at the cap.
+   */
+  private async reserveResultsImportTurn(
+    organizationId: string,
+    jobId: string,
+    userImport: boolean,
+  ): Promise<number | null> {
+    // BullMQ's connection is an ioredis client.
+    const client = (await this.resultsImportQueue.client) as unknown as Redis;
+    const keys = this.resultsImportQueue.keys;
+    const result = await client.eval(
+      RESERVE_RESULTS_IMPORT_TURN,
+      8,
+      keys.prioritized,
+      keys.wait,
+      keys.delayed,
+      keys.paused,
+      this.resultsImportFairKey('turn'),
+      this.resultsImportFairKey('maxturn'),
+      this.resultsImportFairKey('next'),
+      this.resultsImportFairKey(`waiting:${organizationId}`),
+      organizationId,
+      jobId,
+      userImport ? '1' : '0',
+      String(maxWaitingImportsPerOrg()),
+      String(Date.now()),
+      String(RESULTS_IMPORT_RESERVATION_GRACE_MS),
+      String(this.resultsImportTurnRebaseAt ?? RESULTS_IMPORT_TURN_REBASE_AT),
+      this.resultsImportQueue.toKey(''),
+    );
+    const turn = Number(result);
+    return turn < 0 ? null : turn;
+  }
+
+  /**
+   * The job is in the queue now: its place counts while it waits there and
+   * no longer by its grace period (score 0), so it is freed as soon as the
+   * worker takes it.
+   */
+  private async markResultsImportPlaceQueued(
+    organizationId: string,
+    jobId: string,
+  ): Promise<void> {
+    try {
+      // BullMQ's connection is an ioredis client.
+      const client = (await this.resultsImportQueue.client) as unknown as Redis;
+      await client.zadd(
+        this.resultsImportFairKey(`waiting:${organizationId}`),
+        'XX',
+        0,
+        jobId,
+      );
+    } catch {
+      // The place is freed anyway once its grace period is over.
+    }
+  }
+
+  private async releaseResultsImportPlace(
+    organizationId: string,
+    jobId: string,
+  ): Promise<void> {
+    try {
+      // BullMQ's connection is an ioredis client.
+      const client = (await this.resultsImportQueue.client) as unknown as Redis;
+      await client.zrem(
+        this.resultsImportFairKey(`waiting:${organizationId}`),
+        jobId,
+      );
+    } catch {
+      // The place is freed anyway once its grace period is over.
+    }
   }
 
   /**

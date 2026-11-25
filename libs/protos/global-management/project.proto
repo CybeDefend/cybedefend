@@ -198,7 +198,7 @@ message ProjectInformationsResponse {
   bool isGithubLinked = 39;
   // Indicates if the project is linked to a GitLab repository
   bool isGitlabLinked = 40;
-  // List of branches for which issues should be created. Empty means all branches.
+  // Branches for which GitHub/GitLab issues are created. Empty: none is created.
   repeated string issueCreationBranches = 41;
   // Replaced legacy `double riskScore = 42;` and `string riskLevel = 43;`
   // with the CybeRisk score — an unbounded sum of per-vuln CVSS-based points,
@@ -300,7 +300,7 @@ message ProjectCreateRequest {
   optional bool gitlabIssueEnabled = 9;
   // Issue creation mode: per_vulnerability, per_vulnerability_type, per_file
   optional string issueCreationMode = 10;
-  // List of branches for which issues should be created. Empty means all branches.
+  // Branches for which GitHub/GitLab issues are created. Empty: none is created.
   repeated string issueCreationBranches = 11;
   // Optional security context to apply at creation time (2-step wizard).
   // When omitted, conservative defaults are applied (isCustomized=false).
@@ -429,7 +429,9 @@ message ProjectUpdateRequest {
   repeated string agentCategoriesSast = 27;
   // Full replacement list of active IAC agent vulnerability category names. If provided must be >=1 and all valid.
   repeated string agentCategoriesIac = 28;
-  // Full replacement list of active CICD agent vulnerability category names. If provided must be >=1 and all valid.
+  // Full replacement list of active CICD agent vulnerability category names.
+  // A repeated field cannot tell "absent" from "empty", so an empty list means
+  // "no change"; to disable the CICD agent analysis, set clearAgentCategoriesCicd.
   repeated string agentCategoriesCicd = 48;
   // Source type of the last scan (manual, cli, github, gitlab)
   optional string lastScanSourceType = 29;
@@ -439,8 +441,14 @@ message ProjectUpdateRequest {
   optional bool gitlabIssueEnabled = 31;
   // Issue creation mode: per_vulnerability, per_vulnerability_type, per_file
   optional string issueCreationMode = 32;
-  // List of branches for which issues should be created. Empty means all branches.
+  // Replacement list of the branches for which GitHub/GitLab issues are
+  // created. A repeated field cannot tell "absent" from "empty", so an empty
+  // list means "no change"; to clear the list, set clearIssueCreationBranches.
   repeated string issueCreationBranches = 33;
+  // Clear the issue-creation branches. With no branch configured, no GitHub or
+  // GitLab issue is created. Only a caller allowed to change the project's
+  // settings sets it; issueCreationBranches is ignored when it is true.
+  bool clearIssueCreationBranches = 53;
   // Reference branch for statistics filtering. Only vulnerabilities from this branch are counted.
   optional string referenceBranch = 34;
   // Enable reachability-based priority adjustment for SCA vulnerabilities
@@ -472,6 +480,10 @@ message ProjectUpdateRequest {
   // Trigger an automatic scan on every commit pushed to the monitored branch of
   // the linked GitHub/GitLab repository.
   optional bool scanOnCommitEnabled = 52;
+  // Disable the CICD agent analysis (clear agentCategoriesCicd). Only a caller
+  // allowed to change the project's settings sets it; agentCategoriesCicd is
+  // ignored when it is true.
+  bool clearAgentCategoriesCicd = 54;
   reserved 21, 22, 23, 26, 49, 51;
   reserved "aiMergeRequestEnabled", "improvingResultsEnabled", "sortsVulnerabilitiesEnabled", "securityChampionEnabled", "aibomEnabled", "vibedefend_enabled";
 }

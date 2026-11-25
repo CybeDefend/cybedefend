@@ -36,7 +36,7 @@ import {
  * had no ORDER BY (the members came in the order of the index the plan used),
  * so pages are compared as a whole: the same members and roles over all pages,
  * the same totals; the new order is checked on its own (user id, then
- * membership id: the order of IDX_uom_org_user / IDX_tm_team_user).
+ * membership id: the order of UQ_uom_org_user / UQ_tm_team_user).
  *
  * `totalUsers` of GetMembers is read by billing as the organization's member
  * count (CountMembersInOrganization gives the same figure): it must equal

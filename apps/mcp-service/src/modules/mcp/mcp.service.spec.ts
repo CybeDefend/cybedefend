@@ -61,6 +61,7 @@ import { PromptRegistry } from './prompts/registry';
 import { InMemorySessionStore } from './session/session.store';
 import { SESSION_STORE } from './session/session-store.interface';
 import { ToolRegistry } from './tools/registry';
+import { UNTRUSTED_DATA_NOTICE } from './shared/mcp-server.factory';
 
 describe('McpService', () => {
   let svc: McpService;
@@ -185,7 +186,10 @@ describe('McpService', () => {
       params: { name: 'str-tool', arguments: {} },
     })) as { isError?: boolean; content: { type: string; text: string }[] };
     expect(strResult.isError).toBeUndefined();
-    expect(strResult.content).toEqual([{ type: 'text', text: 'hello world' }]);
+    expect(strResult.content).toEqual([
+      { type: 'text', text: '"hello world"' },
+      { type: 'text', text: UNTRUSTED_DATA_NOTICE },
+    ]);
 
     const objResult = (await callHandler({
       params: { name: 'obj-tool', arguments: {} },
@@ -196,6 +200,7 @@ describe('McpService', () => {
         type: 'text',
         text: JSON.stringify({ ok: true, items: [1, 2] }, null, 2),
       },
+      { type: 'text', text: UNTRUSTED_DATA_NOTICE },
     ]);
   });
 

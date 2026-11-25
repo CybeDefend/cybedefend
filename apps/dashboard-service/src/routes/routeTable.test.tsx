@@ -4,6 +4,9 @@ import type { ReactElement, ReactNode } from 'react';
 import { appRouteTable } from '@/App';
 import type { Edition } from '@/edition/edition';
 import { communitySignInRedirect, isCommunityPublicPath, loginPath } from './communityAuthRoutes';
+import { activeEeRoutes } from '@/edition/active';
+import RouteIdGuard from '@/components/molecules/routing/RouteIdGuard';
+import { flatRoutes, missingIdGuards } from '@/test/routeIdGuards';
 
 /** App's route table for an edition, as route objects. */
 const routeTable = (edition: Edition): RouteObject[] =>
@@ -122,5 +125,50 @@ describe('communitySignInRedirect', () => {
 
   it.each(['/', '//evil.com', '/\\evil.com', 'https://evil.com'])('drops a returnTo of %j', (path) => {
     expect(communitySignInRedirect(path, closed)).toBe('/login');
+  });
+});
+
+/**
+ * A project page reads its project id from the address bar and puts it in
+ * request paths: every AppSec project route checks it is a UUID first.
+ */
+describe('the project id guard', () => {
+  const hasProjectIdGuard = (element: ReactElement | undefined): boolean => {
+    let current = element as ReactElement<{ children?: ReactNode }> | undefined;
+    while (current) {
+      const type = current.type as { displayName?: string; name?: string } | string;
+      const name = typeof type === 'string' ? type : (type.displayName ?? type.name);
+      if (name === 'ProjectIdGuard') return true;
+      const child = current.props?.children;
+      current =
+        child && typeof child === 'object' && !Array.isArray(child)
+          ? (child as ReactElement<{ children?: ReactNode }>)
+          : undefined;
+    }
+    return false;
+  };
+
+  it.each(['community', 'cloud'] as const)('%s guards every route that takes an id from the address bar', (edition) => {
+    // The edition's own routes are checked by the edition's own test.
+    const editionPaths = new Set(activeEeRoutes(edition).map((route) => route.path));
+    const unguarded = flatRoutes(routeTable(edition))
+      .filter((route) => route.path && !editionPaths.has(route.path))
+      .flatMap((route) => missingIdGuards(route.path as string, route.element as ReactElement | undefined));
+    expect(unguarded).toEqual([]);
+  });
+
+  it('fails for a route with an id and no guard', () => {
+    expect(missingIdGuards('/team/:teamId', <p />)).toEqual(['/team/:teamId (teamId)']);
+    expect(missingIdGuards('/team/:teamId', <RouteIdGuard params={['teamId']} fallback="/">{<p />}</RouteIdGuard>)).toEqual([]);
+  });
+
+  it.each(['community', 'cloud'] as const)('%s guards every AppSec project page', (edition) => {
+    const tabs = ['sast', 'iac', 'cicd', 'secret', 'sca', 'container', 'reports', 'settings', 'compliance', ''];
+    for (const tab of tabs) {
+      const path = `/appsec/project/x${tab ? `/${tab}` : ''}`;
+      const matches = matchRoutes(routeTable(edition), path);
+      const element = matches?.[matches.length - 1].route.element as ReactElement | undefined;
+      expect(hasProjectIdGuard(element), path).toBe(true);
+    }
   });
 });

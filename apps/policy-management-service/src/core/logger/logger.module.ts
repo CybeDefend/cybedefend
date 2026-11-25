@@ -1,5 +1,5 @@
 import { LoggerModule as PinoLoggerModule } from 'nestjs-pino';
-import { createLoggerOptions } from './logger';
+import { createHttpLoggerOptions, createLoggerOptions } from './logger';
 import { Module, RequestMethod } from '@nestjs/common';
 import { fetchOtelIngestToken } from './otel-token-fetcher';
 import Pino from 'pino';
@@ -17,10 +17,7 @@ import Pino from 'pino';
           createLoggerOptions({ otelIngestToken: otelToken }),
         );
         return {
-          pinoHttp: {
-            logger: loggerInstance,
-            autoLogging: false,
-          },
+          pinoHttp: createHttpLoggerOptions(loggerInstance),
           exclude: [{ method: RequestMethod.ALL, path: 'health' }],
         };
       },

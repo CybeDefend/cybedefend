@@ -672,6 +672,27 @@ describe('FileService', () => {
         } as any),
       ).rejects.toMatchObject({ error: { code: status.INVALID_ARGUMENT } });
     });
+
+    it('answers a storage failure with a stable message, never the SDK error’s text', async () => {
+      const s = await buildService();
+      (
+        jest.spyOn(s['s3Client']!, 'send') as unknown as jest.Mock
+      ).mockRejectedValue(
+        new Error('AccessDenied on private-bucket-7c/reports/p1/r.pdf'),
+      );
+
+      const thrown = await s
+        .deleteReportObject({
+          objectPath: 'reports/p1/r.pdf',
+          projectId: 'p1',
+        } as any)
+        .catch((e: { getError: () => unknown }) => e.getError());
+
+      expect(thrown).toEqual({
+        code: status.INTERNAL,
+        message: 'Failed to delete report object',
+      });
+    });
   });
 
   describe('isFileReady (S3)', () => {
@@ -1519,9 +1540,9 @@ describe('FileService', () => {
   });
 
   // -------------------------------------------------------------------------
-  // validateZipFile — encrypted ZIP rejection
+  // openUploadedArchive — encrypted ZIP rejection
   // -------------------------------------------------------------------------
-  describe('validateZipFile (encrypted ZIP rejection)', () => {
+  describe('openUploadedArchive (encrypted ZIP rejection)', () => {
     let validateService: FileService;
     let tmpDir: string;
 
@@ -1535,6 +1556,12 @@ describe('FileService', () => {
       'LTsIrxgAAAAMAAAAUEsBAh4DCgAJAAAAnHGqXC07CK8YAAAADAAAAAoAGAAAAAAA' +
       'AQAAAKSBAAAAAHNlY3JldC50eHRVVAUAA0d2AGp1eAsAAQT1AQAABAAAAABQSwUG' +
       'AAAAAAEAAQBQAAAAbAAAAAAA';
+    const LIMITS = {
+      maxArchiveBytes: 1024 ** 3,
+      maxEntries: 1000,
+      maxEntryBytes: 1024 ** 3,
+      maxTotalBytes: 1024 ** 3,
+    };
 
     beforeEach(async () => {
       tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fms-enc-'));
@@ -1570,7 +1597,7 @@ describe('FileService', () => {
       // The promise must reject — NOT throw asynchronously through a stream
       // 'error' event that escapes the surrounding try/catch.
       await expect(
-        validateService['validateZipFile'](encZip),
+        validateService['openUploadedArchive'](encZip, LIMITS),
       ).rejects.toMatchObject({
         code: 'ARCHIVE_ENCRYPTED',
         message: expect.stringMatching(/password-protected/),
@@ -1584,8 +1611,15 @@ describe('FileService', () => {
         'package.json': '{"name":"t"}',
       });
 
-      const result = await validateService['validateZipFile'](plainZip);
-      expect(result).toBe(true);
+      const zip = await validateService['openUploadedArchive'](
+        plainZip,
+        LIMITS,
+      );
+      expect(zip.entries.map((e) => e.name).sort()).toEqual([
+        'package.json',
+        'src/app.ts',
+      ]);
+      zip.close();
     });
 
     it('rejects when ANY entry is encrypted in a mixed ZIP', async () => {
@@ -1601,7 +1635,7 @@ describe('FileService', () => {
       );
 
       await expect(
-        validateService['validateZipFile'](encZip),
+        validateService['openUploadedArchive'](encZip, LIMITS),
       ).rejects.toThrow();
     });
   });
@@ -1758,6 +1792,20 @@ describe('FileService — diff scan upload', () => {
       await expect(
         validateZip({ '.git/config': 'x', 'src/app.py': 'x' }),
       ).rejects.toBeDefined();
+    });
+
+    it('answers an unreadable archive with a stable message, never the reader’s error', async () => {
+      const zipPath = path.join(tmpDir, 'not-a-zip.zip');
+      await fs.promises.writeFile(zipPath, 'this is not an archive');
+
+      const thrown = await (service as any)
+        .readDiffZipEntries(zipPath, CAPS)
+        .catch((e: { getError: () => unknown }) => e.getError());
+
+      expect(thrown).toEqual({
+        code: status.INVALID_ARGUMENT,
+        message: 'Unreadable diff archive',
+      });
     });
 
     it('rejects when the aggregate decompressed size exceeds the cap (zip-bomb guard)', async () => {

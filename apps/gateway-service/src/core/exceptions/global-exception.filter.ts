@@ -15,6 +15,18 @@ import {
 import { redactUrlSecrets } from '../utils/redact-url-secrets.util';
 import { retryAfterSeconds } from '../http/upstream-error';
 import { fixedErrorBodyFor } from './fixed-error-bodies';
+import { serializeLoggedError } from '../logger/logged-error';
+
+/** What the client reads for an error no code path meant to answer. */
+export const UNEXPECTED_ERROR_MESSAGE = 'An unexpected error occurred';
+
+/**
+ * A gRPC UNKNOWN is what a service answers for an error it let escape: its
+ * detail is that error's own text, not a message meant for the client.
+ */
+function isUnexpectedGrpcError(code: unknown): boolean {
+  return code === 2;
+}
 
 /**
  * Standard error response structure
@@ -66,12 +78,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     const errorResponse = this.buildErrorResponse(exception, path);
 
-    // Log the error with appropriate level
+    // Log the error with appropriate level. A 5xx is logged through the
+    // serializer: its code, constraint and stack, never a statement's values.
     if (errorResponse.statusCode >= 500) {
-      this.logger.error(
-        `[${errorResponse.statusCode}] ${errorResponse.message}`,
-        exception instanceof Error ? exception.stack : undefined,
-      );
+      this.logger.error({
+        err:
+          exception instanceof Error
+            ? serializeLoggedError(exception)
+            : { code: (exception as { code?: unknown } | null)?.code },
+        msg: `[${errorResponse.statusCode}] ${errorResponse.message} - ${path}`,
+      });
     } else if (errorResponse.statusCode >= 400) {
       this.logger.warn(
         `[${errorResponse.statusCode}] ${errorResponse.message} - ${path}`,
@@ -218,10 +234,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         };
       }
 
+      // An unexpected error's own text (a statement's error quotes the value
+      // it refused) stays in the logs: the client gets a fixed message.
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         error: 'Internal Server Error',
-        message: exception.message || 'An unexpected error occurred',
+        message: UNEXPECTED_ERROR_MESSAGE,
         timestamp,
         path,
       };
@@ -273,9 +291,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // sniffing: a 500 INTERNAL whose detail happens to contain
       // "unauthorized" must stay a 500, not flip to 401.
       const grpcCode = errorObj.code as number;
-      const message = (errorObj.message ||
-        errorObj.details ||
-        'gRPC error') as string;
+      const message = isUnexpectedGrpcError(grpcCode)
+        ? UNEXPECTED_ERROR_MESSAGE
+        : ((errorObj.message || errorObj.details || 'gRPC error') as string);
       const httpStatus = this.grpcToHttpStatus(grpcCode);
 
       return {
@@ -350,9 +368,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     const grpcCode = error.code as number;
-    const message = (error.details ||
-      error.message ||
-      'Service error') as string;
+    const message = isUnexpectedGrpcError(grpcCode)
+      ? UNEXPECTED_ERROR_MESSAGE
+      : ((error.details || error.message || 'Service error') as string);
     // The numeric code is the only signal we honour. The message
     // is still forwarded so operators see the upstream detail.
     const httpStatus = this.grpcToHttpStatus(grpcCode);

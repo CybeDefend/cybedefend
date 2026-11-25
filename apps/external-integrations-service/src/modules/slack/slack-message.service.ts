@@ -5,6 +5,7 @@ import {
   publicAppUrl,
 } from '../../core/config/public-app-url';
 import { isCommunityEdition } from '../../edition/edition';
+import { slackCode, slackText } from './slack-text';
 
 interface SlackBlock {
   type: string;
@@ -61,16 +62,20 @@ export class SlackMessageService {
     notificationType: string,
     payload: Record<string, unknown>,
   ): string {
-    const projectName = (payload.projectName as string) || 'Unknown project';
+    // Slack renders this text as mrkdwn too (notifications, clients without
+    // blocks): every inserted value is escaped like in the blocks.
+    const projectName = slackText(
+      (payload.projectName as string) || 'Unknown project',
+    );
     switch (notificationType) {
       case 'zero_day_alert':
-        return `Zero-day alert for ${projectName}: ${payload.count} new vulnerabilities detected`;
+        return `Zero-day alert for ${projectName}: ${slackText(payload.count)} new vulnerabilities detected`;
       case 'weekly_report':
         return `Weekly security report for ${projectName}`;
       case 'monthly_report':
         return `Monthly security report for ${projectName}`;
       case 'scan_complete':
-        return `Scan completed for ${projectName}: ${payload.total} vulnerabilities found`;
+        return `Scan completed for ${projectName}: ${slackText(payload.total)} vulnerabilities found`;
       default:
         return `CybeDefend notification for ${projectName}`;
     }
@@ -105,14 +110,14 @@ export class SlackMessageService {
     const scannerLabels = scannerType
       ? scannerType
           .split(',')
-          .map((s) => s.trim().toUpperCase())
+          .map((s) => slackText(s.trim().toUpperCase()))
           .join(' · ')
       : '';
 
     // Build context line: branch + scanners
     const contextParts: string[] = [];
     if (branch) {
-      contextParts.push(`\`${branch}\``);
+      contextParts.push(slackCode(branch));
     }
     if (scannerLabels) {
       contextParts.push(scannerLabels);
@@ -130,7 +135,7 @@ export class SlackMessageService {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${projectName}*${contextParts.length ? '  —  ' + contextParts.join('  ·  ') : ''}`,
+          text: `*${slackText(projectName)}*${contextParts.length ? '  —  ' + contextParts.join('  ·  ') : ''}`,
         },
       },
     ];
@@ -138,17 +143,19 @@ export class SlackMessageService {
     if (total > 0) {
       // Compact severity on one line with colored circle emojis
       const severityParts = [
-        critical > 0 ? `:red_circle: *${critical}* critical` : null,
-        high > 0 ? `:large_orange_circle: *${high}* high` : null,
-        medium > 0 ? `:large_yellow_circle: *${medium}* medium` : null,
-        low > 0 ? `:large_blue_circle: *${low}* low` : null,
+        critical > 0 ? `:red_circle: *${slackText(critical)}* critical` : null,
+        high > 0 ? `:large_orange_circle: *${slackText(high)}* high` : null,
+        medium > 0
+          ? `:large_yellow_circle: *${slackText(medium)}* medium`
+          : null,
+        low > 0 ? `:large_blue_circle: *${slackText(low)}* low` : null,
       ].filter(Boolean);
 
       blocks.push({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${total}* ${total === 1 ? 'vulnerability' : 'vulnerabilities'} found`,
+          text: `*${slackText(total)}* ${total === 1 ? 'vulnerability' : 'vulnerabilities'} found`,
         },
       });
 
@@ -168,7 +175,8 @@ export class SlackMessageService {
       );
       if (activeTypes.length > 1) {
         const typeParts = activeTypes.map(
-          ([type, count]) => `${type.toUpperCase()}: ${count}`,
+          ([type, count]) =>
+            `${slackText(type.toUpperCase())}: ${slackText(count)}`,
         );
         blocks.push({
           type: 'context',
@@ -232,7 +240,7 @@ export class SlackMessageService {
       ),
     ).sort();
 
-    const headerText = `:rotating_light:  *Zero-Day Vulnerability Alert*\n*${count} new ${count === 1 ? 'vulnerability' : 'vulnerabilities'}* detected in *${projectName}*`;
+    const headerText = `:rotating_light:  *Zero-Day Vulnerability Alert*\n*${slackText(count)} new ${count === 1 ? 'vulnerability' : 'vulnerabilities'}* detected in *${slackText(projectName)}*`;
 
     const blocks: SlackBlock[] = [
       {
@@ -245,7 +253,7 @@ export class SlackMessageService {
     ];
 
     if (affectedBranches.length > 0) {
-      const branchList = affectedBranches.map((b) => `\`${b}\``).join('  ·  ');
+      const branchList = affectedBranches.map(slackCode).join('  ·  ');
       blocks.push({
         type: 'context',
         elements: [
@@ -262,22 +270,22 @@ export class SlackMessageService {
     for (const vuln of vulnerabilities.slice(0, 5)) {
       const severity = ((vuln.severity as string) || 'unknown').toUpperCase();
       const severityEmoji = this.getSeverityEmoji(severity);
-      const cvssText = vuln.cvss ? `  ·  CVSS ${vuln.cvss}` : '';
+      const cvssText = vuln.cvss ? `  ·  CVSS ${slackText(vuln.cvss)}` : '';
       const packageName = (vuln.packageName as string) || '';
       const version = (vuln.version as string) || '';
       const branch = (vuln.branch as string) || '';
       const pkgLine =
         packageName && version
-          ? `\n\`${packageName}@${version}\``
+          ? `\n${slackCode(`${packageName}@${version}`)}`
           : packageName
-            ? `\n\`${packageName}\``
+            ? `\n${slackCode(packageName)}`
             : '';
-      const branchLine = branch ? `  ·  branch \`${branch}\`` : '';
+      const branchLine = branch ? `  ·  branch ${slackCode(branch)}` : '';
       blocks.push({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `${severityEmoji}  *${vuln.title || vuln.id}*\n${severity}${cvssText}${pkgLine}${branchLine}`,
+          text: `${severityEmoji}  *${slackText(vuln.title || vuln.id)}*\n${slackText(severity)}${cvssText}${pkgLine}${branchLine}`,
         },
       });
     }
@@ -348,7 +356,7 @@ export class SlackMessageService {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `:bar_chart:  *${period} Security Report*\n*${projectName}* — ${total} open ${total === 1 ? 'vulnerability' : 'vulnerabilities'}`,
+          text: `:bar_chart:  *${period} Security Report*\n*${slackText(projectName)}* — ${slackText(total)} open ${total === 1 ? 'vulnerability' : 'vulnerabilities'}`,
         },
       },
       { type: 'divider' },
@@ -357,19 +365,19 @@ export class SlackMessageService {
         fields: [
           {
             type: 'mrkdwn',
-            text: `:red_circle: Critical: *${severities.critical || 0}*`,
+            text: `:red_circle: Critical: *${slackText(severities.critical || 0)}*`,
           },
           {
             type: 'mrkdwn',
-            text: `:large_orange_circle: High: *${severities.high || 0}*`,
+            text: `:large_orange_circle: High: *${slackText(severities.high || 0)}*`,
           },
           {
             type: 'mrkdwn',
-            text: `:large_yellow_circle: Medium: *${severities.medium || 0}*`,
+            text: `:large_yellow_circle: Medium: *${slackText(severities.medium || 0)}*`,
           },
           {
             type: 'mrkdwn',
-            text: `:large_blue_circle: Low: *${severities.low || 0}*`,
+            text: `:large_blue_circle: Low: *${slackText(severities.low || 0)}*`,
           },
         ],
       },
@@ -378,7 +386,7 @@ export class SlackMessageService {
         elements: [
           {
             type: 'mrkdwn',
-            text: `*New:* ${payload.newCount || 0}  |  *Resolved:* ${payload.resolvedCount || 0}`,
+            text: `*New:* ${slackText(payload.newCount || 0)}  |  *Resolved:* ${slackText(payload.resolvedCount || 0)}`,
           },
         ],
       },
@@ -415,7 +423,9 @@ export class SlackMessageService {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: (payload.message as string) || 'CybeDefend notification',
+            text: slackText(
+              (payload.message as string) || 'CybeDefend notification',
+            ),
           },
         },
       ],

@@ -29,6 +29,7 @@ import { LocalAuthService } from './local-auth.service';
 import { LocalCredentialStore } from './local-credential.store';
 import { OneTimeTokenStore } from './one-time-token.store';
 import { PasswordHasher } from './password-hasher';
+import { PersonalAccessTokenStore } from './personal-access-token.store';
 import { RefreshTokenStore } from './refresh-token.store';
 import { SETUP_CLAIM_HASH, SetupService } from './setup.service';
 import { SigningKeyService } from './signing-key.service';
@@ -128,6 +129,7 @@ describeLive('SetupService on a real database', () => {
       issuer,
       refreshTokens,
       logger as unknown as Logger,
+      new PersonalAccessTokenStore(dataSource),
     );
     const accounts = new LocalAccountService(
       dataSource,

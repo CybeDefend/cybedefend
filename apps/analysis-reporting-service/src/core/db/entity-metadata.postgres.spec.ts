@@ -53,7 +53,7 @@ describe('core entity metadata on postgres', () => {
 
   it('no core column keeps a MySQL-only type', async () => {
     const { snapshot } = await open();
-    expect(new Set(snapshot.columns.map((c) => c.table)).size).toBe(32);
+    expect(new Set(snapshot.columns.map((c) => c.table)).size).toBe(33);
     const offenders = snapshot.columns
       .filter((c) => MYSQL_ONLY_TYPES.includes(c.type))
       .map((c) => `${c.table}.${c.property}: ${c.type}`);

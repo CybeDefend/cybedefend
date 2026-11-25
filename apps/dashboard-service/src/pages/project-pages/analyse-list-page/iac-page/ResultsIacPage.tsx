@@ -57,6 +57,7 @@ const ResultsIacPage: React.FC = () => {
     isLoadingBranches,
     isBranchResolved,
     projectName: pageDataProjectName,
+    loadedProjectId,
     integrationInfo,
     linkedGithubRepo,
     linkedGitlabRepo,
@@ -937,7 +938,7 @@ const ResultsIacPage: React.FC = () => {
 
       {showImport && projectId && (
         <ImportResultsDialog
-          projectId={projectId}
+          projectId={loadedProjectId ?? ""}
           defaultType="iac"
           defaultBranch={selectedBranch || defaultBranch || ''}
           onClose={() => setShowImport(false)}

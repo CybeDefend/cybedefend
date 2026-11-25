@@ -173,7 +173,11 @@ describe('TeamService', () => {
   });
 
   it('removeMember returns response', async () => {
-    const req: TeamRemoveUserRequest = { teamId: 't1', userId: 'u1' };
+    const req: TeamRemoveUserRequest = {
+      teamId: 't1',
+      userId: 'u1',
+      removedBy: 'u0',
+    };
     const res: TeamRemoveUserResponse = { message: 'removed' };
     grpcStub.removeMember.mockReturnValue(of(res) as any);
     await expect(service.removeMember(req)).resolves.toEqual(res);
@@ -184,6 +188,7 @@ describe('TeamService', () => {
       teamId: 't1',
       userId: 'u1',
       role: 'lead',
+      updatedBy: 'u0',
     };
     const res: UpdateTeamRoleResponse = { message: 'role updated' };
     grpcStub.updateMemberRole.mockReturnValue(of(res) as any);

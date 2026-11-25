@@ -1,9 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsNotEmpty,
   IsString,
-  Length,
   IsOptional,
   IsBoolean,
   IsIn,
@@ -11,14 +9,20 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import {
+  PROJECT_NAME_MAX_LENGTH,
+  ProjectNameRules,
+} from './project-name.rules';
 import { ProjectSecurityContextUpdateDto } from './project-security-context-update.dto';
 import { PRODUCT_KEYS } from 'src/core/products/products';
 
 export class ProjectCreateBodyDto {
-  @ApiProperty({ description: 'Name of the project', example: 'My Project' })
-  @IsNotEmpty()
-  @IsString()
-  @Length(0, 255)
+  @ApiProperty({
+    description: 'Name of the project, trimmed, from 1 to 255 characters',
+    example: 'My Project',
+    maxLength: PROJECT_NAME_MAX_LENGTH,
+  })
+  @ProjectNameRules()
   readonly name: string;
 
   @ApiProperty({
@@ -53,7 +57,7 @@ export class ProjectCreateBodyDto {
 
   @ApiProperty({
     description:
-      'List of branches for which issues should be created. Empty array or undefined means all branches.',
+      'Branches for which GitHub/GitLab issues are created. Empty or absent: no GitHub/GitLab issue is created until branches are configured.',
     example: ['main', 'develop'],
     required: false,
     type: [String],

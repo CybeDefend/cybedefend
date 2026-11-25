@@ -14,7 +14,10 @@ import {
 import { buildCorsOptions } from './core/config/cors.options';
 import { GlobalExceptionFilter } from './core/exceptions';
 import { GLOBAL_VALIDATION_PIPE_OPTIONS } from './core/validation/global-validation-pipe-options';
-import { trustedProxyCidrsFromEnv } from './core/trust-proxy/trust-proxy';
+import {
+  gatewayAdapterOptions,
+  registerUploadRoutesMultipartOnly,
+} from './core/http/body-limit';
 import { registerCompression } from './core/http/register-compression';
 import { registerMultipart } from './core/http/register-multipart';
 import { registerRouteTracing } from './core/http/route-tracing';
@@ -27,18 +30,15 @@ async function bootstrap() {
   dotenv.config();
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({
-      // Honor X-Forwarded-For only when the upstream hop sits inside
-      // `TRUSTED_PROXY_CIDRS` (the only name read). Without this, the
-      // rate-limit guards would either see the proxy IP for every caller
-      // (over-aggregating) or, with an unconditional `trustProxy: true`,
-      // take a client-supplied X-Forwarded-For as the throttler bucket key.
-      trustProxy: trustedProxyCidrsFromEnv(process.env),
-      // 50MB body limit, for the upload routes.
-      bodyLimit: 50 * 1024 * 1024,
-    }),
+    // Trusted proxies, and a 1 MiB body limit (body-limit.ts).
+    new FastifyAdapter(gatewayAdapterOptions(process.env)),
     { rawBody: true },
   );
+
+  // The upload routes take multipart only, refused before any parser
+  // otherwise. Same constraint as the hooks below: before app.init()
+  // declares the routes.
+  registerUploadRoutesMultipartOnly(app.getHttpAdapter().getInstance());
 
   // Register HTTP response compression FIRST so its onSend hook is wired
   // into the Fastify request pipeline before any other plugin or route

@@ -15,6 +15,7 @@ import { Organization } from '../../entities/organization.entity';
 import { Project } from '../../entities/project.entity';
 import { User } from '../../entities/user.entity';
 import { UserTeamMembership } from '../../entities/user-team-membership.entity';
+import { UserOrganizationMembership } from '../../entities/user-organization-membership.entity';
 
 import {
   TeamGetRequest,
@@ -47,6 +48,11 @@ import {
   membersPageCount,
   readMembersPage,
 } from '../organization/members-page';
+import { isUniqueViolation } from '@cybedefend/db-dialect';
+import {
+  withMembershipLock,
+  withMembershipLocks,
+} from '../authorization/membership-lock';
 
 /**
  * Whether `error` is the NOT_FOUND `AuthorizationService` throws for a user
@@ -62,6 +68,12 @@ function isNotFound(error: unknown): boolean {
     (details as { code?: unknown }).code === status.NOT_FOUND
   );
 }
+
+/** The organisation roles that may demote or remove a team manager. */
+const TEAM_MANAGER_OVERSEERS: ReadonlySet<string> = new Set([
+  'creator',
+  'administrator',
+]);
 
 @Injectable()
 export class TeamService {
@@ -84,6 +96,28 @@ export class TeamService {
     private readonly purgeRunner: DataPurgeRunner,
     @Optional() private readonly realtime?: RealtimeEventPublisher,
   ) {}
+
+  /**
+   * Whether `requesterId` may demote or remove a team manager of a team of
+   * `organizationId`: the organisation's creator and its administrators may,
+   * read from their membership of THAT organisation; another team manager,
+   * anyone else, or no requester named (an older gateway) may not.
+   */
+  private async mayManageTeamManagers(
+    organizationId: string | undefined,
+    requesterId: string | undefined,
+  ): Promise<boolean> {
+    if (!organizationId || !requesterId) return false;
+    const requester = await this.dataSource
+      .getRepository(UserOrganizationMembership)
+      .findOne({
+        where: {
+          organization: { id: organizationId },
+          user: { id: requesterId },
+        },
+      });
+    return TEAM_MANAGER_OVERSEERS.has(requester?.role);
+  }
 
   @Span()
   async getTeam(request: TeamGetRequest): Promise<TeamInformationsResponse> {
@@ -348,8 +382,26 @@ export class TeamService {
     return { message: 'Team deleted successfully' };
   }
 
+  /**
+   * Every add, role change and removal of one user in one team runs alone,
+   * across replicas, the membership read again under the lock (see
+   * withMembershipLock): two writes sent together could otherwise each read
+   * the membership, then leave a second row or a second team role behind.
+   */
   @Span()
   async addMember(
+    request: TeamAddMemberRequest,
+  ): Promise<TeamAddMemberResponse> {
+    return withMembershipLock(
+      this.dataSource,
+      'team',
+      request.teamId,
+      request.userId,
+      () => this.addMemberLocked(request),
+    );
+  }
+
+  private async addMemberLocked(
     request: TeamAddMemberRequest,
   ): Promise<TeamAddMemberResponse> {
     const { teamId, userId, role } = request;
@@ -395,11 +447,23 @@ export class TeamService {
       });
     }
 
-    const savedMembership = await this.membershipRepo.save({
-      team,
-      user,
-      role,
-    });
+    let savedMembership: UserTeamMembership;
+    try {
+      savedMembership = await this.membershipRepo.save({
+        team,
+        user,
+        role,
+      });
+    } catch (error) {
+      // The unique (teamId, userId) index: one row per member of a team.
+      if (isUniqueViolation(error)) {
+        throw new RpcException({
+          code: status.ALREADY_EXISTS,
+          message: 'User is already a member of this team',
+        });
+      }
+      throw error;
+    }
 
     try {
       await this.authorizationService.teamAddMember({
@@ -445,6 +509,18 @@ export class TeamService {
   async removeMember(
     request: TeamRemoveUserRequest,
   ): Promise<TeamRemoveUserResponse> {
+    return withMembershipLock(
+      this.dataSource,
+      'team',
+      request.teamId,
+      request.userId,
+      () => this.removeMemberLocked(request),
+    );
+  }
+
+  private async removeMemberLocked(
+    request: TeamRemoveUserRequest,
+  ): Promise<TeamRemoveUserResponse> {
     const { teamId, userId } = request;
     const membership = await this.membershipRepo.findOne({
       where: { team: { id: teamId }, user: { id: userId } },
@@ -462,7 +538,13 @@ export class TeamService {
         message: 'Cannot remove the last user from a team',
       });
     }
-    if (membership.role === 'team_manager') {
+    if (
+      membership.role === 'team_manager' &&
+      !(await this.mayManageTeamManagers(
+        membership.team.organization?.id,
+        request.removedBy,
+      ))
+    ) {
       throw new RpcException({
         code: status.PERMISSION_DENIED,
         message: 'Cannot remove a team manager',
@@ -513,6 +595,19 @@ export class TeamService {
    */
   @Span()
   async forceRemoveMember(request: {
+    teamId: string;
+    userId: string;
+  }): Promise<{ message: string }> {
+    return withMembershipLock(
+      this.dataSource,
+      'team',
+      request.teamId,
+      request.userId,
+      () => this.forceRemoveMemberLocked(request),
+    );
+  }
+
+  private async forceRemoveMemberLocked(request: {
     teamId: string;
     userId: string;
   }): Promise<{ message: string }> {
@@ -569,6 +664,15 @@ export class TeamService {
       return { message: 'No teams to remove user from', removedCount: 0 };
     }
 
+    return withMembershipLocks(this.dataSource, 'team', teamIds, userId, () =>
+      this.forceRemoveMemberFromTeamsLocked(userId, teamIds),
+    );
+  }
+
+  private async forceRemoveMemberFromTeamsLocked(
+    userId: string,
+    teamIds: string[],
+  ): Promise<{ message: string; removedCount: number }> {
     // Find all memberships for this user in the specified teams
     const memberships = await this.membershipRepo.find({
       where: {
@@ -644,6 +748,18 @@ export class TeamService {
   async updateMemberRole(
     request: UpdateTeamRoleRequest,
   ): Promise<UpdateTeamRoleResponse> {
+    return withMembershipLock(
+      this.dataSource,
+      'team',
+      request.teamId,
+      request.userId,
+      () => this.updateMemberRoleLocked(request),
+    );
+  }
+
+  private async updateMemberRoleLocked(
+    request: UpdateTeamRoleRequest,
+  ): Promise<UpdateTeamRoleResponse> {
     const { teamId, userId, role } = request;
     const membership = await this.membershipRepo.findOne({
       where: { team: { id: teamId }, user: { id: userId } },
@@ -655,7 +771,13 @@ export class TeamService {
         message: 'Membership not found',
       });
     }
-    if (membership.role === 'team_manager') {
+    if (
+      membership.role === 'team_manager' &&
+      !(await this.mayManageTeamManagers(
+        membership.team.organization?.id,
+        request.updatedBy,
+      ))
+    ) {
       throw new RpcException({
         code: status.PERMISSION_DENIED,
         message: 'Cannot modify a team manager role',

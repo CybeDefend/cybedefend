@@ -5,8 +5,16 @@ name: CLA
 # maintainer imports a pull request only once it has passed.
 #
 # pull_request_target runs with a write token, so this workflow never checks
-# out or runs code from the pull request: it has one step, the action, which
+# out or runs code from the pull request: its one step is the action, which
 # reads the pull request through the API only.
+#
+# Nobody is exempted by the name or the e-mail of a commit: both are whatever
+# the author typed. The only exemption is a pull request opened by the
+# dependency update account (Dependabot, account id 49699333), told by the
+# numeric id of the account that opened it, which nobody else can take. For it
+# the signing step is skipped and the one CLA check passes. The id is read
+# where each event puts the author of the pull request; an event without it
+# compares unequal, so the signing step runs.
 
 on:
   issue_comment:
@@ -33,6 +41,9 @@ jobs:
          github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA'))
     steps:
       - name: CLA Assistant
+        if: >-
+          (github.event_name != 'pull_request_target' || github.event.pull_request.user.id != 49699333) &&
+          (github.event_name != 'issue_comment' || github.event.issue.user.id != 49699333)
         uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,5 +51,4 @@ jobs:
           path-to-signatures: signatures/version1/cla.json
           path-to-document: https://github.com/CybeDefend/cybedefend/blob/main/CLA.md
           branch: cla-signatures
-          allowlist: dependabot[bot],github-actions[bot]
           custom-pr-sign-comment: I have read the CLA Document and I hereby sign the CLA

@@ -10,7 +10,6 @@ import {
   DEFAULT_ZIP_LIMITS,
   InflateMeter,
   ZipLimits,
-  assertZipWithinLimits,
   COMMUNITY_SCANNER_ARCHIVE_LIMITS,
   exceedsEntryLimit,
   forwardedZipLimits,
@@ -18,6 +17,20 @@ import {
   scannerArchiveLimits,
 } from './zip-limits.util';
 import { lieAboutSizes, writeZip } from 'src/test-utils/zip-fixtures';
+import { openCheckedZip } from './zip-archive.util';
+
+/** The archive's central directory checked against `limits`, as the filter reads it. */
+async function assertZipWithinLimits(
+  zipPath: string,
+  limits: ZipLimits,
+): Promise<{ entries: number; totalBytes: number }> {
+  const zip = await openCheckedZip(zipPath, limits);
+  try {
+    return { entries: zip.entries.length, totalBytes: zip.declaredTotalBytes };
+  } finally {
+    zip.close();
+  }
+}
 
 const SMALL: ZipLimits = {
   maxArchiveBytes: 1024 * 1024,
@@ -323,12 +336,12 @@ describe('zip limits', () => {
       );
     });
 
-    it('rejects a file that is not a ZIP with a plain error, not a limit error', async () => {
+    it('refuses a file that is not a ZIP as an invalid archive', async () => {
       const zip = path.join(dir, 'garbage.zip');
       await fs.promises.writeFile(zip, 'not a zip');
-      const err = await assertZipWithinLimits(zip, SMALL).catch((e) => e);
-      expect(err).toBeInstanceOf(Error);
-      expect(err).not.toBeInstanceOf(ArchiveLimitError);
+      await expect(codeOf(assertZipWithinLimits(zip, SMALL))).resolves.toBe(
+        'ARCHIVE_INVALID',
+      );
     });
 
     it('lets an archive lying about its sizes through: only the meter can see it', async () => {

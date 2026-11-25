@@ -22,6 +22,7 @@ import { VulnerabilityDetectionsContainer } from 'src/entities/container_vulnera
 import { SecretVulnerabilityDetections } from 'src/entities/secret-vulnerability-detections.entity';
 import { CicdVulnerabilityDetections } from 'src/entities/cicd-vulnerability-detections.entity';
 import { VulnerabilityOsv } from 'src/entities/osv';
+import { loadImportedAdvisories } from '../results-import/imported-advisory.view';
 
 const BATCH_SIZE = 500;
 // OSV ids are batched into the IN(...) clause so a tick that changed many
@@ -305,8 +306,16 @@ export class CvssRecalculationProcessor {
       },
     });
 
+    // A finding whose advisory the project imported keeps the CVSS its import
+    // declared: the catalogue row of the same id is not its source.
+    const imported = await loadImportedAdvisories(
+      this.scaRepo.manager,
+      projectId,
+      osvIds,
+    );
     const toSave: any[] = [];
     for (const det of detections) {
+      if (imported.has((det as any).vulnerability?.id)) continue;
       const base = this.deriveCvss4BaseFromOsvSeverities(
         (det as any).vulnerability?.severities,
       );
@@ -329,9 +338,19 @@ export class CvssRecalculationProcessor {
     osvIds: string[],
     context: SecurityContextForScoring,
   ): Promise<number> {
-    const detections = await this.containerRepo.find({
+    const found = await this.containerRepo.find({
       where: { projectId, vulnerabilityIdentifier: In(osvIds) },
     });
+    if (found.length === 0) return 0;
+    // An imported advisory's findings keep the CVSS their import declared.
+    const imported = await loadImportedAdvisories(
+      this.containerRepo.manager,
+      projectId,
+      osvIds,
+    );
+    const detections = found.filter(
+      (d: any) => !imported.has(d.vulnerabilityIdentifier),
+    );
     if (detections.length === 0) return 0;
 
     // Container detections carry only a `vulnerabilityIdentifier` string (no FK),

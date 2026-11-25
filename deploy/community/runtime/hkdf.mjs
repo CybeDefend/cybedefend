@@ -36,11 +36,12 @@ export const PACKAGING_KEYS = Object.freeze({
 });
 
 /**
- * The HKDF info of the key a gRPC caller signs with (hex): the same as
- * serviceAuthCommunityInfo() in src/core/service-auth/service-auth.edition.ts.
+ * The HKDF info of the key of one (caller, server) pair of the internal gRPC
+ * calls (hex): the same as serviceAuthCommunityPairInfo() in
+ * src/core/service-auth/service-auth.edition.ts.
  */
-export function serviceAuthInfo(caller) {
-  return `service-to-service-auth/${caller}`;
+export function serviceAuthPairInfo(caller, server) {
+  return `service-to-service-auth/${caller}/${server}`;
 }
 
 export class MasterKeyError extends Error {}

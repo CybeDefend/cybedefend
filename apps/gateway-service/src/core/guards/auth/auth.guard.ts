@@ -83,7 +83,10 @@ export class AuthGuard implements CanActivate, OnModuleInit {
   @Span()
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest() as Request & {
-      user?: RequestUser;
+      user?: RequestUser & {
+        /** The JWT's expiry, in seconds since the epoch; absent for a PAT. */
+        exp?: number;
+      };
     };
 
     const token = this.extractTokenFromHeader(request);
@@ -135,6 +138,9 @@ export class AuthGuard implements CanActivate, OnModuleInit {
         name: stringClaim(payload.name),
         picture: stringClaim(payload.picture),
         via: 'jwt',
+        // An event stream opened with this token closes when it expires
+        // (realtime-stream.factory.ts). jose has checked it is in the future.
+        ...(typeof payload.exp === 'number' ? { exp: payload.exp } : {}),
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {

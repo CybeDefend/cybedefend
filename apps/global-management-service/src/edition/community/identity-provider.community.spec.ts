@@ -1,3 +1,5 @@
+import { RpcException } from '@nestjs/microservices';
+import { status } from '@grpc/grpc-js';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import {
@@ -8,7 +10,10 @@ import { RefreshTokenStore } from 'src/modules/local-auth/refresh-token.store';
 import type { IdentityProviderPort } from '../ports/identity-provider.port';
 import { IDENTITY_PROVIDER_PORT } from '../ports/identity-provider.port';
 import { IDENTITY_PROVIDER_COMMUNITY_BINDINGS } from './identity-provider.binding';
-import { CommunityIdentityProvider } from './identity-provider.community';
+import {
+  CommunityIdentityProvider,
+  PAT_PASSWORD_REQUIRED_MESSAGE,
+} from './identity-provider.community';
 
 describe('CommunityIdentityProvider (IDENTITY_PROVIDER_PORT, community edition)', () => {
   let module: TestingModule;
@@ -144,37 +149,20 @@ describe('CommunityIdentityProvider (IDENTITY_PROVIDER_PORT, community edition)'
     expect(pats.list).toHaveBeenCalledWith('u1', expect.any(Date));
   });
 
-  it('returns the value once at creation', async () => {
-    const value = 'cdp_' + 'aB3-'.repeat(10) + 'aB3';
-    pats.create.mockResolvedValue({
-      pat: pat({ lastFour: value.slice(-4) }),
-      token: value,
+  it('refuses to create a token without the password: FAILED_PRECONDITION naming the route that asks for it', async () => {
+    const thrown = await port
+      .createPersonalAccessToken('u1', 'ci', 2_000)
+      .catch((e: unknown) => e);
+
+    expect(thrown).toBeInstanceOf(RpcException);
+    expect((thrown as RpcException).getError()).toEqual({
+      code: status.FAILED_PRECONDITION,
+      message: PAT_PASSWORD_REQUIRED_MESSAGE,
     });
-
-    const created = await port.createPersonalAccessToken('u1', 'ci', 2_000);
-
-    expect(created).toEqual({
-      name: 'ci',
-      value,
-      createdAt: 1_000,
-      expiresAt: 2_000,
-    });
-    // expiresAt arrives as an epoch-ms number (a string at runtime), 0/undefined = never.
-    expect(pats.create).toHaveBeenCalledWith(
-      'u1',
-      'ci',
-      new Date(2_000),
-      expect.any(Date),
+    expect(PAT_PASSWORD_REQUIRED_MESSAGE).toMatch(
+      /^PAT_PASSWORD_REQUIRED: .*POST \/me\/personal-access-tokens/,
     );
-
-    pats.create.mockResolvedValue({ pat: pat(), token: value });
-    await port.createPersonalAccessToken('u1', 'ci');
-    expect(pats.create).toHaveBeenLastCalledWith(
-      'u1',
-      'ci',
-      null,
-      expect.any(Date),
-    );
+    expect(pats.create).not.toHaveBeenCalled();
   });
 
   it('deletes, renames, counts and revokes through the store', async () => {

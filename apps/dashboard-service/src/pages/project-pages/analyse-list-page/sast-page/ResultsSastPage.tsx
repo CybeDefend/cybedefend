@@ -58,6 +58,7 @@ const ResultsSastPage: React.FC = () => {
     isLoadingBranches,
     isBranchResolved,
     projectName: pageDataProjectName,
+    loadedProjectId,
     integrationInfo,
     linkedGithubRepo,
     linkedGitlabRepo,
@@ -972,7 +973,7 @@ const ResultsSastPage: React.FC = () => {
 
       {showImport && projectId && (
         <ImportResultsDialog
-          projectId={projectId}
+          projectId={loadedProjectId ?? ""}
           defaultType="sast"
           defaultBranch={selectedBranch || defaultBranch || ''}
           onClose={() => setShowImport(false)}

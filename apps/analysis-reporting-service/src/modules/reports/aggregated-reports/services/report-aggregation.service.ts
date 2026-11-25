@@ -22,6 +22,24 @@ import {
 } from '../../../sca/license.utils';
 import { getEffectiveLicenses } from '../../../sca/spdx-expression.utils';
 import { getMinFixedAbove } from '../../../sca/sca.utils';
+import type { ImportedAdvisoryFix } from '../../../../entities/imported-advisory.entity';
+import {
+  applyImportedAdvisories,
+  catalogueAdvisoryIds,
+  cveOfFinding,
+  fixesOfFinding,
+  loadCatalogueCveAliases,
+  loadCatalogueFixes,
+} from '../../../results-import/imported-advisory.view';
+
+/** The package of an SCA finding, as the advisory reads compare it. */
+const scaPackageOf = (d: ScaVulnerabilityDetections) =>
+  d.scaDetectedPackage
+    ? {
+        packageName: d.scaDetectedPackage.packageName,
+        ecosystem: d.scaDetectedPackage.ecosystem,
+      }
+    : null;
 
 interface MappedVulnerability {
   id: string;
@@ -261,9 +279,12 @@ export class ReportAggregationService {
         `Failed to fetch team projects: ${error.message}`,
         error.stack,
       );
+      // The failed call stays the cause so a caller can still read its
+      // gRPC code (a missing team is not an outage).
       throw new HttpException(
         'Failed to fetch team projects',
         HttpStatus.INTERNAL_SERVER_ERROR,
+        { cause: error },
       );
     }
   }
@@ -502,7 +523,6 @@ export class ReportAggregationService {
         .createQueryBuilder('sca')
         .leftJoinAndSelect('sca.scaDetectedPackage', 'scaDetectedPackage')
         .leftJoinAndSelect('sca.vulnerability', 'vulnerability')
-        .leftJoinAndSelect('vulnerability.aliases', 'aliases')
         .where('sca.projectId IN (:...projectIds)', { projectIds })
         .getMany(),
       this.containerVulnDetectRepository
@@ -510,7 +530,6 @@ export class ReportAggregationService {
         .leftJoinAndSelect('container.detectedPackage', 'detectedPackage')
         .leftJoinAndSelect('container.detectedImage', 'detectedImage')
         .leftJoinAndSelect('container.vulnerability', 'vulnerability')
-        .leftJoinAndSelect('vulnerability.aliases', 'aliases')
         .where('container.projectId IN (:...projectIds)', { projectIds })
         .getMany(),
     ]);
@@ -518,8 +537,24 @@ export class ReportAggregationService {
     // Get project metadata
     const projectsMetadata = await this.getProjectsMetadata(projectIds);
     const projectMetaMap = new Map(projectsMetadata.map((p) => [p.id, p]));
+    // Each finding's imported advisory is read from its own project's row
+    // (one lookup for every project); the catalogue's CVE aliases and fixes
+    // are read once for the other advisories.
+    const manager = this.scaVulnDetectRepository.manager;
+    await applyImportedAdvisories(manager, scaVulns, scaPackageOf);
+    await applyImportedAdvisories(manager, containerVulns, (d) =>
+      d.detectedPackage
+        ? { packageName: d.detectedPackage.packageName, ecosystem: '' }
+        : null,
+    );
     const scaFixedVersions = await this.loadScaFixedVersions(
-      scaVulns.map((v) => v.vulnerability?.id).filter(Boolean),
+      catalogueAdvisoryIds(scaVulns.map((v) => v.vulnerability)),
+    );
+    const catalogueCves = await this.loadCatalogueCves(
+      catalogueAdvisoryIds([
+        ...scaVulns.map((v) => v.vulnerability),
+        ...containerVulns.map((v) => v.vulnerability),
+      ]),
     );
 
     // Map all vulnerabilities
@@ -534,13 +569,15 @@ export class ReportAggregationService {
         this.mapScaVulnerability(
           v,
           projectMetaMap.get(v.projectId)?.name,
-          scaFixedVersions.get(v.vulnerability?.id ?? '') ?? [],
+          fixesOfFinding(v.vulnerability, scaPackageOf(v), scaFixedVersions),
+          catalogueCves,
         ),
       ),
       ...containerVulns.map((v) =>
         this.mapContainerVulnerability(
           v,
           projectMetaMap.get(v.projectId)?.name,
+          catalogueCves,
         ),
       ),
     ];
@@ -709,43 +746,37 @@ export class ReportAggregationService {
    */
   private async loadScaFixedVersions(
     osvIds: string[],
-  ): Promise<Map<string, string[]>> {
-    const result = new Map<string, string[]>();
-    const ids = Array.from(new Set(osvIds));
-    if (!ids.length) return result;
+  ): Promise<Map<string, ImportedAdvisoryFix[]>> {
+    if (!osvIds.length) return new Map();
     try {
-      const rows: { osvId: string; fixedVersion: string | null }[] =
-        await this.scaVulnDetectRepository.manager
-          .createQueryBuilder()
-          .select('aff.vulnerabilityOsvId', 'osvId')
-          .addSelect('evt.fixed', 'fixedVersion')
-          .from('vulnerability_osv_affected', 'aff')
-          .innerJoin(
-            'vulnerability_osv_affected_range',
-            'rng',
-            'rng.affectedId = aff.id',
-          )
-          .innerJoin(
-            'vulnerability_osv_affected_event',
-            'evt',
-            'evt.rangeId = rng.id',
-          )
-          .where('aff.vulnerabilityOsvId IN (:...ids)', { ids })
-          .andWhere('evt.fixed IS NOT NULL')
-          .andWhere("evt.fixed <> ''")
-          .getRawMany();
-      for (const row of rows) {
-        if (!row.fixedVersion) continue;
-        const bucket = result.get(row.osvId) ?? [];
-        bucket.push(row.fixedVersion);
-        result.set(row.osvId, bucket);
-      }
+      return await loadCatalogueFixes(
+        this.scaVulnDetectRepository.manager,
+        osvIds,
+      );
     } catch (error) {
       this.logger.warn(
         `Aggregated report: SCA fixed versions unavailable (${(error as Error)?.message ?? error})`,
       );
+      return new Map();
     }
-    return result;
+  }
+
+  /** The catalogue's CVE alias of each advisory. Fail-soft. */
+  private async loadCatalogueCves(
+    osvIds: string[],
+  ): Promise<Map<string, string>> {
+    if (!osvIds.length) return new Map();
+    try {
+      return await loadCatalogueCveAliases(
+        this.scaVulnDetectRepository.manager,
+        osvIds,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Aggregated report: CVE aliases unavailable (${(error as Error)?.message ?? error})`,
+      );
+      return new Map();
+    }
   }
 
   /**
@@ -813,10 +844,8 @@ export class ReportAggregationService {
     vuln: ScaVulnerabilityDetections,
     projectName: string = 'Unknown',
     fixedVersions: string[] = [],
+    catalogueCves: ReadonlyMap<string, string> = new Map(),
   ): MappedVulnerability {
-    const cveAlias = vuln.vulnerability?.aliases?.find((a) =>
-      a.alias.startsWith('CVE-'),
-    );
     const installed = vuln.scaDetectedPackage?.packageVersion || '';
 
     return {
@@ -830,7 +859,7 @@ export class ReportAggregationService {
       packageName: vuln.scaDetectedPackage?.packageName || 'Unknown',
       packageVersion: installed || 'Unknown',
       fixedVersion: getMinFixedAbove(fixedVersions, installed) ?? '',
-      cve: cveAlias?.alias || '',
+      cve: cveOfFinding(vuln.vulnerability, catalogueCves),
       advisoryId: vuln.vulnerability?.id || '',
       withdrawn: vuln.vulnerability?.withdrawnAt != null,
       cwe: advisoryCwes(vuln.vulnerability?.databaseSpecific),
@@ -849,11 +878,8 @@ export class ReportAggregationService {
   private mapContainerVulnerability(
     vuln: VulnerabilityDetectionsContainer,
     projectName: string = 'Unknown',
+    catalogueCves: ReadonlyMap<string, string> = new Map(),
   ): MappedVulnerability {
-    const cveAlias = vuln.vulnerability?.aliases?.find((a) =>
-      a.alias.startsWith('CVE-'),
-    );
-
     return {
       id: vuln.id,
       type: 'container',
@@ -867,7 +893,7 @@ export class ReportAggregationService {
       // Installed-aware recommended fix (parity with the dashboard detail/list).
       fixedVersion: installedAwareContainerFix(vuln),
       cvssScore: vuln.cvssScore,
-      cve: cveAlias?.alias || '',
+      cve: cveOfFinding(vuln.vulnerability, catalogueCves),
       advisoryId: vuln.vulnerabilityIdentifier || '',
       withdrawn: vuln.vulnerability?.withdrawnAt != null,
       image: vuln.detectedImage?.artifactName || undefined,

@@ -3,6 +3,9 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SafeNavigator } from '@/utils/hooks/useSafeNavigate';
 import { isSafeExternalUrl } from '@/utils/function/safeUrl';
+import { isProductSpaceRoot } from '@/utils/linkRoots';
+import { isPlainBranch } from '@/utils/shell';
+import { isUuid } from '@/utils/uuid';
 
 export type SafeMarkdownLinkTone = 'violet' | 'accent';
 
@@ -60,7 +63,97 @@ export const isSafeInternalPath = (href: string): boolean => {
   // 'mailto:', 'http:'). A scheme-less path-only href has no ':' at all,
   // so this rule is sufficient to block every outbound scheme.
   if (href.includes(':')) return false;
-  return true;
+  // A fragment is never needed by a page a text links to.
+  if (href.includes('#')) return false;
+  const queryAt = href.indexOf('?');
+  const path = queryAt < 0 ? href : href.slice(0, queryAt);
+  if (queryAt >= 0 && !isFindingQuery(href.slice(queryAt + 1))) return false;
+  return isApplicationRoute(path);
+};
+
+/**
+ * The query of a finding link (`?issue=<id>&branch=<name>`), the only one a
+ * rendered text may carry: a page may act on what its query holds, so any
+ * other key, or a value of another shape, refuses the link.
+ */
+const FINDING_QUERY_KEYS: Readonly<Record<string, (value: string) => boolean>> = {
+  issue: isUuid,
+  branch: isPlainBranch,
+};
+
+const isFindingQuery = (query: string): boolean => {
+  if (query === '') return false;
+  const seen = new Set<string>();
+  return query.split('&').every((pair) => {
+    const at = pair.indexOf('=');
+    if (at <= 0) return false;
+    const key = pair.slice(0, at);
+    let value: string;
+    try {
+      value = decodeURIComponent(pair.slice(at + 1));
+    } catch {
+      return false;
+    }
+    const check = Object.prototype.hasOwnProperty.call(FINDING_QUERY_KEYS, key) ? FINDING_QUERY_KEYS[key] : undefined;
+    if (!check || seen.has(key) || !check(value)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+/**
+ * The first path segments of the application's pages a rendered text may link
+ * to, besides the prefix of each product space of the edition. Sign-in,
+ * sign-out and callback pages are not among them: a link in a text must not
+ * end a session or replay a flow.
+ */
+const ROUTE_ROOTS: ReadonlySet<string> = new Set([
+  'appsec',
+  'project',
+  'organization',
+  'integrations',
+  'profile',
+  'reports',
+  'policies',
+  'editions',
+]);
+/**
+ * Path segments a link in a text must never hold, wherever they are: their
+ * pages sign in, sign out, accept an invitation, finish an integration's
+ * authorization with what the query holds, or run a setup flow, as soon as
+ * they open. API paths (`/api`, `/v1`) are refused as unknown first segments.
+ */
+const FLOW_SEGMENTS: ReadonlySet<string> = new Set([
+  'login',
+  'logout',
+  'callback',
+  'sso',
+  'signup',
+  'setup',
+  'invite',
+  'forgot-password',
+  'reset-password',
+  'on-boarding',
+]);
+/** A first segment of the application's pages: a known one or the prefix of a product space. */
+const isRouteRoot = (segment: string): boolean => ROUTE_ROOTS.has(segment) || isProductSpaceRoot(segment);
+/** One path segment: unreserved characters, and percent-encodings other than `.`, `/` and `\`. */
+const ROUTE_SEGMENT = /^(?:[A-Za-z0-9._~!$&'()*+,;=@-]|%(?![2][eEfF]|5[cC])[0-9A-Fa-f]{2})+$/;
+
+/**
+ * True for a path of one of the application's pages: under a known first
+ * segment, with no `.` or `..` segment and no encoded separator, which a
+ * browser or the router would resolve to another page.
+ */
+const isApplicationRoute = (path: string): boolean => {
+  if (path === '/') return true;
+  const segments = path.slice(1).split('/');
+  // A trailing slash leaves one empty last segment.
+  if (segments.length > 1 && segments[segments.length - 1] === '') segments.pop();
+  if (!isRouteRoot(segments[0])) return false;
+  return segments.every(
+    (segment) => segment !== '.' && segment !== '..' && !FLOW_SEGMENTS.has(segment) && ROUTE_SEGMENT.test(segment),
+  );
 };
 
 /**
@@ -177,12 +270,34 @@ const defaultComponents: Components = {
  *   path, …) degrades to a plain `<span>` to maintain the strict XSS
  *   hardening contract from the link whitelist.
  */
+/** The plain text of a link's children, when they are text only. */
+const textOf = (children: React.ReactNode): string | null => {
+  if (typeof children === 'string' || typeof children === 'number') return String(children);
+  if (Array.isArray(children)) {
+    const parts = children.map(textOf);
+    return parts.every((part) => part !== null) ? parts.join('') : null;
+  }
+  return null;
+};
+
+/** Text that reads as an address: a scheme, a path, or a `www.` host. */
+const LOOKS_LIKE_ADDRESS = /^(?:[a-z][a-z0-9+.-]*:|\/|www\.)/i;
+
+/**
+ * True when the visible text of an internal link reads as an address other
+ * than its target: the reader would trust the text and land elsewhere.
+ */
+const namesAnotherAddress = (children: React.ReactNode, href: string): boolean => {
+  const text = textOf(children)?.trim();
+  return !!text && LOOKS_LIKE_ADDRESS.test(text) && text !== href;
+};
+
 const buildAnchorRenderer = (
   navigate: (path: string) => void,
   linkClassName: string = LINK_CLASSES.violet,
 ): Components['a'] => {
   return ({ href, children, ...rest }) => {
-    if (typeof href === 'string' && isSafeInternalPath(href)) {
+    if (typeof href === 'string' && isSafeInternalPath(href) && !namesAnotherAddress(children, href)) {
       const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         // Honour modifier keys / non-left clicks so the browser can still
         // open the same URL in a new tab when the user explicitly asks.

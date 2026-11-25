@@ -53,6 +53,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { which } from './os.mjs';
+import { runGit, trustedRoot, TreeRefused } from './trust.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const env = process.env;
@@ -116,17 +117,25 @@ const TESTS = new RegExp(
 const PROOFS = /(^|\/)tests?\/security\/|(^|\/)test_security_[^/]*$|\.security\.test\.[^/]+$|_security_test\.go$|security_spec\.rb$/;
 const SKILL = /(^|\/)\.[^/]+\/skills\/cybedefend(\/|$)|(^|\/)skills-lock\.json$/;
 
+/** The repository's root, with its .cybedefend tree checked before anything there is written (trust.mjs). */
 function gitRoot() {
-  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
-  if (top.status !== 0 || !top.stdout.trim()) throw new Exit(3, 'tree.mjs: not inside a git repository. Run it from the repository to review.');
-  return resolve(top.stdout.trim());
+  try {
+    return trustedRoot();
+  } catch (e) {
+    if (e instanceof TreeRefused) throw new Exit(3, `tree.mjs: ${e.message}`);
+    throw new Exit(3, 'tree.mjs: not inside a git repository. Run it from the repository to review.');
+  }
 }
 
 /** The files git sees: tracked and new ones, never the ignored ones. */
 function gitFiles(repo) {
-  const r = spawnSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: repo, maxBuffer: 256 * 1024 * 1024, windowsHide: true });
-  if (r.status !== 0) throw new Exit(3, `tree.mjs: git could not list the files of ${repo}.`);
-  return [...new Set(r.stdout.toString('utf8').split('\0').filter(Boolean).map(slash))].sort();
+  let listed;
+  try {
+    listed = runGit(['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: repo, maxBuffer: 256 * 1024 * 1024 });
+  } catch {
+    throw new Exit(3, `tree.mjs: git could not list the files of ${repo}.`);
+  }
+  return [...new Set(listed.toString('utf8').split('\0').filter(Boolean).map(slash))].sort();
 }
 
 function languageOf(path) {

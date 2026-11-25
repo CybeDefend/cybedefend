@@ -30,6 +30,10 @@ import type { ClientRequest, IncomingMessage } from 'node:http';
 import { inspect } from 'node:util';
 import { matchedRouteOf } from './core/http/route-tracing';
 import { redactUrlSecrets } from './core/utils/redact-url-secrets.util';
+import {
+  DATABASE_INSTRUMENTATION_CONFIG,
+  RedactingSpanProcessor,
+} from './core/logger/trace-redaction';
 
 // This module is preloaded (`node --require ./dist/instrumentation.js`, see
 // instrumentation.ts) before anything the SDK instruments. Keep its imports to
@@ -145,11 +149,14 @@ class HttpAttributeRedactor implements SpanProcessor {
 /**
  * The processor chain every span goes through. The batch processor reads
  * OTEL_BSP_MAX_QUEUE_SIZE and OTEL_BSP_MAX_EXPORT_BATCH_SIZE from the
- * environment (SDK defaults: 2048 and 512).
+ * environment (SDK defaults: 2048 and 512). The first processor scrubs the
+ * values of statements and of errors out of each span.
  */
 export function buildSpanProcessor(exporter: SpanExporter): SpanProcessor {
-  return new RpcExceptionFilterProcessor(
-    new HttpAttributeRedactor(new BatchSpanProcessor(exporter)),
+  return new RedactingSpanProcessor(
+    new RpcExceptionFilterProcessor(
+      new HttpAttributeRedactor(new BatchSpanProcessor(exporter)),
+    ),
   );
 }
 
@@ -212,6 +219,7 @@ export function buildInstrumentations(
 ): ReturnType<typeof getNodeAutoInstrumentations> {
   return [
     ...getNodeAutoInstrumentations({
+      ...DATABASE_INSTRUMENTATION_CONFIG,
       '@opentelemetry/instrumentation-http': {
         ignoreIncomingRequestHook: isHealthProbe,
         applyCustomAttributesOnSpan: nameServerSpanAfterRoute,

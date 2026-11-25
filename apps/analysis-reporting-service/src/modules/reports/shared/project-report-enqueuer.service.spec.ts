@@ -23,6 +23,14 @@ describe('ProjectReportEnqueuer', () => {
     };
     const reportQuota = {
       assertWithinQuotaForProject: jest.fn().mockResolvedValue(undefined),
+      admitQueuedReport: jest.fn(
+        async (_org: unknown, insert: (id: string) => Promise<void>) => {
+          // A new time-ordered id per admitted report, as the real one.
+          const id = `rep-${Math.random().toString(36).slice(2)}`;
+          await insert(id);
+          return id;
+        },
+      ),
     };
     const asyncTaskStore = {
       create: jest.fn().mockResolvedValue(undefined),
@@ -148,6 +156,33 @@ describe('ProjectReportEnqueuer', () => {
     expect(asyncTaskStore.delete).toHaveBeenCalled();
   });
 
+  it('answers a stable message, never the queue error’s text, and logs the error', async () => {
+    const queueError = new Error('connect ECONNREFUSED redis-secret-host:6379');
+    const addReportJob = jest.fn().mockRejectedValue(queueError);
+    const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+    const { enqueuer } = makeEnqueuer({
+      scanQueueService: { addReportJob },
+      logger,
+    });
+
+    const thrown = await enqueuer
+      .enqueue({
+        kind: 'owasp',
+        projectId: 'p1',
+        format: 'pdf',
+        detailed: true,
+      })
+      .catch((e: { getError: () => unknown }) => e.getError());
+
+    expect(thrown).toEqual({
+      code: status.UNAVAILABLE,
+      message: 'Failed to enqueue report job',
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: queueError }),
+    );
+  });
+
   it('refuses (no row, no enqueue) when the org is over quota', async () => {
     const quotaErr = new RpcException({
       code: status.RESOURCE_EXHAUSTED,
@@ -156,6 +191,14 @@ describe('ProjectReportEnqueuer', () => {
     const { enqueuer, repo, addReportJob } = makeEnqueuer({
       reportQuota: {
         assertWithinQuotaForProject: jest.fn().mockRejectedValue(quotaErr),
+        admitQueuedReport: jest.fn(
+          async (_org: unknown, insert: (id: string) => Promise<void>) => {
+            // A new time-ordered id per admitted report, as the real one.
+            const id = `rep-${Math.random().toString(36).slice(2)}`;
+            await insert(id);
+            return id;
+          },
+        ),
       },
     });
 

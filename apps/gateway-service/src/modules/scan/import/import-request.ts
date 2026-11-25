@@ -37,6 +37,13 @@ const BRANCH_MAX_LENGTH = 255;
 const COMMIT_PATTERN = /^[0-9a-f]{7,40}$/i;
 // U+0000 to U+001F: a branch name never holds one, and a log line must not.
 const CONTROL_CHARACTER = /[\u0000-\u001f]/;
+/**
+ * A first character that a command line built from the value would read as
+ * something else: `<` and `@` make `curl -F name=…` send a local file, `-`
+ * starts an option. Git refuses a branch that starts with `-`, and no image
+ * reference starts with any of the three.
+ */
+const UNSAFE_FIRST_CHARACTER = /^[<@-]/;
 
 const has = (raw: Record<string, string>, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(raw, key);
@@ -72,6 +79,7 @@ export function parseImportFields(
     }
     if (
       image.length > IMPORT_IMAGE_MAX_LENGTH ||
+      UNSAFE_FIRST_CHARACTER.test(image) ||
       !IMPORT_IMAGE_PATTERN.test(image)
     ) {
       throw importRefusal('IMPORT_IMAGE_INVALID');
@@ -91,7 +99,8 @@ export function parseImportFields(
   if (
     branch.length < 1 ||
     branch.length > BRANCH_MAX_LENGTH ||
-    CONTROL_CHARACTER.test(branch)
+    CONTROL_CHARACTER.test(branch) ||
+    UNSAFE_FIRST_CHARACTER.test(branch)
   ) {
     throw importRefusal('IMPORT_INVALID_REQUEST');
   }

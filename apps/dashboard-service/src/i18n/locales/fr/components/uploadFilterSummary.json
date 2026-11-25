@@ -1,0 +1,19 @@
+{
+  "components": {
+    "uploadFilterSummary": {
+      "headline_one": "{{count}} fichier de l'envoi n'a pas été scanné.",
+      "headline_other": "{{count}} fichiers de l'envoi n'ont pas été scannés.",
+      "excludedPath_one": "{{count}} dans des dossiers exclus (dépendances, sorties de build, caches) ou au nom exclu (journaux, bibliothèques empaquetées).",
+      "excludedPath_other": "{{count}} dans des dossiers exclus (dépendances, sorties de build, caches) ou au nom exclu (journaux, bibliothèques empaquetées).",
+      "foldersLabel": "Dossiers exclus :",
+      "moreFolders_one": "et {{count}} autre",
+      "moreFolders_other": "et {{count}} autres",
+      "excludedType_one": "{{count}} d'un type de fichier qu'aucun scanner ne lit (binaires, médias, documentation hors de la racine).",
+      "excludedType_other": "{{count}} d'un type de fichier qu'aucun scanner ne lit (binaires, médias, documentation hors de la racine).",
+      "scannerConfiguration_one": "{{count}} fichier de configuration de scanner non utilisé : un fichier du dépôt ne peut pas changer ce que les scanners détectent.",
+      "scannerConfiguration_other": "{{count}} fichiers de configuration de scanner non utilisés : un fichier du dépôt ne peut pas changer ce que les scanners détectent.",
+      "unsafeName_one": "{{count}} fichier au nom dangereux (un chemin absolu, ou qui sort de l'archive).",
+      "unsafeName_other": "{{count}} fichiers au nom dangereux (un chemin absolu, ou qui sortent de l'archive)."
+    }
+  }
+}

@@ -27,7 +27,7 @@ const refusedWith = (fn: () => unknown, code: string) =>
   expect(refusal(fn)).toEqual({ status: 400, code });
 
 describe('import-errors', () => {
-  it('lists the twelve route codes of the contract', () => {
+  it('lists the thirteen route codes of the contract', () => {
     expect([...IMPORT_REQUEST_CODES]).toEqual([
       'IMPORT_INVALID_REQUEST',
       'IMPORT_UNSUPPORTED_FORMAT',
@@ -41,6 +41,7 @@ describe('import-errors', () => {
       'IMPORT_IMAGE_INVALID',
       'IMPORT_TYPE_NOT_AVAILABLE',
       'IMPORT_INVALID_SBOM',
+      'IMPORT_UPLOAD_TIMEOUT',
     ]);
   });
 });
@@ -109,6 +110,30 @@ describe('parseImportFields', () => {
       () => parseImportFields({ type: 'sast', branch: 'ma\u001fin' }, C),
       'IMPORT_INVALID_REQUEST',
     );
+  });
+
+  it('refuses a branch that starts with <, @ or -', () => {
+    // A command line built from the branch (`curl -F branch=…`, a git
+    // argument) would read it as a file to send or as an option.
+    for (const branch of [
+      '<results.sarif',
+      '@/etc/passwd',
+      '-o',
+      '--upload-file',
+      ' <x',
+      'refs/heads/@x',
+      'refs/heads/-x',
+    ]) {
+      refusedWith(
+        () => parseImportFields({ type: 'sast', branch }, C),
+        'IMPORT_INVALID_REQUEST',
+      );
+    }
+    for (const branch of ['feature/<x>', 'a@b', 'fix-1', 'v1.0-rc']) {
+      expect(parseImportFields({ type: 'sast', branch }, C).branch).toBe(
+        branch,
+      );
+    }
   });
 
   it('validates the commit, then drops it', () => {
@@ -289,6 +314,10 @@ describe('parseImportFields', () => {
         'alpine@sha256:abc',
         'http://x/y',
         'alpine\n',
+        '-registry.example/app:1',
+        '-alpine',
+        '<alpine',
+        '@alpine',
       ]) {
         refusedWith(
           () =>

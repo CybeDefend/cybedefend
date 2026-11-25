@@ -7,7 +7,49 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  MaxLength,
+  ValidateBy,
 } from 'class-validator';
+
+/**
+ * `onboardingProgress` is a JSON array of step ids: at most 4 KiB of JSON,
+ * at most 100 ids, each 1 to 64 characters of `a-z 0-9 _ . : -`.
+ * global-management applies the same bounds to every caller.
+ */
+export const ONBOARDING_PROGRESS_MAX_LENGTH = 4096;
+export const ONBOARDING_PROGRESS_MAX_STEPS = 100;
+const ONBOARDING_STEP_ID = /^[a-z0-9_.:-]{1,64}$/;
+
+/** True for a JSON array of step ids within the bounds above. */
+export function isOnboardingProgress(value: unknown): boolean {
+  // The length first: a large value is never parsed.
+  if (
+    typeof value !== 'string' ||
+    value.length > ONBOARDING_PROGRESS_MAX_LENGTH
+  )
+    return false;
+  let steps: unknown;
+  try {
+    steps = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  return (
+    Array.isArray(steps) &&
+    steps.length <= ONBOARDING_PROGRESS_MAX_STEPS &&
+    steps.every((s) => typeof s === 'string' && ONBOARDING_STEP_ID.test(s))
+  );
+}
+
+const IsOnboardingProgress = () =>
+  ValidateBy({
+    name: 'isOnboardingProgress',
+    validator: {
+      validate: (value: unknown) => isOnboardingProgress(value),
+      defaultMessage: () =>
+        `onboardingProgress must be a JSON array of at most ${ONBOARDING_PROGRESS_MAX_STEPS} step ids, ${ONBOARDING_PROGRESS_MAX_LENGTH} characters at most`,
+    },
+  });
 
 export class UpdateUserProfileBodyDto {
   @ApiProperty({
@@ -29,11 +71,15 @@ export class UpdateUserProfileBodyDto {
   readonly isOnboardingCompleted: boolean;
 
   @ApiProperty({
-    description: 'JSON array of completed onboarding step IDs',
+    description:
+      'JSON array of completed onboarding step IDs (at most 100 ids of 1 to 64 characters a-z 0-9 _ . : -, 4096 characters at most)',
     required: false,
     type: 'string',
+    maxLength: ONBOARDING_PROGRESS_MAX_LENGTH,
   })
   @IsString()
+  @MaxLength(ONBOARDING_PROGRESS_MAX_LENGTH)
+  @IsOnboardingProgress()
   @IsOptional()
   readonly onboardingProgress?: string;
 

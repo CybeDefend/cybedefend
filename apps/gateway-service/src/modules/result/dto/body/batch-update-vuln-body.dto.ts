@@ -115,26 +115,7 @@ export class BatchUpdateVulnerabilitiesBodyDto {
   @Type(() => BatchUpdateVulnerabilityItemDto)
   items: BatchUpdateVulnerabilityItemDto[];
 
-  // Chat agent audit trail. Filled by the MCP
-  // ``batch_update_vulnerabilities`` tool after an HITL confirm so every
-  // HistoryItem produced by the batch points to the same chat tool call.
-  @ApiPropertyOptional({ description: 'Chat agent tool call id (HITL audit).' })
-  @IsString()
-  @IsOptional()
-  @MaxLength(64)
-  agentToolCallId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Chat agent conversation id (HITL audit).',
-  })
-  @IsString()
-  @IsOptional()
-  @MaxLength(128)
-  agentConversationId?: string;
-
-  @ApiPropertyOptional({ description: 'Chat agent stream id (HITL audit).' })
-  @IsString()
-  @IsOptional()
-  @MaxLength(128)
-  agentStreamId?: string;
+  // Who triaged is never read from this body: the gateway records the
+  // authenticated caller, and the assistant audit fields of the history are
+  // not part of the public contract. The global pipe strips them if sent.
 }

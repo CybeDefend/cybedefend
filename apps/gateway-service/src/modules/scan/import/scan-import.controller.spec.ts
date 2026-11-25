@@ -10,7 +10,9 @@ import { Logger } from 'nestjs-pino';
 import { Observable, of, throwError } from 'rxjs';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
+import { PassThrough } from 'node:stream';
 import { FILE_SERVICE_NAME } from '@grpc/file-management/file_management';
+import { PROJECT_SERVICE_NAME } from '@grpc/global-management/global_management';
 import { SCAN_SERVICE_NAME } from '@grpc/security-scanning/security_scanning';
 import { GlobalExceptionFilter } from 'src/core/exceptions';
 import { CombinedAuthRateLimitGuard } from 'src/core/guards/combined-auth-rate-limit.guard';
@@ -19,11 +21,31 @@ import { registerMultipart } from 'src/core/http/register-multipart';
 import { ScanService } from '../scan.service';
 import { ScanImportController } from './scan-import.controller';
 import {
+  IMPORT_BODY_READ_TIMEOUT_MS,
+  IMPORT_MAX_IN_FLIGHT_PER_ORGANIZATION,
   IMPORT_MAX_IN_FLIGHT_PER_POD,
+  IMPORT_MAX_READING_PER_POD,
+  importMaxReadingPerPod,
   ScanImportService,
 } from './scan-import.service';
 
 const PROJECT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+/** A second project of PROJECT's organization. */
+const PROJECT_A2 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+/** One project in each of five other organizations. */
+const OTHER_ORG_PROJECTS = ['b', 'c', 'd', 'e', 'f'].map(
+  (c) =>
+    `${c.repeat(8)}-${c.repeat(4)}-4${c.repeat(3)}-8${c.repeat(3)}-${c.repeat(12)}`,
+);
+/** One project in each of ten more organizations (ids start with 0 to 9). */
+const MANY_ORG_PROJECTS = Array.from({ length: 10 }, (_, d) => {
+  const c = String(d);
+  return `${c.repeat(8)}-${c.repeat(4)}-4${c.repeat(3)}-8${c.repeat(3)}-${c.repeat(12)}`;
+});
+const organizationOf = (projectId: string): string =>
+  projectId === PROJECT || projectId === PROJECT_A2
+    ? 'org-a'
+    : `org-${projectId[0]}`;
 const URL_PATH = `/project/${PROJECT}/scan/import/start`;
 const UPLOAD_URL =
   'http://minio:9000/bucket/import/aaaa.sarif?X-Amz-Signature=deadbeefsecret';
@@ -101,6 +123,15 @@ describe('POST /project/:projectId/scan/import/start (ScanImportController)', ()
     }),
     deleteImportObject: rpc({ success: true }),
   };
+  const projectClient = {
+    get: jest.fn(
+      (req: Req): Observable<unknown> =>
+        of({
+          projectId: req.projectId,
+          organizationId: organizationOf(String(req.projectId)),
+        }),
+    ),
+  };
   const logger = {
     log: jest.fn(),
     warn: jest.fn(),
@@ -111,14 +142,57 @@ describe('POST /project/:projectId/scan/import/start (ScanImportController)', ()
   let fetchMock: jest.Mock<Promise<Response>, [string, RequestInit]>;
   const realFetch = global.fetch;
 
-  const post = (parts: Part[], headers: Record<string, string> = {}) => {
+  const post = (
+    parts: Part[],
+    headers: Record<string, string> = {},
+    projectId: string = PROJECT,
+  ) => {
     const body = multipart(parts);
     return app.inject({
       method: 'POST',
-      url: URL_PATH,
+      url: `/project/${projectId}/scan/import/start`,
       payload: body.payload,
       headers: { ...body.headers, ...headers },
     });
+  };
+
+  const validParts = (): Part[] => [
+    field('type', 'sast'),
+    field('branch', 'main'),
+    file(),
+  ];
+
+  /**
+   * An import whose body stops before its end and stays open until
+   * `finish()` sends the rest: a client uploading slowly.
+   */
+  const slowPost = (projectId: string = PROJECT) => {
+    const body = multipart(validParts());
+    const cut = body.payload.length - 32;
+    const stream = new PassThrough();
+    stream.write(body.payload.subarray(0, cut));
+    const response = app.inject({
+      method: 'POST',
+      url: `/project/${projectId}/scan/import/start`,
+      payload: stream,
+      headers: body.headers,
+    });
+    return {
+      response,
+      finish: () => stream.end(body.payload.subarray(cut)),
+    };
+  };
+
+  /** Lets the requests in progress reach the point where they wait for bytes. */
+  const settle = async (calls: number) => {
+    for (
+      let i = 0;
+      i < 200 && projectClient.get.mock.calls.length < calls;
+      i++
+    ) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    await new Promise((r) => setTimeout(r, 50));
   };
 
   beforeAll(async () => {
@@ -139,6 +213,13 @@ describe('POST /project/:projectId/scan/import/start (ScanImportController)', ()
           useValue: {
             getService: (name: string) =>
               name === FILE_SERVICE_NAME ? fileClient : undefined,
+          },
+        },
+        {
+          provide: 'GLOBAL_MANAGEMENT_SERVICE',
+          useValue: {
+            getService: (name: string) =>
+              name === PROJECT_SERVICE_NAME ? projectClient : undefined,
           },
         },
         { provide: Logger, useValue: logger },
@@ -645,14 +726,17 @@ describe('POST /project/:projectId/scan/import/start (ScanImportController)', ()
     fetchMock.mockImplementation(
       () => new Promise<Response>((resolve) => pending.push(resolve)),
     );
-    const parts = [field('type', 'sast'), field('branch', 'main'), file()];
-    const inFlight = Array.from({ length: 4 }, () => post(parts));
+    const parts = validParts();
+    // Four organizations, each with one import being stored.
+    const inFlight = OTHER_ORG_PROJECTS.slice(0, 4).map((projectId) =>
+      post(parts, {}, projectId),
+    );
     for (let i = 0; i < 200 && pending.length < 4; i++) {
       await new Promise((r) => setTimeout(r, 5));
     }
     expect(pending).toHaveLength(4);
 
-    const fifth = await post(parts);
+    const fifth = await post(parts, {}, OTHER_ORG_PROJECTS[4]);
     expect(fifth.statusCode).toBe(503);
     expect(fifth.json().code).toBe('IMPORT_BUSY');
     expect(fifth.headers['retry-after']).toBe('15');
@@ -666,6 +750,161 @@ describe('POST /project/:projectId/scan/import/start (ScanImportController)', ()
       async () => new Response(null, { status: 200 }),
     );
     expect((await post(parts)).statusCode).toBe(202);
+  });
+
+  it('takes the pod slot only once the body is read: four slow uploads block nobody', async () => {
+    const slow = OTHER_ORG_PROJECTS.slice(0, 4).map((projectId) =>
+      slowPost(projectId),
+    );
+    await settle(4);
+
+    // A fifth organization's import is served while the four bodies trickle.
+    const fifth = await post(validParts(), {}, OTHER_ORG_PROJECTS[4]);
+    expect(fifth.statusCode).toBe(202);
+
+    slow.forEach((s) => s.finish());
+    const done = await Promise.all(slow.map((s) => s.response));
+    expect(done.map((r) => r.statusCode)).toEqual([202, 202, 202, 202]);
+  });
+
+  it('lets one organization hold at most two imports at once, across its projects', async () => {
+    expect(IMPORT_MAX_IN_FLIGHT_PER_ORGANIZATION).toBe(2);
+    const slow = [slowPost(PROJECT), slowPost(PROJECT_A2)];
+    await settle(2);
+
+    const third = await post(validParts(), {}, PROJECT_A2);
+    expect(third.statusCode).toBe(503);
+    expect(third.json().code).toBe('IMPORT_BUSY');
+    expect(third.headers['retry-after']).toBe('15');
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Another organization is not affected.
+    const other = await post(validParts(), {}, OTHER_ORG_PROJECTS[0]);
+    expect(other.statusCode).toBe(202);
+
+    slow.forEach((s) => s.finish());
+    const done = await Promise.all(slow.map((s) => s.response));
+    expect(done.map((r) => r.statusCode)).toEqual([202, 202]);
+    // Once they are done, the organization imports again.
+    expect((await post(validParts())).statusCode).toBe(202);
+  });
+
+  it('asks global-management for the project organization with the light read', async () => {
+    await post(validParts());
+    expect(projectClient.get).toHaveBeenCalledTimes(1);
+    expect(projectClient.get.mock.calls[0][0]).toEqual({
+      projectId: PROJECT,
+      skipVulnerabilityStats: true,
+      skipIntegrationStatus: true,
+      skipSecurityContext: true,
+    });
+  });
+
+  it('reads at most 8 bodies at once on a pod, whatever the number of organizations', async () => {
+    expect(IMPORT_MAX_READING_PER_POD).toBe(8);
+    // Ten organizations each start one import whose body keeps arriving.
+    const slow = MANY_ORG_PROJECTS.map((projectId) => slowPost(projectId));
+    const answered: Array<{ statusCode: number; code?: string }> = [];
+    slow.forEach((s) =>
+      s.response.then((r) =>
+        answered.push({ statusCode: r.statusCode, code: r.json()?.code }),
+      ),
+    );
+    await settle(10);
+
+    // Eight are being read; the two others are refused at once, unread.
+    expect(answered).toEqual([
+      { statusCode: 503, code: 'IMPORT_BUSY' },
+      { statusCode: 503, code: 'IMPORT_BUSY' },
+    ]);
+
+    // One after the other, so that each read body finds a pod slot free.
+    const done = [];
+    for (const s of slow) {
+      s.finish();
+      done.push(await s.response);
+    }
+    expect(done.filter((r) => r.statusCode === 202)).toHaveLength(8);
+    // The places are given back once the bodies are read.
+    expect(
+      (await post(validParts(), {}, MANY_ORG_PROJECTS[0])).statusCode,
+    ).toBe(202);
+  });
+
+  it('holds the read place until the answer: bodies being stored count against the pod bound', async () => {
+    // Four imports are being stored (their PUT hangs), four are still read.
+    const pending: Array<(r: Response) => void> = [];
+    fetchMock.mockImplementation(
+      () => new Promise<Response>((resolve) => pending.push(resolve)),
+    );
+    const storing = MANY_ORG_PROJECTS.slice(0, 4).map((projectId) =>
+      post(validParts(), {}, projectId),
+    );
+    for (let i = 0; i < 200 && pending.length < 4; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(pending).toHaveLength(4);
+    const slow = MANY_ORG_PROJECTS.slice(4, 8).map((projectId) =>
+      slowPost(projectId),
+    );
+    await settle(8);
+    // A ninth body would be a ninth in memory: refused before it is read.
+    const ninth = slowPost(MANY_ORG_PROJECTS[8]);
+    const answer = await Promise.race([
+      ninth.response,
+      new Promise((r) => setTimeout(() => r('pending'), 300)),
+    ]);
+    expect(answer).not.toBe('pending');
+    expect((answer as { statusCode: number }).statusCode).toBe(503);
+
+    pending.forEach((resolve) => resolve(new Response(null, { status: 200 })));
+    await Promise.all(storing);
+    fetchMock.mockImplementation(
+      async () => new Response(null, { status: 200 }),
+    );
+    for (const s of slow) {
+      s.finish();
+      await s.response;
+    }
+    ninth.finish();
+  });
+
+  it('tunes the read places with IMPORT_MAX_READING_PER_POD, within 1 to 64', () => {
+    expect(importMaxReadingPerPod({ IMPORT_MAX_READING_PER_POD: '12' })).toBe(
+      12,
+    );
+    for (const raw of ['', '0', '65', 'x', '-1']) {
+      expect(importMaxReadingPerPod({ IMPORT_MAX_READING_PER_POD: raw })).toBe(
+        8,
+      );
+    }
+  });
+
+  describe('the time a body may take', () => {
+    const savedTimeout = process.env.IMPORT_BODY_READ_TIMEOUT_MS;
+    afterEach(() => {
+      if (savedTimeout === undefined)
+        delete process.env.IMPORT_BODY_READ_TIMEOUT_MS;
+      else process.env.IMPORT_BODY_READ_TIMEOUT_MS = savedTimeout;
+    });
+
+    it('defaults to 60 s', () => {
+      expect(IMPORT_BODY_READ_TIMEOUT_MS).toBe(60_000);
+    });
+
+    it('answers 408 IMPORT_UPLOAD_TIMEOUT to a body still arriving at the deadline, and frees its place', async () => {
+      process.env.IMPORT_BODY_READ_TIMEOUT_MS = '200';
+      const slow = [slowPost(PROJECT), slowPost(PROJECT_A2)];
+      const answers = await Promise.all(slow.map((s) => s.response));
+      expect(answers.map((r) => r.statusCode)).toEqual([408, 408]);
+      expect(answers.map((r) => r.json().code)).toEqual([
+        'IMPORT_UPLOAD_TIMEOUT',
+        'IMPORT_UPLOAD_TIMEOUT',
+      ]);
+      nothingStored();
+      // The organization's two places are free again.
+      expect((await post(validParts())).statusCode).toBe(202);
+    });
   });
 
   it('gives the slot back after a refusal', async () => {

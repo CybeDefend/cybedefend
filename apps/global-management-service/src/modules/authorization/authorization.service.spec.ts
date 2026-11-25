@@ -39,6 +39,7 @@ describe('AuthorizationService (one readRelationships per membership change)', (
     writePermission: jest.Mock;
     deletePermission: jest.Mock;
     deleteAllPermissions: jest.Mock;
+    deleteRelationsOfSubject: jest.Mock;
   };
 
   /** Declare which relations the subject holds on the entity. */
@@ -71,6 +72,27 @@ describe('AuthorizationService (one readRelationships per membership change)', (
       writePermission: jest.fn().mockResolvedValue(true),
       deletePermission: jest.fn().mockResolvedValue(true),
       deleteAllPermissions: jest.fn().mockResolvedValue(true),
+      // As PermifyService does it: one deletePermission per relation.
+      deleteRelationsOfSubject: jest.fn(
+        async (
+          resourceType: string,
+          resourceId: string,
+          subjectType: string,
+          subjectId: string,
+          relations: readonly string[],
+        ) => {
+          for (const relation of relations) {
+            await permify.deletePermission(
+              resourceId,
+              subjectId,
+              subjectType,
+              resourceType,
+              relation,
+            );
+          }
+          return true;
+        },
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -138,19 +160,27 @@ describe('AuthorizationService (one readRelationships per membership change)', (
       });
     });
 
-    it('acts on the first role of the candidate order when several are held', async () => {
+    it('deletes every other held role when several are held, then writes the requested one', async () => {
       holds('member', 'administrator');
 
       await service.updateOrganizationRole(data);
 
-      expect(permify.deletePermission).toHaveBeenCalledTimes(1);
-      expect(permify.deletePermission).toHaveBeenCalledWith(
-        'org-1',
-        'user-1',
-        'user',
-        'organization',
-        'administrator',
-      );
+      expect(
+        permify.deletePermission.mock.calls.map((call) => call[4]),
+      ).toEqual(['administrator', 'member']);
+      expect(permify.writePermission).toHaveBeenCalledTimes(1);
+      expect(permify.writePermission.mock.calls[0][4]).toBe('manager');
+    });
+
+    it('keeps the requested role when it is among several held, deleting the others', async () => {
+      holds('manager', 'administrator');
+
+      await service.updateOrganizationRole(data);
+
+      expect(
+        permify.deletePermission.mock.calls.map((call) => call[4]),
+      ).toEqual(['administrator']);
+      expect(permify.writePermission).not.toHaveBeenCalled();
     });
 
     it('ignores relations outside the candidate list (creator) and throws NOT_FOUND', async () => {
@@ -171,57 +201,37 @@ describe('AuthorizationService (one readRelationships per membership change)', (
   describe('organizationRemoveMember', () => {
     const data = { organizationId: 'org-1', userId: 'user-1' };
 
-    it('reads the relations once and never checks them one by one', async () => {
+    it('deletes every organisation role, without a read a concurrent write could make stale', async () => {
       holds('member');
-
-      await service.organizationRemoveMember(data);
-
-      expect(permify.readRelationships).toHaveBeenCalledTimes(1);
-      expect(permify.readRelationships).toHaveBeenCalledWith({
-        entity: { type: 'organization', id: 'org-1' },
-        subject: { type: 'user', id: 'user-1' },
-      });
-      expect(permify.checkPermission).not.toHaveBeenCalled();
-    });
-
-    it('deletes every held candidate role, in candidate order', async () => {
-      holds('member', 'manager');
 
       const result = await service.organizationRemoveMember(data);
 
-      expect(permify.deletePermission).toHaveBeenCalledTimes(2);
+      expect(permify.readRelationships).not.toHaveBeenCalled();
+      expect(permify.checkPermission).not.toHaveBeenCalled();
       expect(
         permify.deletePermission.mock.calls.map((call) => call[4]),
-      ).toEqual(['manager', 'member']);
+      ).toEqual(ORGANIZATION_ROLES);
+      for (const call of permify.deletePermission.mock.calls) {
+        expect(call.slice(0, 4)).toEqual([
+          'org-1',
+          'user-1',
+          'user',
+          'organization',
+        ]);
+      }
       expect(result).toEqual({
         message: 'User user-1 removed from organization org-1',
       });
     });
 
-    it('never deletes a relation outside the candidate list (creator)', async () => {
+    it('never deletes a relation outside the organisation roles (creator)', async () => {
       holds('creator', 'member');
 
       await service.organizationRemoveMember(data);
 
-      expect(permify.deletePermission).toHaveBeenCalledTimes(1);
-      expect(permify.deletePermission).toHaveBeenCalledWith(
-        'org-1',
-        'user-1',
-        'user',
-        'organization',
-        'member',
-      );
-    });
-
-    it('succeeds without deleting anything when no candidate role is held', async () => {
-      holds();
-
-      const result = await service.organizationRemoveMember(data);
-
-      expect(permify.deletePermission).not.toHaveBeenCalled();
-      expect(result).toEqual({
-        message: 'User user-1 removed from organization org-1',
-      });
+      expect(
+        permify.deletePermission.mock.calls.map((call) => call[4]),
+      ).not.toContain('creator');
     });
   });
 
@@ -254,18 +264,20 @@ describe('AuthorizationService (one readRelationships per membership change)', (
     });
 
     it.each(ORGANIZATION_ROLES)(
-      'refuses with ALREADY_EXISTS when the user already holds %s',
+      'deletes a %s role held with no membership before writing the new one',
       async (role) => {
         holds(role);
 
-        const error = await catchRpc(service.organizationAddMember(data));
+        await service.organizationAddMember(data);
 
-        expect(error).toBeInstanceOf(RpcException);
-        expect(error.getError()).toEqual({
-          code: status.ALREADY_EXISTS,
-          message: 'User already has a role in organization',
-        });
-        expect(permify.writePermission).not.toHaveBeenCalled();
+        expect(
+          permify.deletePermission.mock.calls.map((call) => call[4]),
+        ).toEqual([role]);
+        expect(permify.writePermission).toHaveBeenCalledTimes(1);
+        expect(permify.writePermission.mock.calls[0][4]).toBe('member');
+        expect(
+          permify.deletePermission.mock.invocationCallOrder[0],
+        ).toBeLessThan(permify.writePermission.mock.invocationCallOrder[0]);
       },
     );
 
@@ -306,18 +318,19 @@ describe('AuthorizationService (one readRelationships per membership change)', (
     });
 
     it.each(TEAM_ROLES)(
-      'refuses with ALREADY_EXISTS when the user already holds %s',
+      'deletes a %s team role held with no membership before writing the new one',
       async (role) => {
         holds(role);
 
-        const error = await catchRpc(service.teamAddMember(data));
+        await service.teamAddMember(data);
 
-        expect(error).toBeInstanceOf(RpcException);
-        expect(error.getError()).toEqual({
-          code: status.ALREADY_EXISTS,
-          message: 'User already has a role in team',
-        });
-        expect(permify.writePermission).not.toHaveBeenCalled();
+        expect(
+          permify.deletePermission.mock.calls.map((call) => call[4]),
+        ).toEqual([role]);
+        expect(permify.writePermission).toHaveBeenCalledTimes(1);
+        expect(
+          permify.deletePermission.mock.invocationCallOrder[0],
+        ).toBeLessThan(permify.writePermission.mock.invocationCallOrder[0]);
       },
     );
   });
@@ -374,19 +387,16 @@ describe('AuthorizationService (one readRelationships per membership change)', (
       });
     });
 
-    it('acts on the first role of the candidate order when several are held', async () => {
+    it('deletes every other held role when several are held, then writes the requested one', async () => {
       holds('read_only', 'analyst_developer');
 
       await service.teamUpdateMemberRole(data);
 
-      expect(permify.deletePermission).toHaveBeenCalledTimes(1);
-      expect(permify.deletePermission).toHaveBeenCalledWith(
-        'team-1',
-        'user-1',
-        'user',
-        'team',
-        'analyst_developer',
-      );
+      expect(
+        permify.deletePermission.mock.calls.map((call) => call[4]),
+      ).toEqual(['analyst_developer', 'read_only']);
+      expect(permify.writePermission).toHaveBeenCalledTimes(1);
+      expect(permify.writePermission.mock.calls[0][4]).toBe('team_manager');
     });
 
     it('throws NOT_FOUND when no candidate role is held', async () => {
@@ -406,7 +416,7 @@ describe('AuthorizationService (one readRelationships per membership change)', (
   describe('removeMemberFromTeam', () => {
     const data = { teamId: 'team-1', userId: 'user-1' };
 
-    it('deletes the first held role after a single relations read', async () => {
+    it('deletes every team role after a single relations read', async () => {
       holds('developer');
 
       const result = await service.removeMemberFromTeam(data);
@@ -417,32 +427,27 @@ describe('AuthorizationService (one readRelationships per membership change)', (
         subject: { type: 'user', id: 'user-1' },
       });
       expect(permify.checkPermission).not.toHaveBeenCalled();
-      expect(permify.deletePermission).toHaveBeenCalledTimes(1);
-      expect(permify.deletePermission).toHaveBeenCalledWith(
-        'team-1',
-        'user-1',
-        'user',
-        'team',
-        'developer',
-      );
+      expect(
+        permify.deletePermission.mock.calls.map((call) => call[4]),
+      ).toEqual(TEAM_ROLES);
+      for (const call of permify.deletePermission.mock.calls) {
+        expect(call.slice(0, 4)).toEqual(['team-1', 'user-1', 'user', 'team']);
+      }
       expect(result).toEqual({
         message: 'User user-1 removed from team team-1',
       });
     });
 
-    it('deletes only the first role of the candidate order when several are held', async () => {
+    it('leaves no team role behind when several are held', async () => {
       holds('read_only', 'team_manager');
 
       await service.removeMemberFromTeam(data);
 
-      expect(permify.deletePermission).toHaveBeenCalledTimes(1);
-      expect(permify.deletePermission).toHaveBeenCalledWith(
-        'team-1',
-        'user-1',
-        'user',
-        'team',
-        'team_manager',
+      const deleted = permify.deletePermission.mock.calls.map(
+        (call) => call[4],
       );
+      expect(deleted).toContain('read_only');
+      expect(deleted).toContain('team_manager');
     });
 
     it('throws NOT_FOUND when no candidate role is held', async () => {

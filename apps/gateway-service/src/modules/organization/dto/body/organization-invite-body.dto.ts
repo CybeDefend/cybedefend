@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
   IsEmail,
@@ -15,6 +16,12 @@ import { ASSIGNABLE_ORGANIZATION_ROLES } from '../../organization-roles';
 import { Type } from 'class-transformer';
 
 import { PRODUCT_KEYS } from 'src/core/products/products';
+
+/**
+ * The most teams one invitation may assign, the bound global-management
+ * applies to every invitation: a longer list is refused here with 400.
+ */
+export const INVITATION_MAX_TEAM_ASSIGNMENTS = 50;
 
 export class TeamAssignmentDto {
   @ApiProperty({
@@ -76,6 +83,7 @@ export class OrganizationInviteBodyDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(INVITATION_MAX_TEAM_ASSIGNMENTS)
   @ValidateNested({ each: true })
   @Type(() => TeamAssignmentDto)
   teamAssignments?: TeamAssignmentDto[];

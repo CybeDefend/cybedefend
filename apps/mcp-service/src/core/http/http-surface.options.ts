@@ -1,4 +1,5 @@
 import { parseTrustProxyCidrs } from '../trust-proxy/trust-proxy';
+import { isOriginAllowed, type AllowedOrigins } from './origin-policy';
 
 /**
  * HTTP surface options shared verbatim between `main.ts` and the e2e
@@ -21,9 +22,10 @@ import { parseTrustProxyCidrs } from '../trust-proxy/trust-proxy';
  */
 export function httpAdapterOptions(trustProxyCidr?: string) {
   return {
-    // Never an unconditional `trustProxy: true`: the pre-auth rate-limiter
-    // keys its buckets on the client IP, so X-Forwarded-For is honoured only
-    // from the configured upstream hops (the CIDR list, or `false` when unset).
+    // Never an unconditional `trustProxy: true`: the request limits key the
+    // budgets of unauthenticated requests on the client IP, so
+    // X-Forwarded-For is honoured only from the configured upstream hops
+    // (the CIDR list, or `false` when unset).
     trustProxy: parseTrustProxyCidrs(trustProxyCidr),
     // Clamp to 256 KB. MCP messages are RPC envelopes: they never
     // legitimately carry file-sized payloads, and a small cap bounds the
@@ -38,13 +40,12 @@ export function httpAdapterOptions(trustProxyCidr?: string) {
 /**
  * CORS for the public MCP/OAuth surface.
  *
- * Browser-based MCP clients (claude.ai / ChatGPT connectors, VS Code Web)
- * run the whole handshake from a browser context: without a reflected
- * `Access-Control-Allow-Origin` they cannot even read the discovery
- * documents, let alone POST /mcp. Every route on this service authenticates
- * with a Bearer token — no cookies, no ambient credentials — so reflecting
- * any origin **without** credentials adds no risk: a cross-site page gains
- * nothing it could not already do with a server-side request.
+ * Browser-based MCP clients run the whole handshake from a browser context:
+ * without a reflected `Access-Control-Allow-Origin` they cannot even read
+ * the discovery documents, let alone POST /mcp. Every route on this service
+ * authenticates with a Bearer token — no cookies, no ambient credentials.
+ * This object reflects any origin; `corsOptionsFor` narrows it to the
+ * origins the service accepts, which is what the application uses.
  *
  * `allowedHeaders` must cover everything an MCP browser client preflights:
  * the Streamable HTTP transport sends `MCP-Protocol-Version` on every
@@ -63,3 +64,19 @@ export const corsOptions = {
   exposedHeaders: ['mcp-session-id', 'WWW-Authenticate'],
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
 };
+
+/**
+ * `corsOptions`, reflecting only the origins the service accepts (see
+ * `origin-policy.ts`): a page of a site that is not allowed is refused with
+ * 403 anyway, so it is not told it may read the answer either.
+ */
+export function corsOptionsFor(allowed: AllowedOrigins) {
+  if (allowed === '*') return corsOptions;
+  return {
+    ...corsOptions,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow: boolean) => void,
+    ) => callback(null, !!origin && isOriginAllowed(origin, allowed)),
+  };
+}

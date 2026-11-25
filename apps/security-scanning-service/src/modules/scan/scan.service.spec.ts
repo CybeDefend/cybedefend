@@ -48,6 +48,7 @@ const repoMock = () => ({
   find: jest.fn().mockResolvedValue([]),
   save: jest.fn(),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
+  query: jest.fn().mockResolvedValue([]),
   create: jest.fn((x: unknown) => x),
   count: jest.fn().mockResolvedValue(0),
   createQueryBuilder: jest.fn(),
@@ -375,6 +376,32 @@ describe('ScanService (Community Edition)', () => {
       expect(saveNewScanSpy).not.toHaveBeenCalled();
     });
 
+    // A scan records its source on the project. That update must leave the
+    // project's issue-creation branches and CI/CD agent categories alone: they
+    // are settings of the project's managers, and a scan may be started by
+    // anyone allowed to scan.
+    it('records its source on the project without clearing its settings', async () => {
+      await service.createScan(
+        importRequest({
+          importFormat: 'sarif',
+          importType: 'sast',
+          branch: 'main',
+          sourceType: 'manual',
+        }),
+      );
+
+      expect(projectClient.update).toHaveBeenCalledTimes(1);
+      const [request] = projectClient.update.mock.calls[0];
+      expect(request).toMatchObject({
+        projectId: 'p1',
+        lastScanSourceType: 'manual',
+        clearIssueCreationBranches: false,
+        clearAgentCategoriesCicd: false,
+      });
+      expect(request.issueCreationBranches ?? []).toEqual([]);
+      expect(request.agentCategoriesCicd ?? []).toEqual([]);
+    });
+
     it('normalises the import tool list onto the scan', async () => {
       await service.createScan(
         importRequest({
@@ -694,6 +721,138 @@ describe('ScanService (Community Edition)', () => {
     expect(result).toMatchObject({ success: true, scanId: 's-c' });
   });
 
+  describe('what the upload filter left out', () => {
+    const SUMMARY = {
+      scannerConfiguration: 1,
+      excludedPath: 5,
+      excludedType: 2,
+      unsafeName: 0,
+      gitMetadata: 0,
+      excludedFolders: [
+        { name: 'build', count: 3 },
+        { name: 'web/dist', count: 1 },
+      ],
+    };
+    const waitingScan = () =>
+      ({
+        id: 's-up',
+        projectId: 'p1',
+        organizationId: 'org-1',
+        state: 'waiting_for_file',
+        language: [],
+        metadata: {},
+      }) as unknown as Scan;
+    const startWith = async (uploadFilterSummary: unknown) => {
+      const scan = waitingScan();
+      scanRepository.findOne.mockResolvedValue(scan);
+      const startSpy = jest
+        .spyOn(module.get(SCANNER_ORCHESTRATOR_PORT), 'startScan')
+        .mockResolvedValue({ success: true, message: 'started' });
+      await service.startScan({
+        scanId: 's-up',
+        projectId: 'p1',
+        language: [],
+        uploadFilterSummary,
+      } as unknown as Parameters<ScanService['startScan']>[0]);
+      return { scan, startSpy };
+    };
+
+    /** The summaries written by the targeted UPDATE of that one column. */
+    const storedSummaries = () =>
+      scanRepository.query.mock.calls
+        .filter(([text]) => String(text).includes('uploadFilterSummary'))
+        .map(([text, params]: [string, unknown[]]) => {
+          // One column, one row: never a write of the whole scan.
+          expect(text).toMatch(
+            /^UPDATE\s+\S*scan\S*\s+SET\s+\S*uploadFilterSummary\S*\s*=/,
+          );
+          expect(params[1]).toBe('s-up');
+          return JSON.parse(params[0] as string);
+        });
+
+    it('stores the summary on the scan with a targeted update, before its scanners start', async () => {
+      const { scan, startSpy } = await startWith(SUMMARY);
+      expect(storedSummaries()).toEqual([SUMMARY]);
+      // Never through the whole-entity update path.
+      expect(scanRepository.update).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ uploadFilterSummary: expect.anything() }),
+      );
+      expect(startSpy.mock.calls[0][0]).toBe(scan);
+      expect(scan.uploadFilterSummary).toEqual(SUMMARY);
+    });
+
+    it('stores a summary too large cut to its bounds', async () => {
+      const excludedFolders = Array.from({ length: 40 }, (_, i) => ({
+        name: `${'x'.repeat(300)}${i}`,
+        count: i + 1,
+      }));
+      await startWith({ ...SUMMARY, excludedFolders });
+      const [stored] = storedSummaries();
+      expect(stored.excludedFolders).toHaveLength(20);
+      expect(stored.excludedFolders[0].count).toBe(40);
+      for (const folder of stored.excludedFolders) {
+        expect(folder.name).toHaveLength(200);
+      }
+    });
+
+    it.each([
+      ['no summary', undefined],
+      ['a null summary (an unset message)', null],
+      ['a malformed summary', { ...SUMMARY, excludedPath: -3 }],
+    ])(
+      'stores nothing for %s, and still starts the scan',
+      async (_l, input) => {
+        const { startSpy } = await startWith(input);
+        expect(storedSummaries()).toEqual([]);
+        expect(startSpy).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('starts the scan when the summary cannot be stored, and logs it', async () => {
+      scanRepository.query.mockRejectedValueOnce(
+        new Error('unsupported Unicode escape sequence'),
+      );
+      const warn = jest.spyOn(module.get(Logger), 'warn');
+      const { scan, startSpy } = await startWith(SUMMARY);
+      expect(startSpy).toHaveBeenCalledTimes(1);
+      expect(scan.uploadFilterSummary).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/upload filter summary not stored/),
+      );
+    });
+
+    it('getScan returns the stored summary', async () => {
+      scanRepository.find.mockResolvedValue([
+        {
+          id: 's1',
+          projectId: 'p1',
+          state: 'completed',
+          containers: [],
+          metadata: {},
+          uploadFilterSummary: SUMMARY,
+        } as unknown as Scan,
+      ]);
+      const response = await service.getScan({ scanId: 's1', projectId: 'p1' });
+      expect(response.uploadFilterSummary).toEqual(SUMMARY);
+    });
+
+    it('getScan returns no summary for a scan recorded without one', async () => {
+      scanRepository.find.mockResolvedValue([
+        {
+          id: 's1',
+          projectId: 'p1',
+          state: 'completed',
+          containers: [],
+          metadata: {},
+          uploadFilterSummary: null,
+        } as unknown as Scan,
+      ]);
+      const response = await service.getScan({ scanId: 's1', projectId: 'p1' });
+      expect(response).not.toHaveProperty('uploadFilterSummary');
+    });
+  });
+
   describe('getScan — the git history', () => {
     it('getScan returns the pass and the branch coverage', async () => {
       const pass = {
@@ -926,6 +1085,50 @@ describe('ScanService (Community Edition)', () => {
       });
 
       expect(response).not.toHaveProperty('potpieProjectId');
+    });
+  });
+
+  describe('updateScan — an unexpected error', () => {
+    it('answers INTERNAL with a stable message, never the error’s text, and logs it', async () => {
+      const VALUE = 'private-step-value-91c';
+      const validation = (
+        service as unknown as {
+          scanValidation: Record<
+            string,
+            (...args: unknown[]) => Promise<unknown>
+          >;
+        }
+      ).scanValidation;
+      // ScanValidation is an inert stand-in here (useMocker).
+      validation.findScanById = jest
+        .fn()
+        .mockResolvedValue({ id: 's1', state: 'running' });
+      validation.findContainerForUpdate = jest
+        .fn()
+        .mockResolvedValue({ id: 'c1', status: 'running', step: 'x' });
+      const dbError = new Error(
+        `Incorrect string value: '${VALUE}' for column 'step' at row 1`,
+      );
+      validation.updateContainerStatus = jest.fn().mockRejectedValue(dbError);
+      const logger = module.get(Logger);
+      const logError = jest.spyOn(logger, 'error');
+
+      const answer = await rpcErrorOf(
+        service.updateScan({
+          scanId: 's1',
+          podName: 'pod-1',
+          state: 'running',
+          step: VALUE,
+        } as never),
+      );
+
+      expect(answer).toEqual({
+        code: status.INTERNAL,
+        message: 'UpdateScan failed',
+      });
+      expect(logError).toHaveBeenCalledWith(
+        expect.objectContaining({ err: dbError }),
+      );
     });
   });
 });

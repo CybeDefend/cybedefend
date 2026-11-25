@@ -34,14 +34,9 @@ async function bootstrap() {
   try {
     logger.log('Report retention purge one-shot started');
     const svc = app.get(ReportRetentionService);
-    // First settle zombie queued rows (worker died mid-generation) so they stop
-    // holding a quota slot, then purge everything past its retention.
-    const stale = await svc.failStaleQueued();
-    if (stale.generated || stale.aggregated) {
-      logger.log(
-        `Report retention: failed ${stale.generated + stale.aggregated} stale queued report(s)`,
-      );
-    }
+    // Queued reports whose job was lost are settled by the report workers'
+    // stale sweep, which can look their job up (this one-shot cannot, and
+    // must not fail a report still waiting behind a backlog).
     let generated = 0;
     let aggregated = 0;
     for (let pass = 0; pass < MAX_PASSES; pass++) {

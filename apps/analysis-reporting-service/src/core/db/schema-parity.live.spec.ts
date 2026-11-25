@@ -97,7 +97,7 @@ describeLive('analysis-reporting schema parity', () => {
   }
 
   it('both tracks build the same core schema', async () => {
-    expect(tables.length).toBe(32);
+    expect(tables.length).toBe(33);
     expect((await diff()).differences).toEqual([]);
   });
 

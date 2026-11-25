@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { Readable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
 import * as yauzl from 'yauzl';
 import { Logger } from 'nestjs-pino';
 
@@ -21,12 +21,52 @@ import { FileScan, FileStatus } from 'src/entities/file.entity';
 import { createLoggerMock, createMockRepository } from 'src/test-utils/mocks';
 import { lieAboutSizes, writeZip } from 'src/test-utils/zip-fixtures';
 import SecretsService from 'src/core/secrets/secrets.service';
+import {
+  craftZip,
+  endRecordInCommentZip,
+  endRecordInDirectoryZip,
+  overlappingRecordsZip,
+  twoEndRecordsZip,
+  unaccountedDataZip,
+} from './crafted-zip.fixture-spec';
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn().mockResolvedValue('https://signed.example/s3'),
 }));
 
 const MIB = 1024 * 1024;
+
+/**
+ * What the filter keeps of the scanner-configuration archive below: exactly
+ * what it kept before, minus the scanners' configuration files.
+ */
+const SCANNER_CONFIG_ARCHIVE_KEPT: string[] = [
+  '.github/workflows/ci.yml',
+  '.trivyignore.yaml',
+  'Dockerfile',
+  'app.py',
+  'config/settings.yaml',
+  'infra/main.tf',
+  'requirements.txt',
+];
+
+/** What the filter keeps of the varied archive below. */
+const VARIED_ARCHIVE_KEPT: string[] = [
+  '.cybedefend/config.json',
+  '.env.example',
+  '.git/HEAD',
+  '.git/config',
+  '.git/refs/heads/main',
+  'Dockerfile',
+  'LICENSE',
+  'README.md',
+  'app/main.py',
+  'docs/guide.md',
+  'key.pem',
+  'package.json',
+  'requirements.txt',
+  'src/café/é.ts',
+];
 
 /** Small limits, so a test archive of a few megabytes crosses them. */
 const LIMITS = {
@@ -224,6 +264,108 @@ describe('FileService — full-scan archive limits', () => {
       ]);
       expect(entries['src/big.ts'].equals(big)).toBe(true);
       expect(entries['src/app.ts'].toString()).toBe('export const x = 1;\n');
+    });
+
+    it('keeps exactly the same entries of a varied archive, byte for byte', async () => {
+      const svc = await build({ FULL_SCAN_MAX_ENTRIES: 100 });
+      const SQL = "def q(db, u):\n    return db.execute('SELECT ' + u)\n";
+      const files: Record<string, string> = {
+        'app/main.py': SQL,
+        'app/env/handlers.py': SQL,
+        'app/out/routes.py': SQL,
+        'cmd/bin/server.go': 'package main\n',
+        'src/target/Api.java': 'class Api{}\n',
+        'web/build/app.js': 'eval(location.hash)\n',
+        'lib/tmp/db.py': SQL,
+        'config/.cache/settings.py': 'k = 1\n',
+        'deploy/prod.log': 'secret\n',
+        'scripts/deploy': '#!/bin/sh\necho hi\n',
+        'key.pem': '-----BEGIN KEY-----\nMIIB\n-----END KEY-----\n',
+        'infra/env/main.tf': 'resource "x" "y" {}\n',
+        'k8s/out/deploy.yaml': 'kind: Pod\n',
+        Dockerfile: 'FROM alpine\n',
+        'docker/build/Dockerfile': 'FROM alpine\n',
+        'README.md': '# readme\n',
+        'docs/guide.md': '# guide\n',
+        LICENSE: 'MIT\n',
+        'img/logo.png': 'png',
+        'node_modules/dep/index.js': 'module.exports = 1;\n',
+        'vendor/lib.php': '<?php\n',
+        'package.json': '{"name":"x"}\n',
+        'requirements.txt': 'flask\n',
+        '.env.example': 'A=1\n',
+        'src/café/é.ts': 'export const é = 1;\n',
+        'src/empty/': '',
+        '.git/HEAD': 'ref: refs/heads/main\n',
+        '.git/config': '[core]\n\tfsmonitor = id\n',
+        '.git/hooks/pre-commit': '#!/bin/sh\n',
+        '.git/refs/heads/main': '0000\n',
+        '.gitattributes': '* diff=x\n',
+        '.gitmodules': '[submodule "x"]\n',
+        'sub/.git': 'gitdir: /etc\n',
+        '.cybedefend/config.json': '{}\n',
+        '.gitleaksignore': 'config.py:github-pat:2\n',
+        '.trivyignore': 'CVE-2019-14234\n',
+        '.semgrepignore': 'app.py\n',
+        '.checkovignore': 'Dockerfile\n',
+      };
+      const input = path.join(dir, 'varied.zip');
+      await writeZip(input, files);
+      const out = await (svc as any).filterZipFile(input, dir);
+      const entries = await readZip(out);
+      expect(Object.keys(entries).sort()).toEqual(VARIED_ARCHIVE_KEPT);
+      for (const name of VARIED_ARCHIVE_KEPT) {
+        if (name === '.git/config') continue;
+        expect(entries[name].toString()).toBe(files[name]);
+      }
+    });
+
+    it("drops the scanners' configuration files and leaves every other entry as before", async () => {
+      const svc = await build({ FULL_SCAN_MAX_ENTRIES: 100 });
+      const files: Record<string, string> = {
+        '.gitleaks.toml': '[allowlist]\npaths = [".*"]\n',
+        'gitleaks.toml': '[allowlist]\npaths = [".*"]\n',
+        'trivy.yaml': 'scan:\n  skip-files: [requirements.txt]\n',
+        'trivy.yml': 'severity: [UNKNOWN]\n',
+        'zizmor.yml': 'rules:\n  artipacked:\n    disable: true\n',
+        'zizmor.yaml': 'rules: {}\n',
+        '.github/zizmor.yml': 'rules: {}\n',
+        '.github/zizmor.yaml': 'rules: {}\n',
+        '.checkov.yaml': 'skip-check: [CKV_DOCKER_3]\n',
+        '.checkov.yml': 'skip-check: [CKV_DOCKER_3]\n',
+        'services/api/.gitleaks.toml': '[allowlist]\n',
+        'services/api/trivy.yaml': 'severity: [UNKNOWN]\n',
+        'services/api/zizmor.yml': 'rules: {}\n',
+        'services/api/.checkov.yml': 'skip-check: []\n',
+        '.gitleaksignore': 'config.py:github-pat:2\n',
+        '.trivyignore': 'CVE-2019-14234\n',
+        '.trivyignore.yaml': 'vulnerabilities: []\n',
+        '.semgrepignore': 'app.py\n',
+        '.checkovignore': 'Dockerfile\n',
+        'services/api/.trivyignore': 'DS002\n',
+        'app.py': 'print(eval(input()))\n',
+        'requirements.txt': 'django==2.2\n',
+        Dockerfile: 'FROM alpine\n',
+        '.github/workflows/ci.yml': 'on: push\njobs: {}\n',
+        'node_modules/dep/.trivyignore': 'CVE-0000-0000\n',
+        'config/settings.yaml': 'debug: true\n',
+        'infra/main.tf': 'resource "x" "y" {}\n',
+      };
+      const input = path.join(dir, 'scanner-config.zip');
+      await writeZip(input, files);
+      const { path: out, dropped } = await (svc as any).filterArchive(
+        input,
+        dir,
+      );
+      const entries = await readZip(out);
+      expect(Object.keys(entries).sort()).toEqual(SCANNER_CONFIG_ARCHIVE_KEPT);
+      for (const name of SCANNER_CONFIG_ARCHIVE_KEPT) {
+        expect(entries[name].toString()).toBe(files[name]);
+      }
+      expect(dropped.scannerConfiguration).toBe(14);
+      // Every other entry left out is counted under its existing reason.
+      expect(dropped.excludedType).toBe(5);
+      expect(dropped.excludedPath).toBe(1);
     });
 
     it('keeps every entry of an archive of many files, its central directory written one record per chunk', async () => {
@@ -673,6 +815,422 @@ describe('FileService — full-scan archive limits', () => {
   // limit: its own code in the archive range, a message saying what is wrong
   // with it, and its upload removed. A valid but empty ZIP is not « an
   // invalid signature ».
+  // One processing slot serves every upload: an archive that takes longer
+  // than its deadline to read and rewrite is stopped and fails alone.
+  describe('processUploadedFile, an archive past its processing deadline', () => {
+    const SLOW = {
+      FILE_SCAN_ARCHIVE_DEADLINE_MS: 50,
+      FULL_SCAN_MAX_ARCHIVE_BYTES: 64 * MIB,
+      FULL_SCAN_MAX_ENTRY_BYTES: 512 * MIB,
+      FULL_SCAN_MAX_UNCOMPRESSED_BYTES: 1024 * MIB,
+    };
+    let slowZip: Buffer;
+
+    /**
+     * A deadline is this service's limit, not the archive's fault: the scan
+     * fails as a processing error naming the time limit, with no archive
+     * code, and nothing is reported as wrong with the upload.
+     */
+    const expectProcessingTimeout = (sends: any[], id: string) => {
+      expect(startScan).not.toHaveBeenCalled();
+      expect(sends.some((c) => c.constructor.name === 'PutObjectCommand')).toBe(
+        false,
+      );
+      expect(repo.update).toHaveBeenCalledWith(
+        { id },
+        { status: FileStatus.FAILED },
+      );
+      expect(updateScanData).toHaveBeenCalledTimes(1);
+      const call = (updateScanData.mock.calls[0] as unknown[])[0] as {
+        state: string;
+        errorMessage: string;
+        errorCode?: number;
+        errorCategory?: string;
+      };
+      expect(call.state).toBe('failed');
+      expect(call.errorCode).toBeUndefined();
+      expect(call.errorCategory).toBeUndefined();
+      expect(call.errorMessage).toMatch(/took longer than/);
+      expect(call.errorMessage).not.toMatch(/ARCHIVE_|too much|too large/);
+    };
+
+    beforeAll(async () => {
+      const tmp = await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), 'fms-slow-'),
+      );
+      const p = path.join(tmp, 'slow.zip');
+      await writeZip(p, {
+        'src/a.ts': Buffer.alloc(48 * MIB),
+        'src/b.ts': Buffer.alloc(48 * MIB),
+      });
+      slowZip = await fs.promises.readFile(p);
+      await fs.promises.rm(tmp, { recursive: true, force: true });
+    }, 120_000);
+
+    it('stops filtering and fails that upload only, the next one processed', async () => {
+      const svc = await build(SLOW);
+      const sends = serve(svc, slowZip);
+      await expect(svc.processUploadedFile(record('slow'))).resolves.toBe(
+        false,
+      );
+      expectProcessingTimeout(sends, 'slow');
+
+      serve(svc, await zipOf({ 'src/app.ts': 'export const x = 1;\n' }));
+      const next = { ...record('next'), projectId: 'other-project' };
+      next.objectPath = 'scan/other-project/next.zip';
+      await expect(svc.processUploadedFile(next)).resolves.toBe(true);
+    }, 120_000);
+
+    it('aborts the rewrite through the filter itself', async () => {
+      const svc = await build(SLOW);
+      const input = path.join(dir, 'slow.zip');
+      await fs.promises.writeFile(input, slowZip);
+      await expect((svc as any).filterZipFile(input, dir)).rejects.toThrow(
+        /took longer than/,
+      );
+    }, 120_000);
+
+    // Past the deadline while the filtered archive is being finalised: the
+    // writer never settles once aborted then, so the deadline must end the
+    // filtering by itself, and the cleanup must still run.
+    it('ends an archive whose finalisation never settles, and cleans up', async () => {
+      const svc = await build({ FILE_SCAN_ARCHIVE_DEADLINE_MS: 200 });
+      const sends = serve(
+        svc,
+        await zipOf({ 'src/a.ts': 'export const a = 1;\n' }),
+      );
+      const createWriter = (FileService.prototype as any).createArchiveWriter;
+      const writer = jest
+        .spyOn(svc as any, 'createArchiveWriter')
+        .mockImplementation(() => {
+          const real = createWriter.call(svc);
+          real.finalize = () => new Promise<void>(() => undefined);
+          return real;
+        });
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nodeFs = require('node:fs') as typeof fs;
+      const realOpen = nodeFs.promises.open.bind(nodeFs.promises);
+      let archiveCloses = 0;
+      const open = jest
+        .spyOn(nodeFs.promises, 'open')
+        .mockImplementation(async (...args: Parameters<typeof realOpen>) => {
+          const handle = await realOpen(...args);
+          if (String(args[0]).endsWith('original.zip')) {
+            const close = handle.close.bind(handle);
+            handle.close = () => {
+              archiveCloses++;
+              return close();
+            };
+          }
+          return handle;
+        });
+      const made: string[] = [];
+      const realMkdir = nodeFs.promises.mkdir.bind(nodeFs.promises);
+      const mkdir = jest
+        .spyOn(nodeFs.promises, 'mkdir')
+        .mockImplementation(
+          async (...args: Parameters<typeof nodeFs.promises.mkdir>) => {
+            made.push(String(args[0]));
+            return realMkdir(...args);
+          },
+        );
+      try {
+        await expect(svc.processUploadedFile(record('stuck'))).resolves.toBe(
+          false,
+        );
+      } finally {
+        writer.mockRestore();
+        open.mockRestore();
+        mkdir.mockRestore();
+      }
+      expectProcessingTimeout(sends, 'stuck');
+      // One open of the uploaded archive for its checks and its filter
+      // (the signature read opens it once more): every handle closed once.
+      await new Promise((r) => setTimeout(r, 20));
+      expect(archiveCloses).toBe(2);
+      expect(made).toHaveLength(1);
+      expect(fs.existsSync(made[0])).toBe(false);
+
+      updateScanData.mockClear();
+      serve(svc, await zipOf({ 'src/app.ts': 'export const x = 1;\n' }));
+      const next = { ...record('next'), projectId: 'other-project' };
+      next.objectPath = 'scan/other-project/next.zip';
+      await expect(svc.processUploadedFile(next)).resolves.toBe(true);
+    }, 30_000);
+
+    it('lets an archive through within the default deadline', async () => {
+      const svc = await build({
+        FULL_SCAN_MAX_ARCHIVE_BYTES: 64 * MIB,
+        FULL_SCAN_MAX_ENTRY_BYTES: 512 * MIB,
+        FULL_SCAN_MAX_UNCOMPRESSED_BYTES: 1024 * MIB,
+      });
+      const input = path.join(dir, 'slow-ok.zip');
+      await fs.promises.writeFile(input, slowZip);
+      await expect((svc as any).filterZipFile(input, dir)).resolves.toMatch(
+        /filtered\.zip$/,
+      );
+    }, 120_000);
+  });
+
+  // A failure of this pod's file system (too many open files, no space, an
+  // I/O error) says nothing of the archive: the upload is kept and processed
+  // again by a later tick, and the customer is not told the archive is bad.
+  describe('processUploadedFile, a file-system failure of this service', () => {
+    const failOpens = (code: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nodeFs = require('node:fs') as typeof fs;
+      const realOpen = nodeFs.promises.open.bind(nodeFs.promises);
+      return jest
+        .spyOn(nodeFs.promises, 'open')
+        .mockImplementation(async (...args: Parameters<typeof realOpen>) => {
+          if (String(args[0]).endsWith('original.zip')) {
+            throw Object.assign(new Error(`${code}: open failed`), {
+              code,
+              errno: -24,
+              syscall: 'open',
+            });
+          }
+          return realOpen(...args);
+        });
+    };
+
+    it.each(['EMFILE', 'ENOSPC', 'EIO'])(
+      'puts the upload back for a retry after %s, without failing the scan',
+      async (code) => {
+        const svc = await build();
+        const sends = serve(svc, await zipOf({ 'src/a.ts': 'x' }));
+        const open = failOpens(code);
+        try {
+          await expect(svc.processUploadedFile(record('fs'))).resolves.toBe(
+            false,
+          );
+        } finally {
+          open.mockRestore();
+        }
+        expect(updateScanData).not.toHaveBeenCalled();
+        expect(repo.update).toHaveBeenCalledWith(
+          { id: 'fs' },
+          expect.objectContaining({ status: FileStatus.PENDING_UPLOAD }),
+        );
+        expect(
+          sends.some((c) => c.constructor.name === 'DeleteObjectCommand'),
+        ).toBe(false);
+      },
+    );
+
+    // While the archive is filtered: the usual place of a full disk is the
+    // write of the filtered archive, and an I/O error can hit any read.
+    const expectPutBack = (sends: any[], id: string) => {
+      expect(updateScanData).not.toHaveBeenCalled();
+      expect(repo.update).toHaveBeenCalledWith(
+        { id },
+        expect.objectContaining({ status: FileStatus.PENDING_UPLOAD }),
+      );
+      expect(repo.update).not.toHaveBeenCalledWith(
+        { id },
+        expect.objectContaining({ status: FileStatus.FAILED }),
+      );
+      expect(
+        sends.some((c) => c.constructor.name === 'DeleteObjectCommand'),
+      ).toBe(false);
+    };
+
+    it('puts the upload back after a full disk while writing the filtered archive', async () => {
+      const svc = await build();
+      const sends = serve(
+        svc,
+        await zipOf({ 'src/a.ts': 'export const a = 1;\n' }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nodeFs = require('node:fs') as typeof fs;
+      const realCreate = nodeFs.createWriteStream.bind(nodeFs);
+      const create = jest
+        .spyOn(nodeFs, 'createWriteStream')
+        .mockImplementation(((target: fs.PathLike, options?: unknown) => {
+          if (!String(target).endsWith('filtered.zip')) {
+            return realCreate(target, options as never);
+          }
+          return new Writable({
+            write(_chunk, _enc, cb) {
+              cb(
+                Object.assign(new Error('ENOSPC: no space left on device'), {
+                  code: 'ENOSPC',
+                  errno: -28,
+                  syscall: 'write',
+                }),
+              );
+            },
+          });
+        }) as typeof nodeFs.createWriteStream);
+      try {
+        await expect(svc.processUploadedFile(record('full'))).resolves.toBe(
+          false,
+        );
+      } finally {
+        create.mockRestore();
+      }
+      expectPutBack(sends, 'full');
+    });
+
+    it('puts the upload back after an I/O error while reading an entry', async () => {
+      const svc = await build();
+      // Incompressible, so the entry's data is read in large chunks.
+      const sends = serve(
+        svc,
+        await zipOf({ 'src/data.ts': randomBytes(200 * 1024) }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const nodeFs = require('node:fs') as typeof fs;
+      const realOpen = nodeFs.promises.open.bind(nodeFs.promises);
+      const open = jest
+        .spyOn(nodeFs.promises, 'open')
+        .mockImplementation(async (...args: Parameters<typeof realOpen>) => {
+          const handle = await realOpen(...args);
+          if (!String(args[0]).endsWith('original.zip')) return handle;
+          const read = handle.read.bind(handle) as (
+            ...a: unknown[]
+          ) => Promise<{ bytesRead: number; buffer: Buffer }>;
+          // The checks read headers (small) and the end of the file; the
+          // filter reads the entry's data from the start, in large chunks.
+          handle.read = ((...a: unknown[]) => {
+            const [, , length, position] = a as [
+              Buffer,
+              number,
+              number,
+              number,
+            ];
+            if (length >= 16 * 1024 && position < 4096) {
+              return Promise.reject(
+                Object.assign(new Error('EIO: i/o error, read'), {
+                  code: 'EIO',
+                  errno: -5,
+                  syscall: 'read',
+                }),
+              );
+            }
+            return read(...a);
+          }) as typeof handle.read;
+          return handle;
+        });
+      try {
+        await expect(svc.processUploadedFile(record('eio'))).resolves.toBe(
+          false,
+        );
+      } finally {
+        open.mockRestore();
+      }
+      expectPutBack(sends, 'eio');
+    });
+
+    it('fails the scan as a processing error once the retries are spent', async () => {
+      const svc = await build();
+      const open = failOpens('EMFILE');
+      try {
+        for (let i = 0; i < 10; i++) {
+          serve(svc, await zipOf({ 'src/a.ts': 'x' }));
+          await svc.processUploadedFile(record('fs'));
+          if (updateScanData.mock.calls.length > 0) break;
+        }
+      } finally {
+        open.mockRestore();
+      }
+      expect(updateScanData).toHaveBeenCalledTimes(1);
+      const call = (updateScanData.mock.calls[0] as unknown[])[0] as {
+        state: string;
+        errorMessage: string;
+        errorCategory?: string;
+      };
+      expect(call.state).toBe('failed');
+      expect(call.errorCategory).toBeUndefined();
+      expect(call.errorMessage).not.toMatch(/not a ZIP/);
+    });
+  });
+
+  describe('processUploadedFile, an archive that reads as more than one archive', () => {
+    const visible = [{ name: 'README.md', data: 'hello\n' }];
+    const hidden = [
+      { name: 'hidden/payload.py', data: 'import os\nos.system("id")\n' },
+    ];
+
+    /**
+     * The refusal fails that upload only: the next upload, of another
+     * project, is filtered and its scan started by the same service.
+     */
+    const expectNextUploadProcessed = async (svc: FileService) => {
+      serve(svc, await zipOf({ 'src/app.ts': 'export const x = 1;\n' }));
+      const next = { ...record('next'), projectId: 'other-project' };
+      next.objectPath = 'scan/other-project/next.zip';
+      await expect(svc.processUploadedFile(next)).resolves.toBe(true);
+      expect(startScan).toHaveBeenCalledTimes(1);
+    };
+
+    it.each([
+      [
+        'two end records, each with its own central directory',
+        () => twoEndRecordsZip(visible, hidden),
+        /more than one end-of-central-directory record/,
+      ],
+      [
+        'two end records, the first one past the entry limit',
+        () => twoEndRecordsZip(visible, hidden, 500),
+        /more than one end-of-central-directory record/,
+      ],
+      [
+        'an end record hidden in a central directory record',
+        () => endRecordInDirectoryZip(visible, hidden),
+        /does not account for/,
+      ],
+      [
+        'an end record held as the comment of the end record',
+        () => endRecordInCommentZip(visible),
+        /more than one end-of-central-directory record/,
+      ],
+      [
+        'central directory records that all point at the same data',
+        () => overlappingRecordsZip({ name: 'a.py', data: 'x = 1\n' }, 10),
+        /does not account for/,
+      ],
+      [
+        'bytes between the entries and the central directory',
+        () => unaccountedDataZip(visible, craftZip(hidden)),
+        /does not account for/,
+      ],
+    ])('refuses %s', async (_label, make, pattern) => {
+      const svc = await build();
+      const sends = serve(svc, make());
+      await expect(svc.processUploadedFile(record('twice'))).resolves.toBe(
+        false,
+      );
+      expectRejected(sends, 'twice', 'ARCHIVE_INVALID', pattern);
+      expectDeleted(sends, 'twice');
+      await expectNextUploadProcessed(svc);
+    });
+
+    it('filters what it checked: the filter refuses such an archive too', async () => {
+      const svc = await build();
+      const input = path.join(dir, 'two-ends.zip');
+      await fs.promises.writeFile(input, twoEndRecordsZip(visible, hidden));
+      await expect((svc as any).filterZipFile(input, dir)).rejects.toThrow(
+        /more than one end-of-central-directory record/,
+      );
+    });
+
+    it('still accepts a well-formed archive written byte for byte', async () => {
+      const svc = await build();
+      serve(
+        svc,
+        craftZip([
+          { name: 'src/a.py', data: 'a = 1\n' },
+          { name: 'src/b.py', data: 'b = 2\n'.repeat(100), deflate: true },
+        ]),
+      );
+      await expect(svc.processUploadedFile(record('crafted'))).resolves.toBe(
+        true,
+      );
+      expect(startScan).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('processUploadedFile, an archive that cannot be scanned', () => {
     // A real encrypted ZIP (zip -e), one entry "secret.txt".
     const ENCRYPTED_ZIP = Buffer.from(

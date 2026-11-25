@@ -95,10 +95,11 @@ describe('GlobalExceptionFilter', () => {
     filter.catch(err, host);
 
     expect(captured.statusCode).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+    // A fixed message: the error's own text stays in the logs.
     expect(captured.body).toMatchObject({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       error: 'Internal Server Error',
-      message: 'Something totally unexpected',
+      message: 'An unexpected error occurred',
       path: '/boom',
     });
   });

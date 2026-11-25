@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { GitHistoryCursorService } from './git-history/git-history-cursor.service';
-import { ilike } from '@cybedefend/db-dialect';
+import { ident, ilike, sql } from '@cybedefend/db-dialect';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -63,6 +63,7 @@ import {
   CreateCompletedScanResponse,
   GetProjectBranchesFromScansPaginatedRequest,
   GetProjectBranchesFromScansPaginatedResponse,
+  UploadFilterSummary,
 } from '@grpc/security-scanning/scan';
 
 // Types for batch scan status - will be generated after proto regeneration
@@ -119,6 +120,7 @@ import { ContainerScanBranchResolver } from './core/containerScanBranchResolver'
 import { ImportScanService } from './import/import-scan.service';
 import { RealtimeEventPublisher } from '@cybedefend/realtime-publisher';
 import { ulid } from 'ulid';
+import { boundUploadFilterSummary } from './upload-filter-summary';
 
 @Injectable()
 export class ScanService implements OnModuleInit {
@@ -334,6 +336,11 @@ export class ScanService implements OnModuleInit {
     // covered. Both absent when there is nothing to say.
     const historyPass = scan.metadata?.historyPass;
     if (historyPass) scanResponse.historyPass = historyPass;
+    // What the upload filter left out; absent on a scan with no upload and
+    // on a scan recorded before it was kept.
+    if (scan.uploadFilterSummary) {
+      scanResponse.uploadFilterSummary = scan.uploadFilterSummary;
+    }
     // Coverage costs a read: only the user-facing route asks for it, and a
     // failure of that read never fails GetScan.
     if (data.includePipeline && scan.branch && this.historyCursors) {
@@ -747,12 +754,15 @@ export class ScanService implements OnModuleInit {
       return { success: true, message: 'Scan updated successfully' };
     } catch (e) {
       if (e instanceof RpcException) throw e;
-      this.logger.error(
-        `[updateScan] Unexpected error for scan=${updateScan.scanId}: ${e instanceof Error ? e.message : e}`,
-      );
+      // A statement's error can quote values: logged through the serializer,
+      // never answered.
+      this.logger.error({
+        err: e,
+        msg: `[updateScan] Unexpected error for scan=${updateScan.scanId}`,
+      });
       throw new RpcException({
         code: status.INTERNAL,
-        message: `UpdateScan failed: ${e instanceof Error ? e.message : 'unknown error'}`,
+        message: 'UpdateScan failed',
       });
     }
   }
@@ -1327,7 +1337,12 @@ export class ScanService implements OnModuleInit {
               agentCategoriesSast: [],
               agentCategoriesIac: [],
               agentCategoriesCicd: [],
+              // Never cleared by a scan: the issue-creation branches and the
+              // CI/CD agent categories are project settings, not something a
+              // scan decides.
+              clearAgentCategoriesCicd: false,
               issueCreationBranches: [],
+              clearIssueCreationBranches: false,
               notifSeverityThreshold: [],
               notifScannerTypes: [],
               zeroDaySeverityThreshold: [],
@@ -1403,7 +1418,43 @@ export class ScanService implements OnModuleInit {
     // so no image is reserved and no container row is written.
     if (scan.importFormat) return this.importScans.start(scan, data);
 
+    // What the upload filter left out of the archive, recorded on the scan
+    // so the scan is never read as covering files it did not read. Bounded
+    // here: the sender's sizes are not trusted. The summary is information:
+    // a summary that cannot be stored is dropped, and the scan starts.
+    const uploadFilterSummary = boundUploadFilterSummary(
+      data.uploadFilterSummary,
+    );
+    if (uploadFilterSummary) {
+      try {
+        await this.storeUploadFilterSummary(scan.id, uploadFilterSummary);
+        scan.uploadFilterSummary = uploadFilterSummary;
+      } catch (error) {
+        this.logger.warn(
+          `startScan: scan ${scan.id}: upload filter summary not stored: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } else if (data.uploadFilterSummary) {
+      this.logger.warn(
+        `startScan: scan ${scan.id}: malformed upload filter summary not stored`,
+      );
+    }
+
     return this.orchestrator.startScan(scan, data);
+  }
+
+  /**
+   * Writes the upload filter summary of one scan with a targeted UPDATE of
+   * that one column. The column is left out of the entity's update set
+   * (`update: false`), so a copy of the scan loaded before this write and
+   * saved after it never writes null back over the summary.
+   */
+  private async storeUploadFilterSummary(
+    scanId: string,
+    summary: UploadFilterSummary,
+  ): Promise<void> {
+    const statement = sql`UPDATE ${ident('scan')} SET ${ident('uploadFilterSummary')} = ${JSON.stringify(summary)} WHERE ${ident('id')} = ${scanId}`;
+    await this.scanRepository.query(statement.text, statement.params);
   }
 
   /**

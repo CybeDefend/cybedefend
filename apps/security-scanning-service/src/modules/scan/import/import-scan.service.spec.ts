@@ -316,6 +316,31 @@ describe('ImportScanService', () => {
     },
   );
 
+  it('answers RESOURCE_EXHAUSTED IMPORT_QUEUE_FULL when the organization has too many imports waiting', async () => {
+    importResults.mockReturnValue(
+      throwError(() => ({
+        code: status.RESOURCE_EXHAUSTED,
+        details: 'IMPORT_QUEUE_FULL: too many imports are waiting',
+      })),
+    );
+
+    const error = await importScans
+      .start(scanOf(), { scanId: 's1', projectId: 'p1', language: [] })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(HandledScanStartError);
+    expect((error as RpcException).getError()).toMatchObject({
+      code: status.RESOURCE_EXHAUSTED,
+      message: 'IMPORT_QUEUE_FULL',
+    });
+    // The import scan ends failed and its file is removed, as for any
+    // refused import: the caller sends it again later.
+    expect(qb.set).toHaveBeenCalledWith(
+      expect.objectContaining({ state: 'failed' }),
+    );
+    expect(deleteImportObjectRpc).toHaveBeenCalled();
+  });
+
   it('fails the scan IMPORT_UNAVAILABLE when the ImportResults call never answers within 15 s', async () => {
     jest.useFakeTimers();
     try {

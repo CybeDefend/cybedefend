@@ -41,6 +41,7 @@ import {
   createLoggerMock,
   createMockRepository,
 } from 'src/test-utils/typeorm-mock.util';
+import { grantingCreateQueryRunner } from '../authorization/membership-lock.testing';
 
 /** Extra providers for the test module; later entries override earlier ones with the same `provide`. */
 export interface OrganizationFixtureOptions {
@@ -150,6 +151,9 @@ export async function buildOrganizationService(
   const uomRepo = createMockRepository<UserOrganizationMembership>();
   const utmRepo = createMockRepository<UserTeamMembership>();
   const invRepo = createMockRepository<OrganizationInvitation>();
+  // The conditional update that consumes an invitation: it wins unless a
+  // spec says otherwise.
+  invRepo.update!.mockResolvedValue({ affected: 1 } as never);
   const mailService = {
     sendOrganizationInviteEmail: jest.fn().mockResolvedValue(undefined),
   };
@@ -181,7 +185,11 @@ export async function buildOrganizationService(
   // ENTITLEMENTS_PORT, with the CommunityEntitlements answers by default:
   // every invitation allowed, AppSec active everywhere, no project limit.
   const entitlements = communityEntitlementsMock();
-  const dataSource = { transaction: jest.fn() };
+  // `createQueryRunner`: the connection of the membership locks, granted.
+  const dataSource = {
+    transaction: jest.fn(),
+    createQueryRunner: grantingCreateQueryRunner(),
+  };
   // The purge jobs an organization deletion records (one per subject).
   const purgeLedger = {
     enqueueOrganization: jest.fn(async () => ['job-o1']),

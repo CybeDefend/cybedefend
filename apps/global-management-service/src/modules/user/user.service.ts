@@ -102,6 +102,20 @@ interface ProfileMembership {
  */
 export const USERS_BY_IDS_MAX = 200;
 
+/**
+ * The onboarding progress is a list of step ids the dashboard records, read
+ * back with the profile and with every member list. It stays small: the
+ * request value is at most 4 KiB of JSON, a step id is 1 to 64 characters of
+ * `a-z 0-9 _ . : -`, and at most 100 ids are stored, the ones already
+ * recorded first.
+ */
+export const ONBOARDING_PROGRESS_MAX_REQUEST_LENGTH = 4096;
+export const ONBOARDING_PROGRESS_MAX_STEPS = 100;
+const ONBOARDING_STEP_ID = /^[a-z0-9_.:-]{1,64}$/;
+
+const isStepId = (value: unknown): value is string =>
+  typeof value === 'string' && ONBOARDING_STEP_ID.test(value);
+
 @Injectable()
 export class UserService {
   constructor(
@@ -334,6 +348,15 @@ export class UserService {
 
   @Span()
   async update(request: UpdateUserProfileRequest): Promise<UserUpdateResponse> {
+    if (
+      typeof request.onboardingProgress === 'string' &&
+      request.onboardingProgress.length > ONBOARDING_PROGRESS_MAX_REQUEST_LENGTH
+    ) {
+      throw new RpcException({
+        code: status.INVALID_ARGUMENT,
+        message: 'onboardingProgress is too long',
+      });
+    }
     const user = await this.userRepository.findOne({
       where: { id: request.userId },
     });
@@ -353,11 +376,16 @@ export class UserService {
     }
     if (request.onboardingProgress) {
       try {
-        const steps = JSON.parse(request.onboardingProgress);
+        const steps: unknown = JSON.parse(request.onboardingProgress);
         if (Array.isArray(steps)) {
-          const existing = user.onboardingProgress || [];
-          const merged = [...new Set([...existing, ...steps])];
-          user.onboardingProgress = merged;
+          // Recorded steps first, so a new one never pushes out an old one;
+          // anything that is not a step id is dropped, stored values included.
+          const existing = (user.onboardingProgress || []).filter(isStepId);
+          const merged = [...new Set([...existing, ...steps.filter(isStepId)])];
+          user.onboardingProgress = merged.slice(
+            0,
+            ONBOARDING_PROGRESS_MAX_STEPS,
+          );
         }
       } catch {
         // Invalid JSON — ignore

@@ -1,5 +1,6 @@
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
+import { IsNull } from 'typeorm';
 
 import { OrganizationService } from './organization.service';
 import { MockType } from 'src/test-utils/typeorm-mock.util';
@@ -44,6 +45,7 @@ describe('OrganizationService', () => {
     setOrganizationActive: jest.Mock;
     initializeOrganizationWithoutProduct: jest.Mock;
     initializeOrganizationProducts: jest.Mock;
+    organizationRemoveMember: jest.Mock;
   };
   let deleteIntegrationsForOrg: jest.Mock;
   let dataSource: { transaction: jest.Mock };
@@ -605,6 +607,64 @@ describe('OrganizationService', () => {
       });
       expect(uomRepo.save).not.toHaveBeenCalled();
       expect(invRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('seats nobody when another acceptance consumed the invitation first', async () => {
+      arrangeAccept({ role: 'member' });
+      // The conditional update pending -> accepted matched no row.
+      invRepo.update!.mockResolvedValueOnce({ affected: 0 } as never);
+
+      const error = await catchRpc(accept());
+
+      expect(error.getError()).toEqual({
+        code: status.FAILED_PRECONDITION,
+        message: 'Invitation has already been accepted or canceled',
+      });
+      expect(invRepo.update).toHaveBeenCalledWith(
+        { id: 'inv-1', status: 'pending' },
+        expect.objectContaining({ status: 'accepted' }),
+      );
+      expect(uomRepo.save).not.toHaveBeenCalled();
+      expect(authorizationService.organizationAddMember).not.toHaveBeenCalled();
+    });
+
+    it('consumes the invitation before seating the member, and reopens it when seating fails', async () => {
+      arrangeAccept({ role: 'member' });
+      authorizationService.organizationAddMember.mockRejectedValueOnce(
+        new RpcException({ code: status.UNAVAILABLE, message: 'down' }),
+      );
+
+      const error = await catchRpc(accept());
+
+      expect(error.getError()).toEqual({
+        code: status.UNAVAILABLE,
+        message: 'down',
+      });
+      expect(invRepo.update.mock.calls).toEqual([
+        [
+          { id: 'inv-1', status: 'pending' },
+          { status: 'accepted', acceptedAt: null },
+        ],
+        [
+          { id: 'inv-1', status: 'accepted', acceptedAt: IsNull() },
+          { status: 'pending', acceptedAt: null },
+        ],
+      ]);
+      // Every role of the user went before the row, so reopening is safe.
+      expect(
+        authorizationService.organizationRemoveMember,
+      ).toHaveBeenCalledWith({
+        organizationId: 'o1',
+        userId: INVITEE.id,
+      });
+      expect(
+        authorizationService.organizationRemoveMember.mock
+          .invocationCallOrder[0],
+      ).toBeLessThan(uomRepo.remove.mock.invocationCallOrder[0]);
+      // The consuming update ran before the membership was written.
+      expect(invRepo.update.mock.invocationCallOrder[0]).toBeLessThan(
+        uomRepo.save.mock.invocationCallOrder[0],
+      );
     });
 
     it('does not seat the invitee in a team its inviter cannot add members to', async () => {

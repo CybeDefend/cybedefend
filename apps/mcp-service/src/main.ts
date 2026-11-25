@@ -2,7 +2,7 @@ import tracer from './tracer';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
-import { HttpException, HttpStatus, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import {
   FastifyAdapter,
@@ -10,14 +10,13 @@ import {
 } from '@nestjs/platform-fastify';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'node:path';
-import rateLimit from '@fastify/rate-limit';
-import { rateLimitAddressOf } from './core/http/rate-limit-address';
 import { GlobalExceptionFilter } from './core/exception/global-exception.filter';
 import { Logger as NestLogger } from '@nestjs/common';
+import { httpAdapterOptions } from './core/http/http-surface.options';
 import {
-  corsOptions,
-  httpAdapterOptions,
-} from './core/http/http-surface.options';
+  registerRequestGuards,
+  requestGuardOptionsFromEnv,
+} from './core/http/request-guards';
 import { registerGracefulShutdown } from './core/shutdown/graceful-shutdown';
 import { editionProtoPaths } from './edition/edition-protos';
 import { resolveProtoBasePath } from './core/config/proto-base-path';
@@ -38,8 +37,6 @@ export async function bootstrap(): Promise<void> {
   // Dropped spans and failed exports, dated in the OTLP backend rather than on stdout.
   tracer.routeDiagnostics(app.get(Logger));
 
-  app.enableCors(corsOptions);
-
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -49,45 +46,11 @@ export async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Rate limit public HTTP entry. Scoped to client IP — X-Forwarded-For is
-  // honoured ONLY when the upstream hop sits inside `TRUST_PROXY_CIDR`;
-  // otherwise `req.ip` falls back to the socket origin so an unauthenticated
-  // caller cannot rotate XFF to dodge the bucket.
-  // Health and OAuth discovery endpoints are allow-listed so probes and
-  // unauthenticated handshake calls never trip the limiter; /mcp itself IS
-  // counted (401s count toward the bucket on purpose).
-  const fastify = app.getHttpAdapter().getInstance();
-  await fastify.register(rateLimit, {
-    global: true,
-    max: Number(process.env.RATE_LIMIT_MAX ?? 120),
-    timeWindow: process.env.RATE_LIMIT_WINDOW ?? '1 minute',
-    // An IPv6 caller is keyed on its /64, an IPv4-mapped one on its IPv4.
-    keyGenerator: (req) => rateLimitAddressOf(req.ip),
-    allowList: (req) => {
-      // The router tolerates duplicate leading slashes (see
-      // `httpAdapterOptions`), but this callback sees the raw URL — collapse
-      // them so `//.well-known/…` probes stay allow-listed too.
-      const url = (req.url || '').replace(/^\/{2,}/, '/');
-      return (
-        url.startsWith('/health') ||
-        url.startsWith('/.well-known/oauth-protected-resource') ||
-        url.startsWith('/.well-known/oauth-authorization-server')
-      );
-    },
-    errorResponseBuilder: (_req, ctx) =>
-      // @fastify/rate-limit throws this return value. Nest's global exception
-      // filter catches everything, so we throw an HttpException so it is
-      // serialized as a proper 429 (otherwise the filter's fallback branch
-      // would return 500).
-      new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          error: 'Too Many Requests',
-          message: `Rate limit exceeded, retry in ${Math.ceil(ctx.ttl / 1000)}s`,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      ),
-  });
+  // CORS, the `Origin` check and the request limits of the public entry:
+  // requests without valid credentials have a small budget per address,
+  // authenticated callers one per identity, counted apart (see
+  // `request-guards.ts`).
+  await registerRequestGuards(app, requestGuardOptionsFromEnv(process.env));
 
   // Connect the internal gRPC listener used by the Gateway to fan out
   // secrets rotation events (package cybedefend.mcp). Every other

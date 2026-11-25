@@ -6,6 +6,7 @@
 オープンソースの Snyk 代替: セルフホスト型のエージェント型 AppSec と、あなたのコーディングエージェントが実行する AI スキャナー。</p>
 
 <p align="center">
+  <a href="https://github.com/CybeDefend/cybedefend/stargazers"><img src="https://img.shields.io/badge/Star%20on%20GitHub-7B5BFF?logo=github&logoColor=white" alt="Star CybeDefend on GitHub"></a>
   <a href="https://github.com/CybeDefend/cybedefend/tags"><img src="https://img.shields.io/github/v/tag/CybeDefend/cybedefend?sort=semver&label=release&color=7B5BFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-7B5BFF" alt="License: AGPL-3.0"></a>
   <a href="https://discord.gg/UPzm4n6SAJ"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -17,7 +18,7 @@
 <p align="center"><a href="README.md">English</a> &bull; <a href="README.fr.md">Français</a> &bull; <a href="README.zh-CN.md">中文</a> &bull; <a href="README.ja.md">日本語</a> &bull; <a href="README.ko.md">한국어</a> &bull; <a href="README.es.md">Español</a> &bull; <a href="README.pt-BR.md">Português</a></p>
 
 > [!NOTE]
-> 2026 年 12 月 4 日に Product Hunt でローンチします。[Discord](https://discord.gg/UPzm4n6SAJ) でぜひ話しましょう。
+> スターが、ほかの開発者がこのリポジトリを見つけるきっかけになります。2026 年 12 月 4 日に Product Hunt でローンチします。[Discord](https://discord.gg/UPzm4n6SAJ) でぜひ話しましょう。
 
 **① コマンドひとつで完全な監査。**
 コーディングエージェントで `/cybedefend` と入力します。オープンソースのスキャナーが走り、AI スキャナーがそれらには見えないものを探し、エージェントがすべての検出結果をあなたのコードに照らして判定します。答えは **SHIP**、または **NOT YET** と、ブロックしている項目およびそれぞれの修正です。
@@ -385,6 +386,10 @@ docker compose up -d
     </td>
   </tr>
 </table>
+
+<br>
+
+<p align="center">監査であなたのコードに何か見つかったら、スターをお願いします。ほかの開発者がこのプロジェクトを見つけやすくなります。</p>
 
 <br>
 

@@ -21,7 +21,11 @@ describe('PolicyEvaluationProcessor - glob patterns cannot stall evaluation', ()
     null as never,
     null as never,
   ) as unknown as {
-    isExcluded: (vuln: unknown, exclusions: PolicyExclusion[]) => boolean;
+    isExcluded: (
+      vuln: unknown,
+      exclusions: PolicyExclusion[],
+      onSkip?: (pattern: string, reason: string) => void,
+    ) => boolean;
     evaluateSimpleRule: (
       rule: PolicyRule,
       vuln: unknown,
@@ -73,6 +77,66 @@ describe('PolicyEvaluationProcessor - glob patterns cannot stall evaluation', ()
       ),
     );
     expect(ms).toBeLessThan(200);
+  });
+
+  it('matches a chain of wildcards against a 4,000-character path at once', () => {
+    const longPath = `src/${'a'.repeat(4000)}`;
+    const { value, ms } = timed(() =>
+      processor.isExcluded({ id: 'v1', name: 'f', filePath: longPath }, [
+        { pattern: 'src/*a*a*a*a*b' } as PolicyExclusion,
+        { pattern: '**/*a*a*a*a*a*a*a*a*b' } as PolicyExclusion,
+      ]),
+    );
+    expect(value).toBe(false);
+    // Generous on a loaded machine: the previous matcher needed minutes.
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it('skips a stored pattern it cannot match, reports it, and goes on', () => {
+    const skipped: [string, string][] = [];
+    const onSkip = (pattern: string, reason: string) =>
+      skipped.push([pattern, reason]);
+    const stored = [
+      { pattern: '(a)\\1' } as PolicyExclusion,
+      // Past the caps of a new pattern, but stored before them: evaluated.
+      { pattern: `*a${'*a'.repeat(20)}*b` } as PolicyExclusion,
+      { pattern: 'tests/**' } as PolicyExclusion,
+    ];
+    expect(
+      processor.isExcluded(
+        { id: 'v1', name: 'f', filePath: 'src/app/main.ts' },
+        stored,
+        onSkip,
+      ),
+    ).toBe(false);
+    // The supported pattern next to it still applies.
+    expect(
+      processor.isExcluded(
+        { id: 'v2', name: 'f', filePath: 'tests/unit/a.spec.ts' },
+        stored,
+        onSkip,
+      ),
+    ).toBe(true);
+    // Once per finding checked; the evaluation keeps one entry of each.
+    expect(skipped).toEqual([
+      ['(a)\\1', expect.stringContaining('back references')],
+      ['(a)\\1', expect.stringContaining('back references')],
+    ]);
+  });
+
+  it('applies a negated group as it always did', () => {
+    expect(
+      processor.isExcluded(
+        { id: 'v1', name: 'f', filePath: 'src/app/main.ts' },
+        [{ pattern: '!(vendor)/**' } as PolicyExclusion],
+      ),
+    ).toBe(true);
+    expect(
+      processor.isExcluded(
+        { id: 'v1', name: 'f', filePath: 'vendor/x/main.ts' },
+        [{ pattern: '!(vendor)/**' } as PolicyExclusion],
+      ),
+    ).toBe(false);
   });
 
   it('keeps matching the ordinary patterns', () => {

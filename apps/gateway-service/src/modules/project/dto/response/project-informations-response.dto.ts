@@ -341,7 +341,7 @@ export class ProjectInformationsResponseDto {
 
   @ApiProperty({
     description:
-      'List of branches for which issues should be created. Empty means all branches.',
+      'Branches for which GitHub/GitLab issues are created. Empty: no GitHub/GitLab issue is created.',
     required: false,
     isArray: true,
     type: 'string',

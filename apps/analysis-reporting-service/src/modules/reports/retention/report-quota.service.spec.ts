@@ -1,5 +1,10 @@
 import { status } from '@grpc/grpc-js';
-import { ReportQuotaService } from './report-quota.service';
+import { In, LessThanOrEqual } from 'typeorm';
+import {
+  DEFAULT_MAX_IN_FLIGHT_REPORTS_PER_ORG,
+  maxInFlightReportsPerOrg,
+  ReportQuotaService,
+} from './report-quota.service';
 import type { AnalysisReportingEntitlementsPort } from 'src/edition/ports/entitlements.port';
 
 describe('ReportQuotaService', () => {
@@ -76,20 +81,114 @@ describe('ReportQuotaService', () => {
     expect(entitlements.getEntitlements).not.toHaveBeenCalled();
   });
 
-  it('counts only ready reports for the org (generated + aggregated, expiry-aware)', async () => {
+  it('counts queued and ready reports for the org (generated + aggregated, expiry-aware)', async () => {
     const { svc, generatedRepo, aggregatedRepo } = build({
       max: 500,
       gCount: 1,
       aCount: 1,
     });
     await svc.assertWithinQuotaForOrg('org-1');
-    const gWhere = generatedRepo.count.mock.calls[0][0].where;
-    expect(Array.isArray(gWhere)).toBe(true); // (expiresAt IS NULL) OR (> now)
-    expect(gWhere[0]).toMatchObject({
-      organizationId: 'org-1',
-      status: 'ready',
+    for (const repo of [generatedRepo, aggregatedRepo]) {
+      const where = repo.count.mock.calls[0][0].where;
+      expect(Array.isArray(where)).toBe(true); // (expiresAt IS NULL) OR (> now)
+      expect(where[0]).toMatchObject({
+        organizationId: 'org-1',
+        status: In(['queued', 'ready']),
+      });
+    }
+  });
+
+  describe('admitQueuedReport', () => {
+    const counting = (generated: number[], aggregated: number[]) => {
+      const built = build({});
+      built.generatedRepo.count = jest.fn(() =>
+        Promise.resolve(generated.shift() ?? 0),
+      );
+      built.aggregatedRepo.count = jest.fn(() =>
+        Promise.resolve(aggregated.shift() ?? 0),
+      );
+      return built;
+    };
+
+    it('inserts the row when the org is below the cap', async () => {
+      const { svc } = counting([1, 2], [1, 1]);
+      const insert = jest.fn().mockResolvedValue(undefined);
+      const remove = jest.fn().mockResolvedValue(undefined);
+      await svc.admitQueuedReport('org-1', insert, remove);
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(remove).not.toHaveBeenCalled();
     });
-    expect(aggregatedRepo.count).toHaveBeenCalled();
+
+    it('refuses before inserting when the org is at the cap', async () => {
+      const { svc } = counting([2], [1]);
+      const insert = jest.fn();
+      await expect(
+        svc.admitQueuedReport('org-1', insert, jest.fn()),
+      ).rejects.toMatchObject({ error: { code: status.RESOURCE_EXHAUSTED } });
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('removes its own row and refuses when a concurrent insert went past the cap', async () => {
+      const { svc } = counting([1, 3], [1, 1]);
+      const insert = jest.fn().mockResolvedValue(undefined);
+      const remove = jest.fn().mockResolvedValue(undefined);
+      await expect(
+        svc.admitQueuedReport('org-1', insert, remove),
+      ).rejects.toMatchObject({ error: { code: status.RESOURCE_EXHAUSTED } });
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts the recent queued rows of the org, then ranks its own row by id', async () => {
+      const { svc, generatedRepo, aggregatedRepo } = counting([0, 1], [0, 0]);
+      const insert = jest.fn().mockResolvedValue(undefined);
+      const id = await svc.admitQueuedReport('org-1', insert, jest.fn());
+
+      expect(insert).toHaveBeenCalledWith(id);
+      for (const repo of [generatedRepo, aggregatedRepo]) {
+        const [first, second] = repo.count.mock.calls.map(
+          (c: any[]) => c[0].where,
+        );
+        expect(first).toMatchObject({
+          organizationId: 'org-1',
+          status: 'queued',
+        });
+        // A queued row older than the stale threshold is not in flight.
+        expect(first.createdAt).toBeDefined();
+        expect(first.id).toBeUndefined();
+        // The rank: the rows up to the new report's id.
+        expect(second.id).toEqual(LessThanOrEqual(id));
+      }
+    });
+
+    it('returns time-ordered ids', async () => {
+      const { svc } = counting([], []);
+      const a = await svc.admitQueuedReport(null, jest.fn(), jest.fn());
+      const b = await svc.admitQueuedReport(null, jest.fn(), jest.fn());
+      expect(a < b).toBe(true);
+    });
+
+    it('applies no cap without an org', async () => {
+      const { svc, generatedRepo } = counting([], []);
+      const insert = jest.fn().mockResolvedValue(undefined);
+      await svc.admitQueuedReport(null, insert, jest.fn());
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(generatedRepo.count).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('maxInFlightReportsPerOrg', () => {
+    it('defaults to 3 and reads a positive integer override', () => {
+      expect(DEFAULT_MAX_IN_FLIGHT_REPORTS_PER_ORG).toBe(3);
+      expect(maxInFlightReportsPerOrg({})).toBe(3);
+      expect(
+        maxInFlightReportsPerOrg({ REPORTS_MAX_IN_FLIGHT_PER_ORG: '5' }),
+      ).toBe(5);
+      for (const bad of ['0', '-1', 'x', '2.5', '']) {
+        expect(
+          maxInFlightReportsPerOrg({ REPORTS_MAX_IN_FLIGHT_PER_ORG: bad }),
+        ).toBe(3);
+      }
+    });
   });
 
   it('assertWithinQuotaForProject resolves org then enforces', async () => {

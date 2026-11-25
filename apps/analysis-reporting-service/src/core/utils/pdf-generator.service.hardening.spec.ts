@@ -164,11 +164,12 @@ describe('PdfGeneratorService page hardening', () => {
 
   it('refuses to print a page that is no longer the report', async () => {
     state.documentUrl = 'http://10.0.0.7:8080/landing?d=secret';
+    // The caller gets a stable message; the cause is only logged.
     await expect(
       service.generatePDF(HOSTILE, { waitForSelector: '.footer' }),
-    ).rejects.toThrow(
-      'PDF generation failed: the report page left its document',
-    );
+    ).rejects.toMatchObject({
+      error: { message: 'PDF generation failed' },
+    });
     const logged = JSON.stringify(logger.error.mock.calls);
     expect(logged).not.toMatch(/10\.0\.0\.7|landing|secret/);
   });

@@ -46,23 +46,32 @@ export class ProjectReportEnqueuer {
     // Refuse before doing any work if the org is at its stored-report
     // quota (soft, fail-open on billing outage).
     await this.reportQuota.assertWithinQuotaForProject(input.projectId);
-    const reportId = ulid();
     // Resolve the owning org + plan-derived expiry once, at creation.
     const { organizationId, expiresAt } =
       await this.reportRetention.computeExpiresAtForProject(input.projectId);
-    await this.generatedReportRepo.save(
-      this.generatedReportRepo.create({
-        id: reportId,
-        kind: input.kind,
-        projectId: input.projectId,
-        organizationId,
-        format: input.format,
-        detailed: input.detailed,
-        branch: input.branch ?? null,
-        scannerTypes: input.scannerTypes ?? null,
-        status: 'queued',
-        expiresAt,
-      }),
+    // At most a few reports of one org wait or render at once: the report
+    // worker is shared by every org of the instance.
+    const reportId = await this.reportQuota.admitQueuedReport(
+      organizationId,
+      async (reportId) => {
+        await this.generatedReportRepo.save(
+          this.generatedReportRepo.create({
+            id: reportId,
+            kind: input.kind,
+            projectId: input.projectId,
+            organizationId,
+            format: input.format,
+            detailed: input.detailed,
+            branch: input.branch ?? null,
+            scannerTypes: input.scannerTypes ?? null,
+            status: 'queued',
+            expiresAt,
+          }),
+        );
+      },
+      async (reportId) => {
+        await this.generatedReportRepo.delete({ id: reportId });
+      },
     );
 
     // Surface the generation in the background-tasks widget. Created
@@ -120,9 +129,11 @@ export class ProjectReportEnqueuer {
           // best-effort rollback of the widget task
         }
       }
+      // The queue's error is logged; the caller gets a stable message.
+      this.logger.error({ err, msg: 'Failed to enqueue report job' });
       throw new RpcException({
         code: status.UNAVAILABLE,
-        message: `Failed to enqueue report job: ${(err as Error).message}`,
+        message: 'Failed to enqueue report job',
       });
     }
     return reportId;

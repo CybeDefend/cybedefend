@@ -8,6 +8,18 @@ import {
 } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { FastifyReply } from 'fastify';
+import { serializeLoggedError } from '../logger/logged-error';
+
+/** What the client reads for an error no code path meant to answer. */
+export const UNEXPECTED_ERROR_MESSAGE = 'An unexpected error occurred';
+
+/**
+ * A gRPC UNKNOWN is what a service answers for an error it let escape: its
+ * detail is that error's own text, not a message meant for the client.
+ */
+function isUnexpectedGrpcError(code: unknown): boolean {
+  return code === 2;
+}
 
 /**
  * Standard error response structure (mirrors gateway-service envelope).
@@ -46,14 +58,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       request?.url ?? '',
     );
 
+    // Logged without the query string, whose values can be tokens. A 5xx is
+    // logged through the serializer: its code and stack, never the values a
+    // statement's error quotes.
+    const loggedPath = errorResponse.path.split('?')[0];
     if (errorResponse.statusCode >= 500) {
-      this.logger.error(
-        `[${errorResponse.statusCode}] ${errorResponse.message}`,
-        exception instanceof Error ? exception.stack : undefined,
-      );
+      this.logger.error({
+        err:
+          exception instanceof Error
+            ? serializeLoggedError(exception)
+            : { code: (exception as { code?: unknown } | null)?.code },
+        msg: `[${errorResponse.statusCode}] ${errorResponse.message} - ${loggedPath}`,
+      });
     } else if (errorResponse.statusCode >= 400) {
       this.logger.warn(
-        `[${errorResponse.statusCode}] ${errorResponse.message} - ${errorResponse.path}`,
+        `[${errorResponse.statusCode}] ${errorResponse.message} - ${loggedPath}`,
       );
     }
 
@@ -116,10 +135,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         lowerMessage.includes('credentials') ||
         lowerMessage.includes('401')
       ) {
+        // The status is inferred from the error's words; the words are not
+        // answered (a plain error's text is not meant for the client).
         return {
           statusCode: HttpStatus.UNAUTHORIZED,
           error: 'Unauthorized',
-          message: exception.message,
+          message: 'Unauthorized',
           errorCategory: 'authentication',
           timestamp,
           path,
@@ -130,7 +151,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         return {
           statusCode: HttpStatus.FORBIDDEN,
           error: 'Forbidden',
-          message: exception.message,
+          message: 'Forbidden',
           errorCategory: 'authentication',
           timestamp,
           path,
@@ -140,7 +161,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         error: 'Internal Server Error',
-        message: exception.message || 'An unexpected error occurred',
+        message: UNEXPECTED_ERROR_MESSAGE,
         timestamp,
         path,
       };
@@ -166,6 +187,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (typeof error === 'object' && error !== null) {
       const errorObj = error as Record<string, unknown>;
       const grpcCode = errorObj.code as number;
+      if (isUnexpectedGrpcError(grpcCode)) {
+        return this.unexpectedGrpcError(grpcCode, path, timestamp);
+      }
       const message = (errorObj.message ||
         errorObj.details ||
         'gRPC error') as string;
@@ -200,6 +224,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     };
   }
 
+  /** A downstream error the service let escape: status from the code alone. */
+  private unexpectedGrpcError(
+    grpcCode: number,
+    path: string,
+    timestamp: string,
+  ): StandardErrorResponse {
+    const httpStatus = this.grpcToHttpStatus(grpcCode);
+    return {
+      statusCode: httpStatus,
+      error: this.getStatusText(httpStatus),
+      message: UNEXPECTED_ERROR_MESSAGE,
+      timestamp,
+      path,
+    };
+  }
+
   private isGrpcError(obj: unknown): obj is Record<string, unknown> {
     if (typeof obj !== 'object' || obj === null) return false;
     const error = obj as Record<string, unknown>;
@@ -216,6 +256,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     timestamp: string,
   ): StandardErrorResponse {
     const grpcCode = error.code as number;
+    if (isUnexpectedGrpcError(grpcCode)) {
+      return this.unexpectedGrpcError(grpcCode, path, timestamp);
+    }
     const message = (error.details ||
       error.message ||
       'Service error') as string;

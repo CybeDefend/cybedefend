@@ -11,6 +11,7 @@ import LoaderHome from "./components/atoms/loader/LoaderHome";
 import { BreadcrumbProjectProvider } from '@/components/molecules/breadcrumbs/BreadcrumbProjectContext';
 import ScrollToTopOnNavigate from "./components/atoms/scroll-to-top/ScrollToTopOnNavigate";
 import ShellPage from "./components/organismes/layout/ShellPage";
+import RouteIdGuard from "./components/molecules/routing/RouteIdGuard";
 import ProtectedRouteWrapper from "./components/molecules/protected-route/ProtectedRouteWrapper";
 import RootLanding from "./components/molecules/routing/RootLanding";
 import { IntegrationGithubPage } from "./pages/integrations-page/IntegrationGithubPage";
@@ -157,7 +158,9 @@ export function appRouteTable(edition: Edition = EDITION): ReactElement {
         path="/organization/settings/policies/:policyId/edit"
         element={
           <ShellPage currentPath="Edit Policy" protect>
-            <EditPolicyPage />
+            <RouteIdGuard params={["policyId"]} fallback="/organization/settings/policies">
+              <EditPolicyPage />
+            </RouteIdGuard>
           </ShellPage>
         }
       />

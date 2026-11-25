@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import {
   ident,
   isUniqueViolation,
@@ -89,7 +89,9 @@ export class PersonalAccessTokenStore {
    * Creates a token. Before any query: an empty or over-100-character
    * (trimmed) name → PAT_NAME_INVALID; an expiry not after `now` →
    * PAT_EXPIRY_INVALID. Then one transaction that locks the user row
-   * (pessimistic_write), marks the user's expired tokens revoked (so they
+   * (pessimistic_write), checks `opts.verifiedPasswordHash` against the
+   * credential row under a shared lock when given (CURRENT_PASSWORD_INVALID
+   * when a password write replaced it), marks the user's expired tokens revoked (so they
    * hold neither a slot nor their name), refuses at 10 active tokens with
    * PAT_LIMIT_REACHED,
    * and inserts the row as its last statement: a unique violation on
@@ -101,6 +103,7 @@ export class PersonalAccessTokenStore {
     name: string,
     expiresAt: Date | null,
     now: Date,
+    opts?: { verifiedPasswordHash?: string },
   ): Promise<{ pat: LocalPat; token: string }> {
     const trimmed = name.trim();
     if (trimmed.length === 0 || trimmed.length > PAT_NAME_MAX_LENGTH) {
@@ -123,6 +126,23 @@ export class PersonalAccessTokenStore {
           .setLock('pessimistic_write')
           .where('u.id = :userId', { userId })
           .getOne();
+        if (opts?.verifiedPasswordHash !== undefined) {
+          // The password was checked before this transaction. Under the
+          // credential row's shared lock (a reset or change holds it
+          // exclusively), the hash must still be the one verified: a token
+          // never outlives a password write that ran at the same moment.
+          const { rows: held } = await run(
+            manager,
+            sql`SELECT ${c('password_hash')} AS ${c('passwordHash')}
+              FROM ${ident('local_credential')}
+              WHERE ${c('user_id')} = ${userId} FOR SHARE`,
+          );
+          const current = (held[0] as { passwordHash?: string } | undefined)
+            ?.passwordHash;
+          if (current !== opts.verifiedPasswordHash) {
+            throw localAuthRefusal('CURRENT_PASSWORD_INVALID');
+          }
+        }
         // An expired token is neither listed nor usable, so it must not hold
         // a slot of the limit or its name: mark it revoked first.
         await run(
@@ -281,12 +301,18 @@ export class PersonalAccessTokenStore {
   }
 
   /**
-   * Revokes every active token of the user (a removal from an organisation)
-   * and returns the matched rows.
+   * Revokes every active token of the user (a removal from an organisation, a
+   * password reset or change) and returns the matched rows. With `manager`,
+   * inside the caller's transaction (the one that writes the new password),
+   * so the password and the revocation commit together.
    */
-  async revokeAllOfUser(userId: string, now: Date): Promise<number> {
+  async revokeAllOfUser(
+    userId: string,
+    now: Date,
+    manager?: EntityManager,
+  ): Promise<number> {
     const { affected } = await run(
-      this.dataSource,
+      manager ?? this.dataSource,
       sql`UPDATE ${TABLE} SET ${c('revoked_at')} = ${now}
         WHERE ${c('user_id')} = ${userId} AND ${c('revoked_at')} IS NULL`,
     );

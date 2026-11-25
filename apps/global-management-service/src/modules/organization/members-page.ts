@@ -33,7 +33,7 @@ export function likeContains(query: string): string {
  *   PostgreSQL case-insensitive only. No LOWER()/UPPER() (what TypeORM's
  *   ILike emits under MySQL), which would hide the column from the optimizer.
  * - The order is explicit: user id, then membership id, the order of
- *   IDX_uom_org_user / IDX_tm_team_user, so MySQL reads the page in index
+ *   UQ_uom_org_user / UQ_tm_team_user, so MySQL reads the page in index
  *   order. The previous read had no ORDER BY: its order was the plan's.
  * - A page or a page size below 1 reads no member (the previous slice of the
  *   whole list did not either, and a negative OFFSET is an SQL error).

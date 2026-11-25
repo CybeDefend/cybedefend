@@ -90,10 +90,17 @@ export async function listTokens(): Promise<PersonalAccessTokenView[]> {
   return (await fetchTokenList()).tokens;
 }
 
-/** Creates a token; `expiresAt` is ISO 8601, absent for « never ». The secret is in `token`, shown once. */
-export async function createToken(name: string, expiresAt?: string): Promise<CreatedToken> {
+/**
+ * Creates a token; `expiresAt` is ISO 8601, absent for « never ». The secret is in `token`, shown once.
+ * In the Community Edition `currentPassword` (the account's password) is required: a token outlives
+ * every session, so the server asks for it. It is sent in the body only, never kept or logged.
+ */
+export async function createToken(name: string, expiresAt?: string, currentPassword?: string): Promise<CreatedToken> {
   if (isCommunity()) {
-    const body: { name: string; expiresAt?: string } = { name };
+    const body: { name: string; expiresAt?: string; currentPassword: string } = {
+      name,
+      currentPassword: currentPassword ?? '',
+    };
     if (expiresAt) body.expiresAt = expiresAt;
     const { data } = await gatewayAPI.post<Record<string, unknown>>(COMMUNITY_PATH, body);
     const token = data?.token;

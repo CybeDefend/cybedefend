@@ -21,9 +21,14 @@
 //   - every probe is written to .cybedefend/out/live.json, with credentials
 //     masked, so the report shows what was sent and what came back;
 //   - stop ends the application and everything it started, and never a
-//     process it did not start;
-//   - left lists only what appeared after begin: what the user had before
-//     the step is never named for removal.
+//     process it did not start: live.json is in the repository, so the
+//     process id it names is signalled only when this machine noted it at
+//     start (outside the repository, with a random token of the run) and the
+//     system still gives that process the same start time and port (or, once
+//     it has exited, its group still holds what it started);
+//   - left lists only what appeared after begin, as this machine noted it
+//     then (never the list of live.json): what the user had before the step
+//     is never named for removal.
 //
 // Output: the answer on stdout (for the agent to go on with), messages on
 // stderr. Exit: 0 done, 2 the application did not come up or a probe could
@@ -31,11 +36,13 @@
 // 64 usage error.
 
 import { spawn, execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync, closeSync, statSync, realpathSync } from 'node:fs';
 import { connect } from 'node:net';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launcher } from './os.mjs';
+import { readNote, runGit, trustedRoot, TreeRefused, writeNote } from './trust.mjs';
 import { updateWatch, addFeed, openWatch } from './watch.mjs';
 
 const say = (line) => process.stderr.write(`${line}\n`);
@@ -77,11 +84,12 @@ class Exit extends Error {
   }
 }
 
+/** The repository's root, with its .cybedefend tree checked before anything there is read or written (trust.mjs). */
 function repoRoot() {
   try {
-    // resolve(): git answers C:/x/y on Windows, where the working folder reads C:\x\y.
-    return resolve(execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim());
-  } catch {
+    return trustedRoot();
+  } catch (e) {
+    if (e instanceof TreeRefused) throw new Exit(3, e.message);
     throw new Exit(64, 'Not inside a git repository: run it from the repository under review.');
   }
 }
@@ -110,6 +118,70 @@ const alive = (pid) => {
     return false;
   }
 };
+
+/** A process id this step may name: a whole number above 1 (0, 1 and negative ids reach a group of processes or all of them). */
+const validPid = (pid) => Number.isSafeInteger(pid) && pid > 1;
+
+/**
+ * When the system says a process started, as text to compare with what start
+ * noted: a process id handed again to another program since is never taken
+ * for the application. Null when it cannot be read.
+ */
+export function processStart(pid) {
+  if (!validPid(pid)) return null;
+  const read = (cmd, args, extra = {}) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15_000, windowsHide: true, ...extra }).trim().replace(/\s+/g, ' ') || null;
+  try {
+    if (process.platform === 'win32') return read('powershell', ['-NoProfile', '-NonInteractive', '-Command', `(Get-Process -Id ${pid}).StartTime.ToUniversalTime().ToString('o')`]);
+    if (process.platform === 'linux') {
+      // Field 22 of /proc/<pid>/stat, counted after the command name, which may hold spaces.
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      return `ticks ${stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19]}`;
+    }
+    return read('ps', ['-o', 'lstart=', '-p', String(pid)], { env: { ...process.env, LC_ALL: 'C' } });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The application of live.json that this step may signal or probe, or why
+ * not. live.json is in the repository: a clone or a checkout can bring one
+ * that names any process of the user. Only a process this machine noted at
+ * start, with the same token and the same start time, is the application.
+ */
+export function appToStop(root, state) {
+  const app = state?.app ?? null;
+  if (!app) return { app: null, refused: null, group: false };
+  const no = (why) => ({ app: null, refused: `pid ${String(app.pid)} of .cybedefend/out/live.json is not a process this step started on this machine (${why}): nothing is signalled`, group: false });
+  if (!validPid(app.pid)) return no('not a valid process id');
+  const note = readNote(root, 'live-app.json');
+  if (!note || note.pid !== app.pid || typeof app.token !== 'string' || note.token !== app.token) return no('this machine has no record of it');
+  if (note.port !== app.port) return no(`this machine noted it on port ${note.port}, not ${app.port}`);
+  const started = processStart(app.pid);
+  if (started && started === note.started) return { app, refused: null, group: false };
+  // The first process has exited and left others in its group (a start script that launches the server and ends):
+  // a group id is never given again while the group has a process, so the group is still the one start launched.
+  if (!started && process.platform !== 'win32' && !alive(app.pid) && groupMembers(app.pid).length) return { app, refused: null, group: true };
+  return no(started ? 'the process that has this id now is another one' : 'it is no longer running');
+}
+
+/** The processes of the group `pgid`, as the system lists them. */
+export function groupMembers(pgid) {
+  if (!validPid(pgid) || process.platform === 'win32') return [];
+  try {
+    return execFileSync('ps', ['-A', '-o', 'pid=,pgid='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, LC_ALL: 'C' }, timeout: 15_000 })
+      .split('\n')
+      .map((l) => l.trim().split(/\s+/).map(Number))
+      .filter(([p, g]) => g === pgid && p > 0)
+      .map(([p]) => p);
+  } catch {
+    return [];
+  }
+}
+
+/** What was there before the step, as this machine noted it at begin (or at start): never the list live.json holds. */
+const noteBefore = (root, before) => writeNote(root, 'live-before.json', before);
+const notedBefore = (root) => readNote(root, 'live-before.json');
 
 /** Whether something accepts connections on this machine's port. */
 function answers(port, host = '127.0.0.1') {
@@ -196,7 +268,8 @@ async function start(root, flags) {
   const port = Number(flags.port);
   if (!(port > 0 && port < 65536) || !flags.command?.length) throw new Exit(64, 'Usage: live.mjs start --port <n> [--wait <seconds>] [--cwd <dir>] -- <the command that starts the application>');
   const state = readState(root);
-  if (state.app && alive(state.app.pid)) throw new Exit(3, `Already started (pid ${state.app.pid}, port ${state.app.port}): stop it first with live.mjs stop.`);
+  const running = appToStop(root, state).app;
+  if (running && alive(running.pid)) throw new Exit(3, `Already started (pid ${running.pid}, port ${running.port}): stop it first with live.mjs stop.`);
   if (await listens(port)) throw new Exit(3, `Something already answers on port ${port}. This step never talks to an application it did not start: it could be the user's own, with real data. Stop it, or start this one on another port.`);
   // Where the command is called from, when that is inside the repository: a framework's command line looks for its project there.
   let here = root;
@@ -239,9 +312,16 @@ async function start(root, flags) {
     say(maskBody(tail(), 4000));
     throw new Exit(2, `Nothing answered on port ${port} after ${wait} s: stopped. Its last lines are above (${logFile}).`);
   }
-  state.app = { pid: child.pid, port, command: flags.command.join(' '), cwd, startedAt: new Date().toISOString(), log: logFile };
+  // Noted outside the repository too: stop signals this process only, while the system gives it the same start time.
+  const token = randomBytes(16).toString('hex');
+  const started = processStart(child.pid);
+  state.app = { pid: child.pid, port, command: flags.command.join(' '), cwd, startedAt: new Date().toISOString(), log: logFile, token, started };
+  writeNote(root, 'live-app.json', { pid: child.pid, port, token, started });
   // begin was not run: what is there now is noted, late (a database started before this is taken for the user's).
-  if (!state.before) state.before = { at: new Date().toISOString(), late: true, ...surroundings(root) };
+  if (!notedBefore(root)) {
+    state.before = { at: new Date().toISOString(), late: true, ...surroundings(root) };
+    noteBefore(root, state.before);
+  }
   writeState(root, state);
   // An application that listens on every interface is reachable from the network while it runs: say so.
   let everywhere = false;
@@ -272,7 +352,9 @@ async function start(root, flags) {
 function surroundings(root) {
   const lines = (cmd, args) => {
     try {
-      return execFileSync(cmd, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20_000, maxBuffer: 64 * 1024 * 1024 }).split('\n').filter((l) => l.trim());
+      // git through runGit: the repository's own configuration runs no program.
+      const opts = { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20_000, maxBuffer: 64 * 1024 * 1024 };
+      return (cmd === 'git' ? runGit(args, opts) : execFileSync(cmd, args, opts)).split('\n').filter((l) => l.trim());
     } catch {
       return null;
     }
@@ -326,7 +408,7 @@ function sayLeft(left) {
 
 function headOf(root) {
   try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+    return runGit(['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim() || null;
   } catch {
     return null;
   }
@@ -334,7 +416,8 @@ function headOf(root) {
 
 async function probe(root, flags, rest) {
   const state = readState(root);
-  if (!state.app || !alive(state.app.pid)) throw new Exit(3, 'No application started by this step is running: live.mjs start first. A probe never goes to an application this step did not start.');
+  const app = appToStop(root, state).app;
+  if (!app || !alive(app.pid)) throw new Exit(3, 'No application started by this step is running: live.mjs start first. A probe never goes to an application this step did not start.');
   if (rest.length !== 1) throw new Exit(64, 'Usage: live.mjs probe [--finding <file:line>] [--note "..."] [-X <METHOD>] [-H "Name: value"]... [-d <body>] <url>');
   const url = allowedUrl(rest[0], state.app.port);
   const method = String(flags.method ?? (flags.data !== undefined ? 'POST' : 'GET')).toUpperCase();
@@ -402,11 +485,26 @@ async function stop(root) {
     say('live: nothing to stop.');
     return 0;
   }
-  const { pid, port } = state.app;
+  const { app, refused, group } = appToStop(root, state);
+  if (!app) {
+    // Forgotten, so the run's page and the audit no longer say it runs.
+    state.app = null;
+    writeState(root, state);
+    throw new Exit(3, refused);
+  }
+  const { pid, port } = app;
+  // With the first process gone, what is left is reached through its group only (never the id alone, which may be another program's now).
+  const running = () => (group ? groupMembers(pid).length > 0 : alive(pid));
   for (const signal of ['SIGTERM', 'SIGKILL']) {
-    killTree(pid, signal);
-    for (let i = 0; i < 10 && alive(pid); i += 1) await sleep(300);
-    if (!alive(pid)) break;
+    if (group) {
+      try {
+        process.kill(-pid, signal);
+      } catch {
+        /* the group is empty */
+      }
+    } else killTree(pid, signal);
+    for (let i = 0; i < 10 && running(); i += 1) await sleep(300);
+    if (!running()) break;
   }
   const still = await listens(port);
   // What ran, for the lines the audit prints about this step once it is over.
@@ -418,7 +516,8 @@ async function stop(root) {
     addFeed(w, { kind: 'note', text: `The application is stopped. ${state.probes.filter((p) => p.note && !p.replaced).length} replay(s) kept with their request and answer.` });
   });
   say(still ? `live: the process is stopped, but something still answers on port ${port}: check what the start command left running (a container, a child process) and stop it.` : `live: stopped, port ${port} is free. ${state.probes.filter((x) => !x.replaced).length} probe(s) kept in .cybedefend/out/live.json.`);
-  const left = state.before ? leftSince(root, state.before) : null;
+  const before = notedBefore(root);
+  const left = before ? leftSince(root, before) : null;
   if (left) {
     sayLeft(left);
     state.left = { at: new Date().toISOString(), clean: isClean(left), ...left };
@@ -441,10 +540,12 @@ async function main(argv) {
       // Before anything is started: what git sees as changed and what Docker holds, so that the end can say what this step added.
       const state = readState(root);
       state.before = { at: new Date().toISOString(), ...surroundings(root) };
+      noteBefore(root, state.before);
       state.left = null;
       // Asked again, the replay is made again: what an earlier one kept is put aside, and stays in the file under its numbers.
       const earlier = state.probes.filter((x) => !x.replaced).length;
-      if (earlier && !(state.app && alive(state.app.pid))) {
+      const running = appToStop(root, state).app;
+      if (earlier && !(running && alive(running.pid))) {
         for (const x of state.probes) x.replaced = true;
         say(`live: the ${earlier} request(s) of an earlier replay are put aside. This replay starts the application again and stands for itself.`);
       }
@@ -456,8 +557,10 @@ async function main(argv) {
     }
     case 'left': {
       const state = readState(root);
-      if (!state.before) throw new Exit(64, 'Nothing was noted before the step: run "live.mjs begin" first, before anything is started.');
-      const left = leftSince(root, state.before);
+      // Only what this machine noted at begin: a list found in live.json would name the user's own containers as the step's.
+      const before = notedBefore(root);
+      if (!before) throw new Exit(3, 'This machine has no record of what was there before the step (what live.json says is not used: it can come with the repository). Run "live.mjs begin" before anything is started, then the step again.');
+      const left = leftSince(root, before);
       const clean = sayLeft(left);
       // Kept with the evidence: the audit says from it whether the step ended clean.
       state.left = { at: new Date().toISOString(), clean, ...left };
@@ -481,12 +584,13 @@ async function main(argv) {
     }
     case 'status': {
       const state = readState(root);
-      const running = Boolean(state.app && alive(state.app.pid));
-      process.stdout.write(`${JSON.stringify({ running, port: running ? state.app.port : null, probes: state.probes.filter((x) => !x.replaced).length })}\n`);
+      const app = appToStop(root, state).app;
+      const running = Boolean(app && alive(app.pid));
+      process.stdout.write(`${JSON.stringify({ running, port: running ? app.port : null, probes: state.probes.filter((x) => !x.replaced).length })}\n`);
       return 0;
     }
     default:
-      process.stderr.write(`${readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 32).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')}\n`);
+      process.stderr.write(`${readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 37).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')}\n`);
       return command ? 64 : 0;
   }
 }

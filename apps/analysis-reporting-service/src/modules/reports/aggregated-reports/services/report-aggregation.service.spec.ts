@@ -1,3 +1,4 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Logger } from 'nestjs-pino';
@@ -93,6 +94,43 @@ describe('ReportAggregationService — validateUserAccess (defense in depth)', (
     service = module.get(ReportAggregationService);
     // Manually invoke onModuleInit since Test doesn't trigger it
     service.onModuleInit();
+  });
+
+  it('getTeamProjects keeps the failed call as the cause, so its gRPC code stays readable', async () => {
+    const callError = Object.assign(
+      new Error('14 UNAVAILABLE: connection refused'),
+      { code: status.UNAVAILABLE, details: 'connection refused' },
+    );
+    Object.assign(projectServiceClient, {
+      GetAllFromTeam: jest.fn(() => throwError(() => callError)),
+    });
+
+    const rejection = await service
+      .getTeamProjects('team-1', userId)
+      .catch((e: unknown) => e);
+
+    // Same exception as before for every caller: class, message, status.
+    expect(rejection).toBeInstanceOf(HttpException);
+    expect((rejection as HttpException).getStatus()).toBe(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+    expect((rejection as HttpException).message).toBe(
+      'Failed to fetch team projects',
+    );
+    expect((rejection as HttpException).cause).toBe(callError);
+    expect(((rejection as HttpException).cause as { code: number }).code).toBe(
+      status.UNAVAILABLE,
+    );
+  });
+
+  it('getTeamProjects answers an empty list for a team without a project', async () => {
+    Object.assign(projectServiceClient, {
+      GetAllFromTeam: jest.fn(() => of({ projects: [] })),
+    });
+
+    await expect(service.getTeamProjects('team-1', userId)).resolves.toEqual(
+      [],
+    );
   });
 
   it('rejects with PERMISSION_DENIED when a projectId belongs to a different organization (cross-tenant exfiltration)', async () => {
@@ -253,6 +291,8 @@ function makeAggregation(opts: {
     repo(opts.iac) as any,
     repo(opts.sca, {
       manager: {
+        // No imported advisory.
+        find: jest.fn().mockResolvedValue([]),
         createQueryBuilder: jest.fn(() => qb(opts.fixedEvents ?? [])),
       },
     }) as any,

@@ -509,8 +509,9 @@ describe('ResultController', () => {
       );
     });
 
-    // Agent audit fields propagated for HistoryItem traceability.
-    it('propagates agentToolCallId / agentConversationId / agentStreamId', async () => {
+    // The assistant audit fields are never taken from the public body: the
+    // triage is the authenticated caller's.
+    it('never forwards assistant audit fields sent in the body', async () => {
       service.update.mockResolvedValue({} as any);
       await controller.update(
         { user: { sub: 'u4' } } as any,
@@ -525,9 +526,10 @@ describe('ResultController', () => {
       );
       expect(service.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          agentToolCallId: 'tc-abc',
-          agentConversationId: 'conv-1',
-          agentStreamId: 'stream-1',
+          userId: 'u4',
+          agentToolCallId: '',
+          agentConversationId: '',
+          agentStreamId: '',
         }),
       );
     });
@@ -986,15 +988,11 @@ describe('ResultController', () => {
         body,
       );
 
+      // The assistant audit fields of the body are not handed on.
       expect(service.batchUpdate).toHaveBeenCalledWith(
         '11111111-1111-1111-1111-111111111111',
         body.items,
         'user-42',
-        {
-          agentToolCallId: 'tc-1',
-          agentConversationId: 'conv-1',
-          agentStreamId: 'stream-1',
-        },
       );
       expect(result).toEqual(enqueueResponse);
     });

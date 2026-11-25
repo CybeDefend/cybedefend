@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import CopyButton from '@/components/atoms/copy-button';
 import { getApiUrl } from '@/config/runtimeConfig';
 import type { ImportType } from '@/server/services/importService';
+import { isUuid } from '@/utils/uuid';
+import { isPlainBranch, isPlainImage, shellWord } from '@/utils/shell';
 
 interface ImportCommandHintProps {
   projectId: string;
@@ -13,12 +15,7 @@ interface ImportCommandHintProps {
   image?: string;
 }
 
-const SHELL_SAFE = /^[A-Za-z0-9._/:@=+-]+$/;
-
-/** A value as one shell word: as is when it is safe, single-quoted otherwise. */
-export function shellWord(value: string): string {
-  return SHELL_SAFE.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
-}
+export { shellWord };
 
 /** The gateway's base URL made absolute against this origin, without its trailing slash. */
 export function absoluteApiUrl(): string {
@@ -37,16 +34,32 @@ export interface ImportCommands {
   curl: string;
   /** The Trivy line that produces the file, for sca and container only. */
   producer: string | null;
+  /** A branch or an image was held back and shows as its placeholder. */
+  heldValues: boolean;
 }
 
-export function importCommands({ projectId, type, branch, image }: ImportCommandHintProps): ImportCommands {
-  const branchWord = branch ? shellWord(branch) : '<branch>';
-  const imageWord = image ? shellWord(image) : '<image>';
+/**
+ * The commands, or `null` when the project id is not a UUID. The branch and
+ * the image are inserted only when every shell reads them literally
+ * (`isPlainBranch`, `isPlainImage`); otherwise, and while they are empty, they
+ * show as `<branch>` / `<image>`. Every text field is sent with
+ * `--form-string`, which curl never reads as a file name.
+ */
+export function importCommands({ projectId, type, branch, image }: ImportCommandHintProps): ImportCommands | null {
+  if (!isUuid(projectId)) return null;
+
   const isContainer = type === 'container';
+  const plainBranch = branch !== '' && isPlainBranch(branch) ? branch : undefined;
+  const plainImage = image && isPlainImage(image) ? image : undefined;
+  const heldValues = (branch !== '' && !plainBranch) || (isContainer && !!image && !plainImage);
+  const branchWord = plainBranch ? shellWord(plainBranch) : '<branch>';
+  const imageWord = plainImage ? shellWord(plainImage) : '<image>';
+  const textField = (name: string, value: string | undefined, placeholder: string) =>
+    `--form-string ${value ? shellWord(`${name}=${value}`) : `${name}=${placeholder}`}`;
   const cli = [
     'cybedefend import',
-    `--project-id ${projectId}`,
-    `--type ${type}`,
+    `--project-id ${shellWord(projectId)}`,
+    `--type ${shellWord(type)}`,
     `--branch ${branchWord}`,
     ...(isContainer ? [`--image ${imageWord}`] : []),
     'results.sarif',
@@ -55,11 +68,11 @@ export function importCommands({ projectId, type, branch, image }: ImportCommand
     'curl -X POST',
     '-H "Authorization: Bearer $CYBEDEFEND_TOKEN"',
     '-F file=@results.sarif',
-    `-F type=${type}`,
-    `-F branch=${branchWord}`,
-    ...(isContainer ? [`-F image=${imageWord}`] : []),
-    '-F format=sarif',
-    `${absoluteApiUrl()}/project/${projectId}/scan/import/start`,
+    textField('type', type, type),
+    textField('branch', plainBranch, '<branch>'),
+    ...(isContainer ? [textField('image', plainImage, '<image>')] : []),
+    textField('format', 'sarif', 'sarif'),
+    shellWord(`${absoluteApiUrl()}/project/${projectId}/scan/import/start`),
   ].join(' ');
   const producer =
     type === 'sca'
@@ -67,7 +80,7 @@ export function importCommands({ projectId, type, branch, image }: ImportCommand
       : isContainer
         ? `trivy image --format sarif -o results.sarif ${imageWord}`
         : null;
-  return { cli, curl, producer };
+  return { cli, curl, producer, heldValues };
 }
 
 const CommandLine: React.FC<{ label: string; command: string; copyLabel: string }> = ({ label, command, copyLabel }) => (
@@ -87,13 +100,24 @@ const CommandLine: React.FC<{ label: string; command: string; copyLabel: string 
  */
 const ImportCommandHint: React.FC<ImportCommandHintProps> = (props) => {
   const { t } = useTranslation();
-  const { cli, curl, producer } = importCommands(props);
+  const commands = importCommands(props);
   const note = props.type === 'sca' || props.type === 'container' ? t(`components.importResults.typeNote.${props.type}`) : null;
+
+  if (!commands) {
+    return (
+      <section className="space-y-3" aria-label={t('components.importResults.hint.title')}>
+        <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{t('components.importResults.hint.title')}</h3>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('components.importResults.hint.unavailable')}</p>
+      </section>
+    );
+  }
+  const { cli, curl, producer, heldValues } = commands;
 
   return (
     <section className="space-y-3" aria-label={t('components.importResults.hint.title')}>
       <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{t('components.importResults.hint.title')}</h3>
       {note && <p className="text-xs text-zinc-600 dark:text-zinc-400">{note}</p>}
+      {heldValues && <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('components.importResults.hint.placeholder')}</p>}
       {producer && (
         <CommandLine label={t('components.importResults.hint.producer')} command={producer} copyLabel={t('components.importResults.hint.copyProducer')} />
       )}

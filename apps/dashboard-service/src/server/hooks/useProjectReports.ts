@@ -6,6 +6,7 @@ import { pollReportUntilSettled } from './reportPolling';
 import { getRegionConfig } from '@/utils/function/region';
 import i18n from '@/i18n';
 import { apiErrorText } from '@/utils/function/apiErrorKey';
+import { isForbidden } from '@/utils/function/isForbidden';
 
 // Only log to the browser console in dev builds — production noise
 // is shipped to the OTEL collector through the global error boundary,
@@ -71,6 +72,9 @@ export const useProjectReports = (
   const [loading, setLoading] = useState<boolean>(false);
   const [cweLoading, setCweLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  // The gateway refused this role the reports (403): the page shows its
+  // « not allowed » state instead of an error per attempt.
+  const [forbidden, setForbidden] = useState<boolean>(false);
 
   // Normalise the branch filter once: `null` means "all branches" and must
   // not be forwarded to the gateway (which interprets any non-empty value as
@@ -207,11 +211,16 @@ export const useProjectReports = (
             }
             applyReportToSlot(slot, report, format);
           } catch (err: any) {
-            setError(apiErrorText(err, { fallback: 'errors.reports.generateFailed' }));
+            if (isForbidden(err)) setForbidden(true);
+            else setError(apiErrorText(err, { fallback: 'errors.reports.generateFailed' }));
           } finally {
             setLoadingForSlot(slot, false);
           }
         })();
+      },
+      // A 403 handshake is final (the stream does not reconnect): say so once.
+      error: (env: { fatal?: boolean; status?: number } | undefined) => {
+        if (env?.fatal && env.status === 403) setForbidden(true);
       },
     },
     [projectId],
@@ -245,7 +254,8 @@ export const useProjectReports = (
         return data;
       } catch (err: any) {
         devError('Error generating OWASP report:', err);
-        setError(apiErrorText(err, { fallback: 'errors.reports.owaspFailed' }));
+        if (isForbidden(err)) setForbidden(true);
+        else setError(apiErrorText(err, { fallback: 'errors.reports.owaspFailed' }));
         setOwaspReportData(null);
         setLoading(false);
         return null;
@@ -272,7 +282,8 @@ export const useProjectReports = (
         return data;
       } catch (err: any) {
         devError('Error generating CWE report:', err);
-        setError(apiErrorText(err, { fallback: 'errors.reports.cweFailed' }));
+        if (isForbidden(err)) setForbidden(true);
+        else setError(apiErrorText(err, { fallback: 'errors.reports.cweFailed' }));
         setCweReportData(null);
         setCweLoading(false);
         return null;
@@ -338,6 +349,7 @@ export const useProjectReports = (
     loading,
     cweLoading,
     error,
+    forbidden,
     generateOwasp,
     generateCwe,
     clearOwaspReport,

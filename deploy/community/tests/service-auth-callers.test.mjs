@@ -32,8 +32,10 @@ function policyCallers(service) {
   const own = /caller: '([a-z0-9-]+)',/.exec(text)?.[1];
   assert.equal(own, service, `${service} signs as itself`);
   const body = text.replace(/caller: '[a-z0-9-]+',/, '');
+  // Every quoted name counts: a caller this job does not know must fail below,
+  // not be dropped, or its calls would be signed with a key no one holds.
   const quoted = [...body.matchAll(/'([a-z0-9-]+)'/g)].map((m) => m[1]);
-  return [...new Set(quoted.filter((name) => GRPC_SERVICES.includes(name)))].sort();
+  return [...new Set(quoted)].sort();
 }
 
 test('each server receives the keys of the callers its policy names, and of no other', () => {
@@ -42,3 +44,11 @@ test('each server receives the keys of the callers its policy names, and of no o
   }
 });
 
+
+test('every caller a policy names is a service this job derives keys for', () => {
+  for (const service of GRPC_SERVICES) {
+    for (const caller of policyCallers(service)) {
+      assert.ok(GRPC_SERVICES.includes(caller), `${service} serves ${caller}, which gets no key`);
+    }
+  }
+});

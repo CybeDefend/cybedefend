@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Logger } from 'nestjs-pino';
 import { FileScan, FileStatus } from '../entities/file.entity';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 
 import { safeGrpcCall } from '@grpc/wrapper-grpc.module';
 import { ConfigService } from '@nestjs/config';
@@ -15,6 +15,54 @@ import {
 import { FileService } from './file.service';
 import { ArchiveLimitError, ARCHIVE_FAILURE_CATEGORY } from './zip-limits.util';
 
+/**
+ * Storage checks of pending uploads per tick. Every pending upload costs one
+ * check of the object store per tick, made one after the other by the single
+ * pod that processes the uploads of every project: without a bound, a project
+ * that starts many scans and uploads nothing would delay everyone's uploads.
+ */
+export const DEFAULT_PENDING_CHECKS_PER_PROJECT = 5;
+export const DEFAULT_PENDING_CHECKS_PER_TICK = 100;
+
+function positiveInt(raw: unknown, fallback: number): number {
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * The pending uploads to check this tick: the ones checked least recently
+ * first (never checked before all others, then the oldest), at most
+ * `perProject` of one project and `perTick` in all. Every pending upload is
+ * therefore checked in turn, and the uploads of one project cannot take the
+ * checks of the others.
+ */
+export function pendingUploadsToCheck(
+  rows: FileScan[],
+  lastChecked: ReadonlyMap<string, number>,
+  perProject: number,
+  perTick: number,
+): FileScan[] {
+  // Checked at the same time (or never): oldest first.
+  const order = (r: FileScan) => lastChecked.get(r.scanId) ?? -Infinity;
+  const created = (r: FileScan) => r.createdAt?.getTime() ?? 0;
+  const sorted = [...rows].sort((a, b) => {
+    const x = order(a);
+    const y = order(b);
+    if (x !== y) return x < y ? -1 : 1;
+    return created(a) - created(b);
+  });
+  const perProjectCount = new Map<string, number>();
+  const picked: FileScan[] = [];
+  for (const row of sorted) {
+    if (picked.length >= perTick) break;
+    const count = perProjectCount.get(row.projectId) ?? 0;
+    if (count >= perProject) continue;
+    perProjectCount.set(row.projectId, count + 1);
+    picked.push(row);
+  }
+  return picked;
+}
+
 @Injectable()
 export class FileCron implements OnModuleInit {
   scanServiceClient: ScanServiceClient;
@@ -24,6 +72,16 @@ export class FileCron implements OnModuleInit {
   // Uploads processed at once by this pod: ticks overlap, and each processing
   // holds its archive's buffers (FILE_SCAN_PROCESSING_CONCURRENCY, default 1).
   processingConcurrency: number;
+  // Bounds of the storage checks of pending uploads, per project and per tick
+  // (FILE_SCAN_PENDING_CHECKS_PER_PROJECT, FILE_SCAN_PENDING_CHECKS_PER_TICK).
+  pendingChecksPerProject: number;
+  pendingChecksPerTick: number;
+  // When each pending upload was last checked (scanId -> epoch ms).
+  private readonly lastChecked = new Map<string, number>();
+  // Pending uploads a running tick is checking: an overlapping tick skips them.
+  private readonly checking = new Set<string>();
+  // Where the rotating page of pending uploads resumes (a creation time).
+  private pendingCursor: Date | null = null;
 
   constructor(
     @InjectRepository(FileScan)
@@ -50,6 +108,14 @@ export class FileCron implements OnModuleInit {
           1,
       ),
     );
+    this.pendingChecksPerProject = positiveInt(
+      this.configService.get('FILE_SCAN_PENDING_CHECKS_PER_PROJECT'),
+      DEFAULT_PENDING_CHECKS_PER_PROJECT,
+    );
+    this.pendingChecksPerTick = positiveInt(
+      this.configService.get('FILE_SCAN_PENDING_CHECKS_PER_TICK'),
+      DEFAULT_PENDING_CHECKS_PER_TICK,
+    );
   }
 
   /**
@@ -71,9 +137,7 @@ export class FileCron implements OnModuleInit {
   async checkPendingUploads() {
     const now = Date.now();
     try {
-      const pendingUploads = await this.fileScanRepository.find({
-        where: { status: FileStatus.PENDING_UPLOAD },
-      });
+      const pendingUploads = await this.loadPendingUploads();
       const uploadTimeoutCutoff = now - this.uploadTimeoutMinutes * 60 * 1000;
 
       // A ready upload is processed when one of the processingConcurrency
@@ -81,32 +145,59 @@ export class FileCron implements OnModuleInit {
       // archive never arrived is failed as timed out: a ready one waiting for
       // a slot is not.
       const admitted: FileScan[] = [];
-      for (const record of pendingUploads) {
-        if (this.processingFiles.get(record.scanId)) continue;
-        let ready: boolean;
-        try {
-          ready = await this.fileService.isFileReady(record.objectPath);
-        } catch (err) {
-          this.logger.error(`Could not check upload ${record.scanId}`, err);
-          continue;
-        }
-        if (!ready) {
-          if (record.createdAt.getTime() < uploadTimeoutCutoff) {
-            await this.failTimedOutUpload(record, now, uploadTimeoutCutoff);
+      // An upload not checked for a long while has left the pending state.
+      const forgetBefore = now - 2 * this.uploadTimeoutMinutes * 60 * 1000;
+      for (const [scanId, at] of this.lastChecked) {
+        if (at < forgetBefore) this.lastChecked.delete(scanId);
+      }
+      const toCheck = pendingUploadsToCheck(
+        pendingUploads.filter(
+          (r) =>
+            !this.processingFiles.get(r.scanId) && !this.checking.has(r.scanId),
+        ),
+        this.lastChecked,
+        this.pendingChecksPerProject,
+        this.pendingChecksPerTick,
+      );
+      // Claimed before the first await, so an overlapping tick skips them.
+      for (const record of toCheck) this.checking.add(record.scanId);
+      try {
+        for (const record of toCheck) {
+          try {
+            if (this.processingFiles.get(record.scanId)) continue;
+            this.lastChecked.set(record.scanId, Date.now());
+            let ready: boolean;
+            try {
+              ready = await this.fileService.isFileReady(record.objectPath);
+            } catch (err) {
+              this.logger.error(`Could not check upload ${record.scanId}`, err);
+              continue;
+            }
+            if (!ready) {
+              if (record.createdAt.getTime() < uploadTimeoutCutoff) {
+                await this.failTimedOutUpload(record, now, uploadTimeoutCutoff);
+              }
+              continue;
+            }
+            if (this.processingFiles.size >= this.processingConcurrency) {
+              continue;
+            }
+            // Taken before the next await, so an overlapping tick sees it.
+            this.processingFiles.set(record.scanId, true);
+            const fresh = await this.fileScanRepository.findOne({
+              where: { scanId: record.scanId },
+            });
+            if (!fresh || fresh.status !== FileStatus.PENDING_UPLOAD) {
+              this.processingFiles.delete(record.scanId);
+              continue;
+            }
+            admitted.push(record);
+          } finally {
+            this.checking.delete(record.scanId);
           }
-          continue;
         }
-        if (this.processingFiles.size >= this.processingConcurrency) continue;
-        // Taken before the next await, so an overlapping tick sees it.
-        this.processingFiles.set(record.scanId, true);
-        const fresh = await this.fileScanRepository.findOne({
-          where: { scanId: record.scanId },
-        });
-        if (!fresh || fresh.status !== FileStatus.PENDING_UPLOAD) {
-          this.processingFiles.delete(record.scanId);
-          continue;
-        }
-        admitted.push(record);
+      } finally {
+        for (const record of toCheck) this.checking.delete(record.scanId);
       }
       await Promise.allSettled(
         admitted.map((record) => this.processUpload(record)),
@@ -186,6 +277,37 @@ export class FileCron implements OnModuleInit {
    * (object first, then DB row), so an age-based sweep here would delete
    * reports still within their retention window.
    */
+  /**
+   * The pending uploads this tick may check, read in two ordered, limited
+   * pages rather than all at once: the newest ones (a new upload is checked
+   * at the next tick), and a page that moves on from tick to tick through all
+   * the others, oldest first, so every pending upload is reached in turn.
+   */
+  private async loadPendingUploads(): Promise<FileScan[]> {
+    const take = this.pendingChecksPerTick;
+    const newest = await this.fileScanRepository.find({
+      where: { status: FileStatus.PENDING_UPLOAD },
+      order: { createdAt: 'DESC' },
+      take,
+    });
+    const page = await this.fileScanRepository.find({
+      where: {
+        status: FileStatus.PENDING_UPLOAD,
+        ...(this.pendingCursor
+          ? { createdAt: MoreThan(this.pendingCursor) }
+          : {}),
+      },
+      order: { createdAt: 'ASC' },
+      take,
+    });
+    this.pendingCursor =
+      page.length < take ? null : page[page.length - 1].createdAt;
+    const seen = new Set<string>();
+    return [...newest, ...page].filter((r) =>
+      seen.has(r.scanId) ? false : (seen.add(r.scanId), true),
+    );
+  }
+
   /** Fail the scan of an upload whose archive never arrived, and drop it. */
   private async failTimedOutUpload(
     record: FileScan,

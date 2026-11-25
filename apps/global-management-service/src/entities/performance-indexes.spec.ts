@@ -67,13 +67,13 @@ describe('global-management performance composite indexes', () => {
     {
       name: 'UserOrganizationMembership',
       entity: UserOrganizationMembership,
-      indexName: 'IDX_uom_org_user',
+      indexName: 'UQ_uom_org_user',
       columns: ['organization', 'user'],
     },
     {
       name: 'UserTeamMembership',
       entity: UserTeamMembership,
-      indexName: 'IDX_tm_team_user',
+      indexName: 'UQ_tm_team_user',
       columns: ['team', 'user'],
     },
     {

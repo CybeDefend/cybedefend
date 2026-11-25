@@ -29,8 +29,57 @@ test('leaves the cookie path to the gateway', () => {
   assert.ok(!TEMPLATE.includes('proxy_cookie_path'));
 });
 
-test('lets an import of two 50 MB files (a SARIF and its SBOM) reach the gateway', () => {
-  assert.ok(TEMPLATE.includes('client_max_body_size 101m;'));
+function nestedLocation(header) {
+  const start = TEMPLATE.indexOf(header);
+  assert.notEqual(start, -1, `${header} is missing`);
+  return TEMPLATE.slice(start, TEMPLATE.indexOf('\n        }', start));
+}
+
+const UPLOAD_LOCATION = 'location ~ ^/api/(project/[0-9a-fA-F-]+/scan/import/start|scan-runs/[0-9a-fA-F-]+/results)$ {';
+const WEBHOOK_LOCATION = 'location /api/webhooks/ {';
+
+test('reads at most 1 MB of a request body by default, as the gateway does', () => {
+  const server = TEMPLATE.slice(TEMPLATE.indexOf('server {'), TEMPLATE.indexOf('location /api/ {'));
+  assert.ok(server.includes('client_max_body_size 1m;'));
+  assert.equal(TEMPLATE.match(/client_max_body_size 101m;/g)?.length, 1, 'only one location takes an upload');
+});
+
+test('lets an import of two 50 MB files (a SARIF and its SBOM) reach the gateway on the upload routes only', () => {
+  const block = nestedLocation(UPLOAD_LOCATION);
+  assert.ok(apiLocation().includes(UPLOAD_LOCATION), 'nested in location /api/');
+  for (const line of [
+    'client_max_body_size 101m;',
+    'client_body_timeout 30s;',
+    'proxy_request_buffering off;',
+    'rewrite ^/api/(.*)$ /$1 break;',
+    'proxy_pass http://${GATEWAY_UPSTREAM};',
+  ]) {
+    assert.ok(block.includes(line), `missing in the upload location: ${line}`);
+  }
+  const re = /^\/api\/(project\/[0-9a-fA-F-]+\/scan\/import\/start|scan-runs\/[0-9a-fA-F-]+\/results)$/;
+  assert.ok(re.test('/api/project/550e8400-e29b-41d4-a716-446655440000/scan/import/start'));
+  assert.ok(re.test('/api/scan-runs/1f0b7c1e-9c1a-6a40-8000-000000000000/results'));
+  assert.ok(!re.test('/api/project/x/vulnerabilities'));
+  assert.ok(!re.test('/api/project/550e8400/scan/import/start/extra'));
+});
+
+test('the upload location takes a multipart body only: anything else is refused before it is read', () => {
+  const block = nestedLocation(UPLOAD_LOCATION);
+  const guard = block.indexOf('if ($content_type !~* "^multipart/form-data") {');
+  assert.notEqual(guard, -1, 'the content type is checked');
+  assert.ok(block.slice(guard).includes('return 415;'));
+  assert.ok(guard < block.indexOf('proxy_pass'), 'before the request is passed on');
+  const re = /^multipart\/form-data/i;
+  assert.ok(re.test('multipart/form-data; boundary=x'));
+  assert.ok(!re.test('application/json'));
+  assert.ok(!re.test('text/plain'));
+});
+
+test('lets a webhook body up to the gateway webhook cap through', () => {
+  const block = nestedLocation(WEBHOOK_LOCATION);
+  assert.ok(apiLocation().includes(WEBHOOK_LOCATION), 'nested in location /api/');
+  assert.ok(block.includes('client_max_body_size 4m;'));
+  assert.ok(block.includes('proxy_pass http://${GATEWAY_UPSTREAM}/webhooks/;'));
 });
 
 test('overwrites X-Forwarded-For with the client address', () => {

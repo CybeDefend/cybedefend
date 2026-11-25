@@ -20,13 +20,14 @@ jest.mock('jose', () => ({
  * The cloud case is tested by the cloud edition.
  */
 
+const mockRegister = jest.fn();
 const mockApp = {
   connectMicroservice: jest.fn(),
   startAllMicroservices: jest.fn(),
   listen: jest.fn(),
   get: jest.fn(),
   getHttpAdapter: jest.fn(() => ({
-    getInstance: () => ({ register: jest.fn() }),
+    getInstance: () => ({ register: mockRegister }),
   })),
   enableCors: jest.fn(),
   useGlobalFilters: jest.fn(),
@@ -88,6 +89,33 @@ describe('main.ts bootstrap per edition', () => {
     expect(mockApp.connectMicroservice).not.toHaveBeenCalled();
     expect(mockApp.startAllMicroservices).not.toHaveBeenCalled();
     expect(mockApp.listen).toHaveBeenCalledTimes(1);
+  });
+
+  it('wires the request guards, refusing other sites by default in community mode', async () => {
+    const savedUrl = process.env.PUBLIC_URL;
+    const savedOrigins = process.env.MCP_ALLOWED_ORIGINS;
+    process.env.PUBLIC_URL = 'http://localhost:3010';
+    delete process.env.MCP_ALLOWED_ORIGINS;
+    try {
+      await bootstrapIn('community');
+    } finally {
+      if (savedUrl === undefined) delete process.env.PUBLIC_URL;
+      else process.env.PUBLIC_URL = savedUrl;
+      if (savedOrigins !== undefined) {
+        process.env.MCP_ALLOWED_ORIGINS = savedOrigins;
+      }
+    }
+
+    expect(mockRegister).toHaveBeenCalledTimes(1);
+    const cors = mockApp.enableCors.mock.calls[0][0] as {
+      origin: (o: string, cb: (e: Error | null, ok: boolean) => void) => void;
+    };
+    const answer = (origin: string) =>
+      new Promise<boolean>((resolve) =>
+        cors.origin(origin, (_e, ok) => resolve(ok)),
+      );
+    await expect(answer('https://evil.example')).resolves.toBe(false);
+    await expect(answer('http://localhost:3010')).resolves.toBe(true);
   });
 
   it('names no closed proto in the core', () => {

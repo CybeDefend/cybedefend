@@ -25,10 +25,11 @@ export const WEBHOOK_MAX_BODY_BYTES =
  *
  * Those routes are public, and the gateway relays the body to
  * external-integrations over gRPC before the signature is checked there. A
- * body larger than the receiver's message limit was read in full (up to the
- * gateway's global 50 MB), relayed, and refused by gRPC with
- * RESOURCE_EXHAUSTED, which the gateway answers as 429 "Too Many Requests":
- * a provider retries that, and the answer named the internal limit. Fastify
+ * body larger than the receiver's message limit would be read in full,
+ * relayed, and refused by gRPC with RESOURCE_EXHAUSTED, which the gateway
+ * answers as 429 "Too Many Requests": a provider retries that, and the answer
+ * names the internal limit. Provider payloads can also be larger than the
+ * gateway's global 1 MiB, so this cap sets these routes' own limit. Fastify
  * enforces a per-route `bodyLimit` inside the content-type parser, so the
  * refusal is now a 413 decided on the declared length, or after the first
  * bytes over the cap of a body that declared none, and nothing is relayed.

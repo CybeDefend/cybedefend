@@ -43,6 +43,8 @@ export const PROJECT_PURGE_TABLES: readonly PurgeTable[] = [
   { table: 'sca_detected_packages', column: 'projectId' },
   { table: 'container_detected_packages', column: 'projectId' },
   { table: 'container_detected_images', column: 'projectId' },
+  // The advisory content a results import declared for the project.
+  { table: 'imported_advisory', column: 'projectId' },
   // aibom_components and aibom_compliance_reports moved to
   // EE_PURGE_TABLES with their entities (closed AI-BOM module).
   { table: 'project_cyber_risk', column: 'project_id' },
@@ -87,6 +89,7 @@ export const ORGANIZATION_PURGE_TABLES: readonly PurgeTable[] = [
   },
   { table: 'organization_statistics', column: 'organization_id' },
   { table: 'sca_license_overrides', column: 'organizationId' },
+  { table: 'imported_advisory', column: 'organizationId' },
 ];
 
 /** Tables whose key column matches the inventory but holds no customer scope. */

@@ -1389,6 +1389,8 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
       const histRepo: any = (utils as any).vulnDetectHistoryRepository;
       histRepo.find.mockResolvedValue([{ sastVulnerabilityDetection: newer }]);
       histRepo.findOne.mockResolvedValue({ scanId: 'OLD-SCAN' });
+      // The sighted row was created by this scan: no other scan saw it.
+      histRepo.exists = jest.fn().mockResolvedValue(false);
       sastRepo.remove = jest.fn(async (e: any) => e);
 
       await utils.finalizeOldScanVulnerabilities(
@@ -1570,7 +1572,7 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
      */
     const day = (d: string) => new Date(`${d}T00:00:00Z`);
 
-    it('carries the triage of the deleted row onto an undecided survivor', async () => {
+    it('never deletes a sighted row that carries a decision, nor moves that decision', async () => {
       const older = mkSast({
         id: 'det-old',
         fingerprint: 'digest',
@@ -1602,13 +1604,14 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
 
       await runRepair(older, newer);
 
-      expect(sastRepo.remove).toHaveBeenCalledWith(newer);
-      expect(older.currentState).toBe('ignored');
-      expect(older.stateManuallyModified).toBe(true);
-      expect(older.triagedBy).toBe('u1');
-      expect(older.triagedByType).toBe('user');
-      expect(older.triagedAt).toEqual(day('2026-02-02'));
-      expect(older.dismissalReason).toBe('accepted risk');
+      // The decision stays on the row it was taken on, with its history.
+      expect(sastRepo.remove).not.toHaveBeenCalled();
+      expect(newer.currentState).toBe('ignored');
+      expect(newer.triagedBy).toBe('u1');
+      expect(newer.dismissalReason).toBe('accepted risk');
+      expect(older.triagedBy).toBeNull();
+      expect(older.dismissalReason).toBeNull();
+      expect(older.currentState).not.toBe('ignored');
     });
 
     it("keeps the survivor's decision when the deleted row was never triaged", async () => {
@@ -1648,7 +1651,7 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
       expect(older.dismissalReason).toBe('accepted risk');
     });
 
-    it('lets the LATER of two human decisions stand', async () => {
+    it('keeps two human decisions on their own rows', async () => {
       const older = mkSast({
         id: 'det-old',
         fingerprint: 'digest',
@@ -1680,11 +1683,12 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
 
       await runRepair(older, newer);
 
-      expect(older.currentState).toBe('confirmed');
-      expect(older.triagedBy).toBe('u2');
-      expect(older.triagedAt).toEqual(day('2026-05-05'));
-      // The justification belonged to u1's dismissal, which no longer stands.
-      expect(older.dismissalReason).toBeNull();
+      expect(sastRepo.remove).not.toHaveBeenCalled();
+      expect(older.currentState).toBe('ignored');
+      expect(older.triagedBy).toBe('u1');
+      expect(older.dismissalReason).toBe('accepted risk');
+      expect(newer.currentState).toBe('confirmed');
+      expect(newer.triagedBy).toBe('u2');
     });
 
     /**
@@ -1775,8 +1779,9 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
       expect(older.triagedByType).toBe('user');
       expect(older.triagedAt).toEqual(day('2026-09-21'));
       expect(older.dismissalReason).toBe('no traffic is routed to the workers');
-      // The duplicate is still merged away; only its verdict is dropped.
-      expect(sastRepo.remove).toHaveBeenCalledWith(newer);
+      // The duplicate carries the agent's verdict: it is not deleted either.
+      expect(sastRepo.remove).not.toHaveBeenCalled();
+      expect(newer.currentState).toBe('confirmed');
     });
 
     /**
@@ -1792,7 +1797,7 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
      * that contradicts itself, in the one dimension the export exists to
      * disambiguate. No human triage anywhere in the sequence.
      */
-    it('does not close the survivor from a machine verdict on the vanished row', async () => {
+    it('reopens a surviving row a scan had resolved, never closes the finding', async () => {
       const todaysSighting = new Date('2026-08-06T09:00:00Z');
       const autoResolvedAt = new Date('2026-03-03T10:00:00.500Z');
 
@@ -1834,10 +1839,12 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
 
       await runRepair(vanishedAndAutoResolved, present);
 
-      expect(sastRepo.remove).toHaveBeenCalledWith(vanishedAndAutoResolved);
-      expect(present.currentState).toBe('to_verify');
-      expect(present.resolvedAt).toBeNull();
-      expect(present.lastDetectedAt).toEqual(todaysSighting);
+      // The finding that existed before the scan survives, and it is open:
+      // this scan has just detected it at its new position.
+      expect(sastRepo.remove).toHaveBeenCalledWith(present);
+      expect(vanishedAndAutoResolved.currentState).toBe('to_verify');
+      expect(vanishedAndAutoResolved.resolvedAt).toBeNull();
+      expect(vanishedAndAutoResolved.lastDetectedAt).toEqual(todaysSighting);
     });
 
     /**
@@ -1966,6 +1973,8 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
         unmatched: Detection[];
         sighted: Detection[];
         branch: string | undefined;
+        /** Sighted rows another scan saw too: they existed before this one. */
+        seenBefore?: Detection[];
       }) => {
         sastRepo.find.mockResolvedValue(
           opts.table.filter((r) => r instanceof SastVulnerabilityDetections),
@@ -1981,6 +1990,7 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
             vulnDetectHistoryRepository: {
               find: jest.Mock;
               findOne: jest.Mock;
+              exists: jest.Mock;
             };
           }
         ).vulnDetectHistoryRepository;
@@ -1988,6 +1998,15 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
           opts.sighted.map((d) => ({ [historyKeyOf(d)]: d })),
         );
         histRepo.findOne.mockResolvedValue({ scanId: 'OLD-SCAN' });
+        const seenBefore = new Set(
+          (opts.seenBefore ?? []).map((d) => d.id as string),
+        );
+        histRepo.exists = jest.fn(
+          async (q: { where: Record<string, { id?: string }> }) =>
+            Object.values(q.where).some(
+              (v) => typeof v === 'object' && seenBefore.has(v?.id),
+            ),
+        );
 
         return utils.finalizeOldScanVulnerabilities(
           opts.unmatched,
@@ -2079,7 +2098,7 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
          * `FINGERPRINT_MISMATCH det=<id> stored=<a> computed=<b>`. Shadow mode keeps the stored digest, so that is
          * the value the repair carries.
          */
-        it('carries the stored digest of an old re-detected row onto a survivor that has none', async () => {
+        it('never merges a vanished row into an old row this scan saw at its own position', async () => {
           const older = mk({
             id: 'det-old',
             fingerprint: null,
@@ -2100,20 +2119,23 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
               unmatched: [older],
               sighted: [redetected],
               branch: 'main',
+              seenBefore: [redetected],
             }),
           ).resolves.toBeUndefined();
 
-          expect(older.fingerprint).toBe('919a6893-stored');
-          expect(holderOf('main', '919a6893-stored')).toBe('det-old');
-          expectDiscardedThenSurvivorInOneTransaction(
-            'det-299df759',
-            'det-old',
-          );
+          // Two occurrences: the one that vanished is resolved, the one the
+          // scan found where it was keeps its row, its digest and its id.
+          expect(writes.some((w) => w.op === 'remove')).toBe(false);
+          expect(redetected.id).toBe('det-299df759');
+          expect(older.fingerprint).toBeNull();
+          expect(older.currentState).toBe('resolved');
+          expect(holderOf('main', '919a6893-stored')).toBe('det-299df759');
         });
 
-        // `older` is decided by createdAt alone, so the survivor can be the
-        // row this scan sighted and the discarded one the row that vanished.
-        it('carries the digest of the vanished row onto the sighted row when that one is older', async () => {
+        // The row this scan sighted is older than the one that vanished: it
+        // was found at its own position, so the vanished row is not merged
+        // into it and neither row is deleted.
+        it('never deletes the vanished row into an older row the scan sighted', async () => {
           const sighted = mk({
             id: 'det-sighted',
             fingerprint: null,
@@ -2134,15 +2156,15 @@ describe('SastIacUtilsService — fingerprint at ingestion (shadow mode)', () =>
               unmatched: [vanished],
               sighted: [sighted],
               branch: 'main',
+              seenBefore: [sighted],
             }),
           ).resolves.toBeUndefined();
 
-          expect(sighted.fingerprint).toBe('digest');
-          expect(holderOf('main', 'digest')).toBe('det-sighted');
-          expectDiscardedThenSurvivorInOneTransaction(
-            'det-vanished',
-            'det-sighted',
-          );
+          expect(writes.some((w) => w.op === 'remove')).toBe(false);
+          expect(sighted.fingerprint).toBeNull();
+          expect(vanished.id).toBe('det-vanished');
+          expect(vanished.currentState).toBe('resolved');
+          expect(holderOf('main', 'digest')).toBe('det-vanished');
         });
       });
 

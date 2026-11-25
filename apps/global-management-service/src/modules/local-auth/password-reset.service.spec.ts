@@ -15,6 +15,7 @@ import {
   PasswordResetService,
 } from './password-reset.service';
 import { PasswordHasher } from './password-hasher';
+import { PersonalAccessTokenStore } from './personal-access-token.store';
 import { RefreshTokenStore } from './refresh-token.store';
 
 /**
@@ -59,6 +60,7 @@ describe('PasswordResetService', () => {
   let credentials: { hashOf: jest.Mock; set: jest.Mock };
   let hasher: { hash: jest.Mock };
   let refreshTokens: { revokeAllOfUser: jest.Mock };
+  let pats: { revokeAllOfUser: jest.Mock };
   let mail: { isConfigured: jest.Mock; sendPasswordResetEmail: jest.Mock };
   let config: { get: jest.Mock };
   let keyer: { keyOf: jest.Mock };
@@ -77,6 +79,7 @@ describe('PasswordResetService', () => {
     credentials = { hashOf: jest.fn(), set: jest.fn(async () => undefined) };
     hasher = { hash: jest.fn(async () => 'the-new-hash') };
     refreshTokens = { revokeAllOfUser: jest.fn(async () => undefined) };
+    pats = { revokeAllOfUser: jest.fn(async () => 0) };
     mail = {
       isConfigured: jest.fn(() => true),
       sendPasswordResetEmail: jest.fn(async () => true),
@@ -105,6 +108,7 @@ describe('PasswordResetService', () => {
       config as unknown as ConfigService,
       logger as unknown as Logger,
       keyer as unknown as ResetRequesterKeyer,
+      pats as unknown as PersonalAccessTokenStore,
     );
   });
 
@@ -273,7 +277,7 @@ describe('PasswordResetService', () => {
   });
 
   describe('reset', () => {
-    it('changes the password and signs every session out', async () => {
+    it('changes the password and revokes every session and personal access token in the same transaction', async () => {
       tokens.consumePasswordReset.mockResolvedValue(USER_ID);
 
       await service.reset('the-reset-token', NEW_PASSWORD, NOW);
@@ -291,7 +295,12 @@ describe('PasswordResetService', () => {
         'the-new-hash',
         NOW,
       );
-      expect(refreshTokens.revokeAllOfUser).toHaveBeenCalledWith(USER_ID, NOW);
+      expect(refreshTokens.revokeAllOfUser).toHaveBeenCalledWith(
+        USER_ID,
+        NOW,
+        manager,
+      );
+      expect(pats.revokeAllOfUser).toHaveBeenCalledWith(USER_ID, NOW, manager);
     });
 
     it("expires the user's other open reset links in the transaction that sets the password", async () => {
@@ -330,6 +339,7 @@ describe('PasswordResetService', () => {
       });
       expect(credentials.set).not.toHaveBeenCalled();
       expect(refreshTokens.revokeAllOfUser).not.toHaveBeenCalled();
+      expect(pats.revokeAllOfUser).not.toHaveBeenCalled();
     });
 
     it('hashes before consuming the token: a busy verifier leaves the link usable', async () => {

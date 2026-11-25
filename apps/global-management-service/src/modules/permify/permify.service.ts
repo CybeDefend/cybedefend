@@ -676,6 +676,33 @@ export class PermifyService implements OnModuleInit {
   }
 
   /**
+   * Deletes each of `relations` that the subject holds on the resource, one
+   * delete per relation (a Permify delete filter names one relation; a
+   * missing tuple is no error). Used to remove every role of a member at
+   * once, whichever of them it holds, without a read that a concurrent write
+   * could make stale.
+   */
+  @Span()
+  async deleteRelationsOfSubject(
+    resourceType: string,
+    resourceId: string,
+    subjectType: string,
+    subjectId: string,
+    relations: readonly string[],
+  ): Promise<boolean> {
+    for (const relation of relations) {
+      await this.deletePermission(
+        resourceId,
+        subjectId,
+        subjectType,
+        resourceType,
+        relation,
+      );
+    }
+    return true;
+  }
+
+  /**
    * Delete all permissions for a resource
    */
   @Span()

@@ -142,7 +142,7 @@ describe('live helper entities', () => {
       LIVE_ENTITIES_GLOB: string;
     };
     const files = globSync(LIVE_ENTITIES_GLOB);
-    expect(files).toHaveLength(32);
+    expect(files).toHaveLength(33);
     expect(files.some((f) => f.endsWith('vulnerability.entity.ts'))).toBe(true);
     expect(files.filter((f) => !/\.entity\.(ts|js)$/.test(f))).toEqual([]);
     expect(files.filter((f) => f.includes('/ee/'))).toEqual([]);
@@ -150,7 +150,7 @@ describe('live helper entities', () => {
 });
 
 // A real database on the engine LIVE_DB_TYPE selects (default mysql), with the
-// 32 core entities, built by the migration track of that engine: every
+// 33 core entities, built by the migration track of that engine: every
 // entity reads its table (each mapped column must exist).
 //   AR_SCHEMA_PARITY_LIVE=1 LIVE_DB_TYPE=postgres \
 //   AR_SCHEMA_PARITY_PG_URL=postgres://postgres:postgres@127.0.0.1:5432 \

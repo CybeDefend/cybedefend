@@ -17,7 +17,9 @@
 //          --port <n> --mcp-port <n> --storage-port <n> (default: the first free
 //          ones from 8080, 3010, 9000), --project-name <name> (default: the
 //          repository's folder), --agent claude-code|none (default: claude-code
-//          when the claude command is there), --no-open
+//          when the claude command is there), --project <id> (the project
+//          the user chose when .cybedefend/config.json names another one than
+//          this machine knows for the repository), --no-open
 //
 // Files, all under CYBEDEFEND_APPSEC_HOME (default ~/.cybedefend/appsec):
 //   platform/          the dashboard's compose folder, its .env and master key
@@ -27,7 +29,9 @@
 //
 // Output: steps on stderr, one JSON document without any secret on stdout.
 // Exit: 0 ready, 3 Docker or the dashboard cannot be used, 5 the dashboard was
-// set up by someone else and a token is needed (node setup.mjs token), 64 usage.
+// set up by someone else and a token is needed (node setup.mjs token), 6 the
+// repository's .cybedefend/config.json names a project that is not this
+// repository's: ask the user, then --project <id>, 64 usage.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -37,6 +41,7 @@ import { homedir, hostname } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { clipboardTools, launcher, openCommand, which } from './os.mjs';
+import { guardTree, readNote, runGit, trustedRoot, TreeRefused, writeNote } from './trust.mjs';
 
 export const HOME = process.env.CYBEDEFEND_APPSEC_HOME || join(homedir(), '.cybedefend', 'appsec');
 export const CREDENTIALS = join(HOME, 'credentials.json');
@@ -480,7 +485,7 @@ const codeOf = (r) => r.data?.code ?? r.data?.error ?? `HTTP ${r.status}`;
 
 function gitConfig(key) {
   try {
-    return run('git', ['config', '--get', key]);
+    return String(runGit(['config', '--get', key], { encoding: 'utf8' })).trim();
   } catch {
     return '';
   }
@@ -527,11 +532,15 @@ async function tokenWorks(url, token) {
   return r.status === 200;
 }
 
-async function token(url, session) {
+export async function token(url, session) {
   const creds = readCredentials();
   if (creds.url === url && (await tokenWorks(url, creds.token))) return { token: creds.token, said: `token …${creds.token.slice(-4)} still accepted` };
   if (!session) throw new Exit(5, 'The saved token is refused and there is no administrator password to make a new one: create a token in the dashboard and run node setup.mjs token.');
-  const r = await api(url, 'POST', '/me/personal-access-tokens', { json: { name: `cybedefend skill, ${hostname()}`.slice(0, 100) }, bearer: session, origin: true });
+  // The dashboard creates a token only with the account's password: the one the
+  // setup or the sign-in saved for this dashboard. Sent in the body, never printed.
+  const currentPassword = creds.url === url ? creds.password : undefined;
+  if (!currentPassword) throw new Exit(5, 'There is no saved administrator password to create a token with: create a token in the dashboard and run node setup.mjs token.');
+  const r = await api(url, 'POST', '/me/personal-access-tokens', { json: { name: `cybedefend skill, ${hostname()}`.slice(0, 100), currentPassword }, bearer: session, origin: true });
   if (r.status !== 201 && r.status !== 200) throw new Exit(3, `The token was not created: ${codeOf(r)}.`);
   const value = r.data?.token;
   if (typeof value !== 'string' || !value.startsWith('cdp_')) throw new Exit(3, 'The dashboard answered without a token.');
@@ -547,11 +556,14 @@ const list = (d, ...keys) => {
   return [];
 };
 
-async function project(url, tok, wanted) {
-  let root;
+export async function project(url, tok, wanted, { root: given, chosen } = {}) {
+  let root = given;
   try {
-    root = resolve(run('git', ['rev-parse', '--show-toplevel']));
-  } catch {
+    if (root) guardTree(root);
+    else root = trustedRoot();
+  } catch (e) {
+    // A .cybedefend tree linked out of place or spelled another way: nothing is read or written there.
+    if (e instanceof TreeRefused) throw new Exit(3, e.message);
     return { projectId: null, said: 'not in a git repository: no project created' };
   }
   // .cybedefend/config.json is shared. The MCP server reads "projectId" at
@@ -565,11 +577,29 @@ async function project(url, tok, wanted) {
   } catch {
     /* none yet */
   }
-  const existing = config.appsec?.url === url ? config.appsec.projectId : undefined;
-  if (existing) {
-    const r = await api(url, 'GET', `/project/${existing}`, { bearer: tok });
-    if (r.status === 200) return { root, projectId: existing, said: `project ${existing} (from .cybedefend/config.json)${writeProjectConfig(root, configFile, config, url, existing)}` };
-    say(`  ! .cybedefend/config.json names project ${existing}, which this dashboard no longer has: finding or creating it again.`);
+  // The file comes with the repository, so whoever wrote the repository or the branch writes it too: the project
+  // it names receives the results and has its findings closed by each import. This machine remembers, outside the
+  // repository, the project it created, found or was told for this repository on each dashboard; a file that names
+  // another one stops here, before any write, for the user to choose.
+  const notes = readNote(root, 'project.json') ?? {};
+  const keep = (id, said) => {
+    writeNote(root, 'project.json', { ...notes, [url]: id });
+    return { root, projectId: id, said: `${said}${writeProjectConfig(root, configFile, config, url, id)}` };
+  };
+  const there = async (id) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id) && (await api(url, 'GET', `/project/${id}`, { bearer: tok })).status === 200;
+  if (chosen !== undefined) {
+    if (!(await there(chosen))) throw new Exit(64, `--project ${chosen}: this dashboard has no such project.`);
+    return keep(chosen, `project ${chosen} (chosen with --project)`);
+  }
+  // Every id the file gives: the one of this dashboard under "appsec", and the top-level one another tool reads (the MCP server).
+  const named = [...new Set([config.appsec?.url === url ? config.appsec?.projectId : undefined, config.projectId].filter((v) => v !== undefined && v !== null && v !== ''))];
+  const known = notes[url];
+  const differs = (id, other) =>
+    new Exit(6, `.cybedefend/config.json names project ${id}, and ${other ? `this repository's project on this dashboard is ${other}` : 'no project of this dashboard has the name of this repository'}. The file comes with the repository: it does not choose where the results go. Nothing was written. Ask the user which project to use, then run setup.mjs again with --project <id>.`);
+  if (known && (await there(known))) {
+    const other = named.find((id) => id !== known);
+    if (other !== undefined) throw differs(other, known);
+    return keep(known, `project ${known} (this repository's project on this machine)`);
   }
   const name = (wanted || basename(root)).slice(0, 100);
   const creds = readCredentials();
@@ -584,6 +614,12 @@ async function project(url, tok, wanted) {
   const found = list((await api(url, 'GET', `/mcp/organization/${orgId}/projects?search=${encodeURIComponent(name)}`, { bearer: tok })).data, 'projects', 'items', 'data');
   const same = found.find((p) => (p.name ?? '').toLowerCase() === name.toLowerCase());
   let projectId = same?.projectId ?? same?.id;
+  // With no record of this machine, an id of the file is used only when it is the project found by the repository's
+  // name; another project of this dashboard stops here. An id this dashboard does not have is replaced.
+  for (const id of named.filter((x) => x !== projectId)) {
+    if (await there(id)) throw differs(id, projectId);
+    say(`  ! .cybedefend/config.json names project ${id}, which this dashboard does not have: replaced by this repository's project.`);
+  }
   let said = `project "${name}" found in team ${team.name ?? team.id}`;
   if (!projectId) {
     const r = await api(url, 'POST', `/team/${team.id}/project`, {
@@ -594,16 +630,17 @@ async function project(url, tok, wanted) {
     if (!projectId) throw new Exit(3, `The project was not created: ${codeOf(r)}.`);
     said = `project "${name}" created in team ${team.name ?? team.id}`;
   }
-  return { root, projectId, said: `${said}; .cybedefend/config.json written (its other keys kept)${writeProjectConfig(root, configFile, config, url, projectId)}` };
+  return keep(projectId, `${said}; .cybedefend/config.json written (its other keys kept)`);
 }
 
 function writeProjectConfig(root, configFile, config, url, projectId) {
-  const next = { ...config, projectId: config.projectId || projectId, appsec: { url, projectId } };
+  // Both ids are this project: the top-level one is what the MCP server reads, and a committed one is never kept.
+  const next = { ...config, projectId, appsec: { url, projectId } };
   if (JSON.stringify(next) !== JSON.stringify(config)) {
     mkdirSync(join(root, '.cybedefend'), { recursive: true });
     writeFileSync(configFile, `${JSON.stringify(next, null, 2)}\n`);
   }
-  return next.projectId === projectId ? '' : `. Its "projectId" names another project (${next.projectId}, written by another CybeDefend tool): kept, and the MCP server reads that one first`;
+  return '';
 }
 
 // ─── 9. A default policy, so the first verdict means something ──────────────
@@ -753,7 +790,7 @@ async function setup(flags) {
   await step('Starting the dashboard (the first time, Docker downloads the images)', () => start(s.url));
   const admin = await step('The first administrator', () => administrator(s.url));
   const t = await step('A personal access token for the skill', () => token(s.url, admin.session));
-  const p = await step('The project of this repository', () => project(s.url, t.token, flags['project-name']));
+  const p = await step('The project of this repository', () => project(s.url, t.token, flags['project-name'], { chosen: typeof flags.project === 'string' ? flags.project : undefined }));
   const policy = await step('A default policy, so the verdict means something', () => defaultPolicy(s.url, t.token));
   const agent = flags.agent ?? (has('claude') ? 'claude-code' : 'none');
   const m = mcp(agent, s.mcpUrl, t.token, p.root);
@@ -833,7 +870,7 @@ async function main(argv) {
       return 0;
     }
     default:
-      process.stderr.write(`${readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 30).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')}\n`);
+      process.stderr.write(`${readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 35).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')}\n`);
       return 64;
   }
 }

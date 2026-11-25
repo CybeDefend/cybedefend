@@ -146,7 +146,7 @@ describe('OrganizationOverviewService', () => {
         {
           provide: OverviewCacheService,
           useValue: {
-            getOrSet: jest.fn((_b, _o, _u, _f, producer) => producer()),
+            getOrSet: jest.fn((_b, _o, _u, _p, _f, producer) => producer()),
             bumpGeneration: jest.fn().mockResolvedValue(undefined),
           },
         },

@@ -9,6 +9,7 @@ import { MailService } from 'src/modules/mail/mail.service';
 import { LocalCredentialStore } from './local-credential.store';
 import { localAuthRefusal } from './local-auth-refusals';
 import { OneTimeTokenStore } from './one-time-token.store';
+import { PersonalAccessTokenStore } from './personal-access-token.store';
 import { assertPasswordPolicy } from './password-policy';
 import { PasswordHasher } from './password-hasher';
 import { RefreshTokenStore } from './refresh-token.store';
@@ -36,9 +37,10 @@ export function passwordResetLink(frontendUrl: string, token: string): string {
  * code travels; the per-e-mail 429 is the gateway's. `reset` checks the
  * password policy and hashes the new password first (neither a policy
  * failure nor a busy verifier consumes the token), then consumes the
- * one-time token (RESET_TOKEN_INVALID when used, expired or unknown) and sets
- * the new credential in one transaction, and revokes every refresh family of
- * the user, so every session is signed out. No token, link or e-mail is ever
+ * one-time token (RESET_TOKEN_INVALID when used, expired or unknown), sets
+ * the new credential, and revokes every refresh family and every personal
+ * access token of the user, all in one transaction: whoever held the account
+ * before the reset keeps no way back in. No token, link or e-mail is ever
  * logged.
  */
 @Injectable()
@@ -55,6 +57,7 @@ export class PasswordResetService {
     private readonly config: ConfigService,
     private readonly logger: Logger,
     private readonly requesterKeys: ResetRequesterKeyer,
+    private readonly pats: PersonalAccessTokenStore,
   ) {}
 
   /**
@@ -106,8 +109,8 @@ export class PasswordResetService {
 
   /**
    * ResetPassword. Policy → hash → (consume the token, set the credential,
-   * close the user's other open reset links: one transaction) → revoke every
-   * family. The hash runs first and outside the transaction (argon2 takes
+   * close the user's other open reset links, revoke every refresh family and
+   * every personal access token: one transaction). The hash runs first and outside the transaction (argon2 takes
    * ~100 ms and may be refused by the busy verifier): a refusal there leaves
    * the link usable, and a failure inside the transaction rolls the consume
    * back. An invalid token answers RESET_TOKEN_INVALID. Answers the account's
@@ -126,10 +129,13 @@ export class PasswordResetService {
       if (!owner) return null;
       await this.credentials.set(manager, owner, passwordHash, now);
       await this.tokens.expireOpenPasswordResets(owner, now, manager);
+      // A reset proves control of the address: nothing created before it (a
+      // session, a personal access token) survives it.
+      await this.refreshTokens.revokeAllOfUser(owner, now, manager);
+      await this.pats.revokeAllOfUser(owner, now, manager);
       return owner;
     });
     if (!userId) throw localAuthRefusal('RESET_TOKEN_INVALID');
-    await this.refreshTokens.revokeAllOfUser(userId, now);
     const user = await this.userRepository.findOne({ where: { id: userId } });
     return { email: user?.email ?? '' };
   }

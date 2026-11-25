@@ -12,6 +12,7 @@ import {
   PolicyEvaluation,
   EvaluationStatus,
   ComplianceResultDetails,
+  EvaluationWarning,
 } from '@entities/policy-evaluation.entity';
 import {
   PolicyViolation,
@@ -29,7 +30,7 @@ import {
 import { PolicyService } from '@modules/policy/policy.service';
 import { normalizeSeverity, severityRank } from '@modules/policy/severity';
 import { countViolatedRules } from '@modules/evaluation/violation-counts';
-import { globMatch } from '@modules/evaluation/safe-glob';
+import { matchGlob } from '@modules/evaluation/safe-glob';
 
 /**
  * Vulnerability data from the analysis-reporting service
@@ -63,6 +64,72 @@ interface VulnerabilityData {
 interface ScanContext {
   scanId: string;
   branch?: string;
+  /** Told when a branch pattern of a rule had to be skipped. */
+  onSkip?: (rule: PolicyRule, pattern: string, reason: string) => void;
+}
+
+/**
+ * First key of the advisory lock that serializes the violation writes of one
+ * project; the second key is a hash of the project id.
+ */
+const VIOLATION_WRITE_LOCK_NAMESPACE = 0x706f6c76;
+
+/** Most skipped-pattern warnings kept in one evaluation result. */
+const MAX_EVALUATION_WARNINGS = 50;
+
+/**
+ * Collects, once each, the glob patterns an evaluation had to skip, with the
+ * policy that holds them, for the stored evaluation result.
+ */
+class SkippedPatterns {
+  private readonly entries = new Map<string, EvaluationWarning>();
+
+  constructor(private readonly policies: SecurityPolicy[]) {}
+
+  exclusion(pattern: string, reason: string): void {
+    const policy = this.policies.find((p) =>
+      [...(p.exclusions || []), ...(p.rules?.exclusions || [])].some(
+        (e) => e?.pattern === pattern,
+      ),
+    );
+    this.add({
+      policyId: policy?.id || '',
+      policyName: policy?.name,
+      pattern,
+      reason,
+    });
+  }
+
+  branch(
+    policy: SecurityPolicy | undefined,
+    rule: PolicyRule,
+    pattern: string,
+    reason: string,
+  ): void {
+    this.add({
+      policyId: policy?.id || '',
+      policyName: policy?.name,
+      ruleId: rule.id,
+      pattern,
+      reason,
+    });
+  }
+
+  list(): EvaluationWarning[] {
+    return [...this.entries.values()];
+  }
+
+  private add(warning: EvaluationWarning): void {
+    const key = JSON.stringify([
+      warning.policyId,
+      warning.ruleId ?? '',
+      warning.pattern,
+      warning.reason,
+    ]);
+    if (this.entries.has(key)) return;
+    if (this.entries.size >= MAX_EVALUATION_WARNINGS) return;
+    this.entries.set(key, warning);
+  }
 }
 
 /**
@@ -102,6 +169,8 @@ interface AnalysisReportingClient {
   getProjectScaVulnerabilities(request: {
     projectId: string;
     scanId: string;
+    branch?: string;
+    malwareOnly?: boolean;
   }): { toPromise(): Promise<{ vulnerabilities: VulnerabilityData[] }> };
   getProjectContainerVulnerabilities(request: {
     projectId: string;
@@ -182,6 +251,43 @@ function buildRuleSnapshot(rule: PolicyRule): Partial<PolicyRule> {
   }
 
   return base;
+}
+
+/** The findings that broke one rule of one policy in this evaluation. */
+interface PendingViolation {
+  policyId: string;
+  /** The rule as first matched: its name and action name the row. */
+  rule: PolicyRule;
+  /** The rule as last matched: the stored snapshot. */
+  snapshotRule: PolicyRule;
+  vulnerabilities: VulnerabilityData[];
+}
+
+const violationKey = (policyId: string, ruleId: string): string =>
+  JSON.stringify([policyId, ruleId]);
+
+/** A finding as a violation row lists it, with the branch it was found on. */
+function toAffectedVulnerability(
+  vulnerability: VulnerabilityData,
+): AffectedVulnerability {
+  return {
+    id: vulnerability.id,
+    name: vulnerability.name,
+    severity: vulnerability.severity,
+    cvssScore: vulnerability.cvssScore,
+    cwe: vulnerability.cwe,
+    owaspTop10: vulnerability.owaspTop10,
+    filePath: vulnerability.filePath,
+    startLine: vulnerability.startLine,
+    endLine: vulnerability.endLine,
+    vulnerabilityType: vulnerability.scannerType?.toLowerCase() || '',
+    branch: vulnerability.branch,
+    // SCA-specific fields
+    packageName: vulnerability.packageName,
+    packageVersion: vulnerability.packageVersion,
+    // Container-specific fields
+    artifactName: vulnerability.artifactName,
+  };
 }
 
 /** A container finding page: the list's largest (clampListPageSize). */
@@ -302,7 +408,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
 
       // 3. Fetch all vulnerabilities for this scan
       const { vulnerabilities, failedTypes } =
-        await this.fetchVulnerabilitiesReport(projectId, scanId);
+        await this.fetchVulnerabilitiesReport(projectId, scanId, branch);
       await job.updateProgress(50);
 
       this.logger.log(
@@ -311,10 +417,23 @@ export class PolicyEvaluationProcessor extends WorkerHost {
 
       // 4. Evaluate each vulnerability against all rules
       const violations: ComplianceResultDetails['violations'] = [];
+      const pendingViolations = new Map<string, PendingViolation>();
       let highestAction: ViolationAction | null = null;
 
       const rules = effectiveConfig.rules || [];
       const exclusions = effectiveConfig.exclusions || [];
+      const skipped = new SkippedPatterns(appliedPolicies);
+      const onBranchSkip = (
+        rule: PolicyRule,
+        pattern: string,
+        reason: string,
+      ): void =>
+        skipped.branch(
+          this.findPolicyForRule(rule, appliedPolicies),
+          rule,
+          pattern,
+          reason,
+        );
 
       this.logger.log(
         `[Evaluation] Evaluating ${vulnerabilities.length} vulnerabilities against ${rules.length} rules from ${appliedPolicies.length} policies`,
@@ -334,7 +453,11 @@ export class PolicyEvaluationProcessor extends WorkerHost {
         }
 
         // Check if vulnerability is excluded
-        if (this.isExcluded(vulnerability, exclusions)) {
+        if (
+          this.isExcluded(vulnerability, exclusions, (pattern, reason) =>
+            skipped.exclusion(pattern, reason),
+          )
+        ) {
           continue;
         }
 
@@ -346,6 +469,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
           const matchResult = this.evaluateRule(rule, vulnerability, {
             scanId,
             branch,
+            onSkip: onBranchSkip,
           });
 
           if (matchResult.matches) {
@@ -372,15 +496,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
               highestAction = ViolationAction.WARN;
             }
 
-            // Create violation record
-            await this.createViolationRecord(
-              policy,
-              rule,
-              vulnerability,
-              scanId,
-              projectId,
-              organizationId,
-            );
+            this.queueViolation(pendingViolations, policy, rule, vulnerability);
           }
         }
       }
@@ -500,13 +616,11 @@ export class PolicyEvaluationProcessor extends WorkerHost {
                   branch,
                 };
 
-                await this.createViolationRecord(
+                this.queueViolation(
+                  pendingViolations,
                   policy,
                   rule,
                   syntheticVuln,
-                  scanId,
-                  projectId,
-                  organizationId,
                 );
               }
             }
@@ -532,31 +646,52 @@ export class PolicyEvaluationProcessor extends WorkerHost {
         }
       }
 
-      // 5. Clean up stale violations (remove fixed vulnerabilities)
-      // Only clean up vulnerabilities from the same branch as the current scan.
-      // A type that could not be fetched looks like a type with no finding:
-      // a cleanup then would remove every violation it holds as fixed. The
-      // stored violations are kept until an evaluation reads every type.
-      if (failedTypes.length > 0) {
+      // 5. Write the violations, then clean up stale ones (fixed
+      // vulnerabilities, same branch as the scan only). A type that could not
+      // be fetched looks like a type with no finding: a cleanup then would
+      // remove every violation it holds as fixed. The stored violations are
+      // kept until an evaluation reads every type.
+      const cleanup = failedTypes.length === 0;
+      if (!cleanup) {
         this.logger.warn(
           `[Evaluation] Keeping the existing violations of project=${projectId}: could not fetch the ${failedTypes.join(', ')} findings`,
         );
-      } else {
-        await this.cleanupStaleViolations(
-          projectId,
-          scanId,
-          matchedVulnIdsByRule,
-          branch,
-        );
+      }
+      if (pendingViolations.size > 0 || cleanup) {
+        await this.underProjectWriteLock(projectId, async (repository) => {
+          await this.writeViolations(
+            repository,
+            pendingViolations,
+            scanId,
+            projectId,
+            organizationId,
+          );
+          if (cleanup) {
+            await this.cleanupStaleViolations(
+              repository,
+              projectId,
+              scanId,
+              matchedVulnIdsByRule,
+              branch,
+            );
+          }
+        });
       }
 
       await job.updateProgress(90);
 
       // 6. Complete the evaluation
+      const warnings = skipped.list();
+      if (warnings.length > 0) {
+        this.logger.warn(
+          `[Evaluation] ${warnings.length} glob pattern(s) skipped for project=${projectId}: ${JSON.stringify(warnings)}`,
+        );
+      }
       await this.completeEvaluation(evaluationId, {
         compliant: violations.length === 0,
         action: highestAction,
         violations,
+        warnings,
       });
 
       // 7. Publish realtime event
@@ -927,24 +1062,65 @@ export class PolicyEvaluationProcessor extends WorkerHost {
   private async fetchVulnerabilitiesReport(
     projectId: string,
     scanId: string,
+    branch?: string,
   ): Promise<{ vulnerabilities: VulnerabilityData[]; failedTypes: string[] }> {
     const allVulns: VulnerabilityData[] = [];
     const failedTypes: string[] = [];
 
-    const fetchMethods = [
-      { method: 'getProjectSastVulnerabilities', scanner: 'SAST' },
-      { method: 'getProjectIacVulnerabilities', scanner: 'IAC' },
-      { method: 'getProjectScaVulnerabilities', scanner: 'SCA' },
-      { method: 'getProjectSecretVulnerabilities', scanner: 'SECRET' },
-      { method: 'getProjectCicdVulnerabilities', scanner: 'CICD' },
+    // Every list is read for the scan's own branch, so a branch scanned in CI
+    // is judged on the findings it actually holds, not on another branch's.
+    // With no branch named, the code, IaC, secret and CI/CD lists answer every
+    // branch and the dependency list the default one, as before. The
+    // dependency list gives malware apart from the other findings.
+    const branchScope: { branch?: string } = branch ? { branch } : {};
+    const fetchMethods: {
+      method: string;
+      scanner: string;
+      extra?: { branch?: string; malwareOnly?: boolean };
+    }[] = [
+      {
+        method: 'getProjectSastVulnerabilities',
+        scanner: 'SAST',
+        extra: branchScope,
+      },
+      {
+        method: 'getProjectIacVulnerabilities',
+        scanner: 'IAC',
+        extra: branchScope,
+      },
+      {
+        method: 'getProjectScaVulnerabilities',
+        scanner: 'SCA',
+        extra: branchScope,
+      },
+      {
+        method: 'getProjectScaVulnerabilities',
+        scanner: 'SCA',
+        extra: { ...branchScope, malwareOnly: true },
+      },
+      {
+        method: 'getProjectSecretVulnerabilities',
+        scanner: 'SECRET',
+        extra: branchScope,
+      },
+      {
+        method: 'getProjectCicdVulnerabilities',
+        scanner: 'CICD',
+        extra: branchScope,
+      },
     ];
 
-    for (const { method, scanner } of fetchMethods) {
+    for (const { method, scanner, extra } of fetchMethods) {
       try {
         const response = await (
           this.analysisClient as unknown as Record<
             string,
-            (req: { projectId: string; scanId: string }) => {
+            (req: {
+              projectId: string;
+              scanId: string;
+              branch?: string;
+              malwareOnly?: boolean;
+            }) => {
               toPromise(): Promise<{
                 vulnerabilities?: Record<string, unknown>[];
               }>;
@@ -954,6 +1130,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
           [method]({
             projectId,
             scanId,
+            ...extra,
           })
           .toPromise();
 
@@ -967,7 +1144,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
           allVulns.push(...mapped);
         }
       } catch (error) {
-        failedTypes.push(scanner);
+        if (!failedTypes.includes(scanner)) failedTypes.push(scanner);
         this.logger.warn(
           `Failed to fetch ${scanner} vulnerabilities: ${(error as Error).message}`,
         );
@@ -1033,6 +1210,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
   private isExcluded(
     vulnerability: VulnerabilityData,
     exclusions: PolicyExclusion[],
+    onSkip?: (pattern: string, reason: string) => void,
   ): boolean {
     for (const exclusion of exclusions) {
       // Check expiration
@@ -1043,8 +1221,11 @@ export class PolicyEvaluationProcessor extends WorkerHost {
 
       // Check file path pattern
       if (exclusion.pattern && vulnerability.filePath) {
-        const isMatch = globMatch(vulnerability.filePath, exclusion.pattern);
-        if (isMatch) return true;
+        // A pattern that cannot be matched, or a path too long to match,
+        // hides nothing: the finding counts, and the skip is reported.
+        const result = matchGlob(vulnerability.filePath, exclusion.pattern);
+        if ('skipped' in result) onSkip?.(exclusion.pattern, result.skipped);
+        else if (result.matched) return true;
       }
 
       // Check CWE exclusions
@@ -1219,7 +1400,12 @@ export class PolicyEvaluationProcessor extends WorkerHost {
             : [rule.value];
           const branchMatches = actualValue
             ? patterns.some((pattern) =>
-                globMatch(actualValue as string, pattern as string),
+                this.branchMatches(
+                  actualValue as string,
+                  pattern as string,
+                  rule,
+                  scanContext,
+                ),
               )
             : false;
           matches =
@@ -1231,7 +1417,12 @@ export class PolicyEvaluationProcessor extends WorkerHost {
           // For EQUALS/NOT_EQUALS, use glob pattern matching
           const pattern = rule.value as string;
           const branchMatches = actualValue
-            ? globMatch(actualValue as string, pattern)
+            ? this.branchMatches(
+                actualValue as string,
+                pattern,
+                rule,
+                scanContext,
+              )
             : false;
           matches =
             operator === RuleOperator.EQUALS ? branchMatches : !branchMatches;
@@ -1262,6 +1453,24 @@ export class PolicyEvaluationProcessor extends WorkerHost {
         ? [{ field: rule.type, expected: rule.value, actual: actualValue }]
         : [],
     };
+  }
+
+  /**
+   * A branch against one pattern of a rule. A pattern that cannot be matched
+   * matches no branch, as an unknown name would, and the skip is reported.
+   */
+  private branchMatches(
+    branch: string,
+    pattern: string,
+    rule: PolicyRule,
+    scanContext: ScanContext,
+  ): boolean {
+    const result = matchGlob(branch, pattern);
+    if ('skipped' in result) {
+      scanContext.onSkip?.(rule, pattern, result.skipped);
+      return false;
+    }
+    return result.matched;
   }
 
   /**
@@ -1508,120 +1717,133 @@ export class PolicyEvaluationProcessor extends WorkerHost {
   }
 
   /**
-   * Create a violation record in the database
+   * Runs the read-then-write of a project's violation rows while holding a
+   * lock on that project, in one transaction. Two evaluations of one project
+   * (two scans finishing together, jobs on several workers) then write one
+   * after the other: neither overwrites what the other appended, and no
+   * second row is created for the same rule. The lock is released when the
+   * transaction ends, on success or failure.
    */
-  private async createViolationRecord(
+  private async underProjectWriteLock(
+    projectId: string,
+    work: (repository: Repository<PolicyViolation>) => Promise<void>,
+  ): Promise<void> {
+    await this.violationRepository.manager.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock($1, hashtext($2))', [
+        VIOLATION_WRITE_LOCK_NAMESPACE,
+        projectId,
+      ]);
+      await work(manager.getRepository(PolicyViolation));
+    });
+  }
+
+  /**
+   * Note a (rule, finding) match. The violation rows are written once, at
+   * the end of the evaluation, by writeViolations.
+   */
+  private queueViolation(
+    pending: Map<string, PendingViolation>,
     policy: SecurityPolicy | undefined,
     rule: PolicyRule,
     vulnerability: VulnerabilityData,
+  ): void {
+    const policyId = policy?.id || '';
+    const key = violationKey(policyId, rule.id);
+    const entry = pending.get(key);
+    if (entry) {
+      entry.snapshotRule = rule;
+      entry.vulnerabilities.push(vulnerability);
+    } else {
+      pending.set(key, {
+        policyId,
+        rule,
+        snapshotRule: rule,
+        vulnerabilities: [vulnerability],
+      });
+    }
+  }
+
+  /**
+   * Write the violations of one evaluation: one read of the project's rows,
+   * then one write per violated rule, whatever the number of findings. The
+   * stored row is the one a write per finding would leave: a finding already
+   * listed is refreshed in place, a new one is appended and counted, and the
+   * rule snapshot is the latest.
+   */
+  private async writeViolations(
+    repository: Repository<PolicyViolation>,
+    pending: Map<string, PendingViolation>,
     scanId: string,
     projectId: string,
     organizationId: string,
   ): Promise<void> {
-    // Build the affected vulnerability object with enriched data
-    // Use the branch from the vulnerability itself, not the scan branch
-    const affectedVuln: AffectedVulnerability = {
-      id: vulnerability.id,
-      name: vulnerability.name,
-      severity: vulnerability.severity,
-      cvssScore: vulnerability.cvssScore,
-      cwe: vulnerability.cwe,
-      owaspTop10: vulnerability.owaspTop10,
-      filePath: vulnerability.filePath,
-      startLine: vulnerability.startLine,
-      endLine: vulnerability.endLine,
-      vulnerabilityType: vulnerability.scannerType?.toLowerCase() || '',
-      branch: vulnerability.branch,
-      // SCA-specific fields
-      packageName: vulnerability.packageName,
-      packageVersion: vulnerability.packageVersion,
-      // Container-specific fields
-      artifactName: vulnerability.artifactName,
-    };
+    if (pending.size === 0) return;
 
-    // Check if this exact violation already exists (same policy, rule, project)
-    const existingViolation = await this.violationRepository.findOne({
-      where: {
-        policyId: policy?.id || '',
-        projectId,
-        ruleId: rule.id,
-      },
+    const stored = await repository.find({
+      where: { projectId },
     });
+    const storedByKey = new Map<string, PolicyViolation>();
+    for (const row of stored) {
+      const key = violationKey(row.policyId, row.ruleId);
+      if (!storedByKey.has(key)) storedByKey.set(key, row);
+    }
 
-    if (existingViolation) {
-      // Check if this vulnerability is already recorded in the existing violation
-      const existingVulns =
-        existingViolation.violationDetails?.affectedVulnerabilities || [];
-      const existingVulnIndex = existingVulns.findIndex(
-        (v) => v.id === vulnerability.id,
-      );
+    for (const [key, entry] of pending) {
+      const existing = storedByKey.get(key);
+      const list: AffectedVulnerability[] = existing
+        ? [...(existing.violationDetails?.affectedVulnerabilities || [])]
+        : [];
+      const indexById = new Map<string, number>();
+      list.forEach((v, index) => indexById.set(v.id, index));
+      // A new row counts 1 with its first finding; every finding added
+      // afterwards counts one more, as the stored count always did.
+      let count = existing ? existing.affectedVulnerabilitiesCount : 0;
+      let added = false;
 
-      if (existingVulnIndex !== -1) {
-        // Vulnerability already exists - update it with enriched data
-        // This ensures old vulnerabilities get updated with new fields like vulnerabilityType
-        const updatedVulns = [...existingVulns];
-        updatedVulns[existingVulnIndex] = affectedVuln;
+      for (const vulnerability of entry.vulnerabilities) {
+        const affected = toAffectedVulnerability(vulnerability);
+        const index = indexById.get(affected.id);
+        if (index !== undefined) {
+          list[index] = affected;
+          continue;
+        }
+        indexById.set(affected.id, list.length);
+        list.push(affected);
+        count = !existing && !added ? 1 : (count || 1) + 1;
+        added = true;
+      }
 
-        const updatedDetails: ViolationDetails = {
-          // Always use fresh rule snapshot to ensure criteria is included for composite rules
-          rule: buildRuleSnapshot(rule),
-          affectedVulnerabilities: updatedVulns,
-        };
+      const violationDetails: ViolationDetails = {
+        rule: buildRuleSnapshot(entry.snapshotRule),
+        affectedVulnerabilities: list,
+      };
 
-        await this.violationRepository.update(
-          { id: existingViolation.id },
+      if (existing) {
+        await repository.update(
+          { id: existing.id },
           {
             scanId,
-            violationDetails: updatedDetails,
+            ...(added ? { affectedVulnerabilitiesCount: count } : {}),
+            violationDetails,
             updatedAt: new Date(),
           },
         );
-        return;
+      } else {
+        await repository.save(
+          repository.create({
+            policyId: entry.policyId,
+            projectId,
+            scanId,
+            organizationId,
+            ruleId: entry.rule.id,
+            ruleName: entry.rule.name,
+            actionTaken: entry.rule.action,
+            violationDetails,
+            affectedVulnerabilitiesCount: count,
+          }),
+        );
       }
-
-      // Add the new vulnerability to the existing violation
-      const updatedAffectedVulns = [...existingVulns, affectedVuln];
-
-      const newCount =
-        (existingViolation.affectedVulnerabilitiesCount || 1) + 1;
-
-      // Always use fresh rule snapshot to ensure criteria is included for composite rules
-      const updatedDetails: ViolationDetails = {
-        rule: buildRuleSnapshot(rule),
-        affectedVulnerabilities: updatedAffectedVulns,
-      };
-
-      await this.violationRepository.update(
-        { id: existingViolation.id },
-        {
-          scanId,
-          affectedVulnerabilitiesCount: newCount,
-          violationDetails: updatedDetails,
-          updatedAt: new Date(),
-        },
-      );
-      return;
     }
-
-    // Create new violation with simplified structure
-    const details: ViolationDetails = {
-      rule: buildRuleSnapshot(rule),
-      affectedVulnerabilities: [affectedVuln],
-    };
-
-    const violation = this.violationRepository.create({
-      policyId: policy?.id || '',
-      projectId,
-      scanId,
-      organizationId,
-      ruleId: rule.id,
-      ruleName: rule.name,
-      actionTaken: rule.action,
-      violationDetails: details,
-      affectedVulnerabilitiesCount: 1,
-    });
-
-    await this.violationRepository.save(violation);
   }
 
   /**
@@ -1659,13 +1881,14 @@ export class PolicyEvaluationProcessor extends WorkerHost {
    * @param scanBranch The branch of the current scan (only vulnerabilities from this branch are cleaned)
    */
   private async cleanupStaleViolations(
+    repository: Repository<PolicyViolation>,
     projectId: string,
     scanId: string,
     matchedVulnIdsByRule: Map<string, Set<string>>,
     scanBranch?: string,
   ): Promise<void> {
     // Get all existing violations for this project
-    const existingViolations = await this.violationRepository.find({
+    const existingViolations = await repository.find({
       where: { projectId },
     });
 
@@ -1733,7 +1956,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
 
     // Batch delete violations that have no remaining vulnerabilities
     if (violationsToDelete.length > 0) {
-      await this.violationRepository.delete(violationsToDelete);
+      await repository.delete(violationsToDelete);
       this.logger.log(
         `[Evaluation] Deleted ${violationsToDelete.length} stale violations for project=${projectId}`,
       );
@@ -1756,7 +1979,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
           action: update.actionTaken as ViolationAction,
         };
 
-      await this.violationRepository.update(
+      await repository.update(
         { id: update.id },
         {
           scanId,
@@ -1800,6 +2023,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
       compliant: boolean;
       action: ViolationAction | null;
       violations: ComplianceResultDetails['violations'];
+      warnings?: EvaluationWarning[];
     },
   ): Promise<void> {
     await this.evaluationRepository.update(
@@ -1814,6 +2038,7 @@ export class PolicyEvaluationProcessor extends WorkerHost {
           violationCount: countViolatedRules(result.violations).total,
           action: result.action || ViolationAction.WARN,
           violations: result.violations,
+          ...(result.warnings?.length ? { warnings: result.warnings } : {}),
         } as any,
         completedAt: new Date(),
       },

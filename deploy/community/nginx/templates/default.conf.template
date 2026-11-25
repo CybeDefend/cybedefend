@@ -47,9 +47,9 @@ server {
     # from anyone else it stays the peer's address. Empty: no proxy is trusted.
     include /tmp/cybedefend/real-ip.conf;
 
-    # An import is at most two files of 50 MB (an SCA SARIF and its SBOM); the
-    # multipart envelope needs a little more.
-    client_max_body_size 101m;
+    # A request body is at most 1 MB, the gateway's own default limit. The
+    # upload and webhook locations under /api/ raise it for their routes only.
+    client_max_body_size 1m;
 
     # No location below sets add_header, so these apply to every answer.
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' ${CYBEDEFEND_STORAGE_PUBLIC_URL}; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'" always;
@@ -77,6 +77,29 @@ server {
         proxy_send_timeout 3600s;
         # The gateway sets the refresh cookie's Path=/api/auth itself
         # (AUTH_COOKIE_PATH): nothing is rewritten here.
+
+        # The results import and the results a scanner pod sends: at most two
+        # files of 50 MB (an SCA SARIF and its SBOM); the multipart envelope
+        # needs a little more. A client that stops sending for 30 s is cut.
+        # Only a multipart body may be that large: any other is refused
+        # before it is read, as the gateway refuses it on these routes.
+        # The headers and timeouts above are inherited; proxy_pass is not.
+        location ~ ^/api/(project/[0-9a-fA-F-]+/scan/import/start|scan-runs/[0-9a-fA-F-]+/results)$ {
+            if ($content_type !~* "^multipart/form-data") {
+                return 415;
+            }
+            client_max_body_size 101m;
+            client_body_timeout 30s;
+            proxy_request_buffering off;
+            rewrite ^/api/(.*)$ /$1 break;
+            proxy_pass http://${GATEWAY_UPSTREAM};
+        }
+
+        # Provider webhooks: the gateway reads up to 4 MB on these routes.
+        location /api/webhooks/ {
+            client_max_body_size 4m;
+            proxy_pass http://${GATEWAY_UPSTREAM}/webhooks/;
+        }
     }
 
     # The runtime configuration the image's start script writes: the root

@@ -6,6 +6,7 @@
 L'alternative open source à Snyk : une AppSec agentique auto-hébergée, avec un scanner IA exécuté par votre agent de code.</p>
 
 <p align="center">
+  <a href="https://github.com/CybeDefend/cybedefend/stargazers"><img src="https://img.shields.io/badge/Star%20on%20GitHub-7B5BFF?logo=github&logoColor=white" alt="Star CybeDefend on GitHub"></a>
   <a href="https://github.com/CybeDefend/cybedefend/tags"><img src="https://img.shields.io/github/v/tag/CybeDefend/cybedefend?sort=semver&label=release&color=7B5BFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-7B5BFF" alt="License: AGPL-3.0"></a>
   <a href="https://discord.gg/UPzm4n6SAJ"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -17,7 +18,7 @@ L'alternative open source à Snyk : une AppSec agentique auto-hébergée, avec u
 <p align="center"><a href="README.md">English</a> &bull; <a href="README.fr.md">Français</a> &bull; <a href="README.zh-CN.md">中文</a> &bull; <a href="README.ja.md">日本語</a> &bull; <a href="README.ko.md">한국어</a> &bull; <a href="README.es.md">Español</a> &bull; <a href="README.pt-BR.md">Português</a></p>
 
 > [!NOTE]
-> Lancement sur Product Hunt le 4 décembre 2026. Venez en discuter avec nous sur [Discord](https://discord.gg/UPzm4n6SAJ).
+> Une étoile, c'est ce qui fait découvrir ce dépôt à d'autres développeurs. Lancement sur Product Hunt le 4 décembre 2026. Venez en discuter avec nous sur [Discord](https://discord.gg/UPzm4n6SAJ).
 
 **① Un audit complet en une commande.**
 Tapez `/cybedefend` dans votre agent de code. Les scanners open source tournent, le scanner IA traque ce qu'ils ne voient pas, et votre agent juge chaque résultat au regard de votre code. Il répond **SHIP**, ou **NOT YET** avec ce qui bloque et le correctif pour chaque point.
@@ -385,6 +386,10 @@ Gardez une sauvegarde de la clé maître (`secret-key`) et ne la changez jamais 
     </td>
   </tr>
 </table>
+
+<br>
+
+<p align="center">Si l'audit a trouvé quelque chose dans votre code, une étoile aide d'autres développeurs à trouver le projet.</p>
 
 <br>
 

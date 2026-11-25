@@ -38,6 +38,35 @@ describe('useStoredReports', () => {
     Object.keys(streams).forEach((url) => delete streams[url]);
   });
 
+  // A member without the report roles is refused (403): the list says so as
+  // a state, never as an error text.
+  describe('when the API refuses the reports to the member', () => {
+    const refused = { isAxiosError: true, response: { status: 403, data: {} } };
+
+    it('marks the list forbidden on a 403 from the list, with no error', async () => {
+      mocked.listProjectReports.mockRejectedValue(refused);
+      mocked.getProjectReportUsage.mockResolvedValue({ used: 0, limit: 500 });
+      const { result } = renderHook(() => useStoredReports({ kind: 'project', projectId: 'p1' }));
+      await waitFor(() => expect(result.current.forbidden).toBe(true));
+      expect(result.current.error).toBeNull();
+    });
+
+    it('marks the list forbidden on a 403 from the usage', async () => {
+      mocked.listProjectReports.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 });
+      mocked.getProjectReportUsage.mockRejectedValue(refused);
+      const { result } = renderHook(() => useStoredReports({ kind: 'project', projectId: 'p1' }));
+      await waitFor(() => expect(result.current.forbidden).toBe(true));
+    });
+
+    it('keeps another failure an error', async () => {
+      mocked.listProjectReports.mockRejectedValue({ isAxiosError: true, response: { status: 500, data: {} } });
+      mocked.getProjectReportUsage.mockResolvedValue({ used: 0, limit: 500 });
+      const { result } = renderHook(() => useStoredReports({ kind: 'project', projectId: 'p1' }));
+      await waitFor(() => expect(result.current.error).not.toBeNull());
+      expect(result.current.forbidden).toBe(false);
+    });
+  });
+
   describe('when a report of the scope becomes ready', () => {
     const page = (n: number) => ({
       items: Array.from({ length: n }, (_, i) => ({ reportId: `r${i}` })),

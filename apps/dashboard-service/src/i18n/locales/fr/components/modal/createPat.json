@@ -14,8 +14,11 @@
                 "year1": "1 an",
                 "never": "Jamais",
                 "errors": {
-                    "nameRequired": "Le nom du jeton est requis"
-                }
+                    "nameRequired": "Le nom du jeton est requis",
+                    "passwordRequired": "Saisissez votre mot de passe pour créer un jeton"
+                },
+                "passwordLabel": "Votre mot de passe",
+                "passwordHint": "Un jeton reste valide après la déconnexion : sa création demande votre mot de passe."
             }
         }
     }

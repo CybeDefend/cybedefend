@@ -47,9 +47,21 @@ const layout = (files) => {
   for (const names of Object.values(out)) names.sort();
   return out;
 };
-const peerFile = (caller) => `SERVICE_AUTH_PEER_KEY_${caller.toUpperCase().replace(/-/g, '_')}`;
-const SERVICE_AUTH_FILES = (service) =>
-  ['SERVICE_AUTH_KEY', ...(GRPC_CALLERS[service] ?? []).filter((c) => c !== service).map(peerFile)];
+const upper = (name) => name.toUpperCase().replace(/-/g, '_');
+const peerFile = (caller) => `SERVICE_AUTH_PEER_KEY_${upper(caller)}`;
+const signingFile = (server) => `SERVICE_AUTH_KEY_FOR_${upper(server)}`;
+/** Every (caller, server) pair the servers' policies allow. */
+const PAIRS = Object.entries(GRPC_CALLERS).flatMap(([server, callers]) =>
+  callers.filter((c) => c !== server).map((caller) => ({ caller, server })),
+);
+const SERVICE_AUTH_FILES = (service) => [
+  // As a caller: one signing key per server it may call.
+  ...PAIRS.filter((p) => p.caller === service).map((p) => signingFile(p.server)),
+  // As a server: one verification key per caller it serves.
+  ...PAIRS.filter((p) => p.server === service).map((p) => peerFile(p.caller)),
+];
+const pairKey = (master, caller, server) =>
+  deriveKey(master, `service-to-service-auth/${caller}/${server}`).toString('hex');
 const valueOf = (files, consumer, name) => files.find((f) => f.consumer === consumer && f.name === name)?.value;
 const noChown = () => {};
 
@@ -78,46 +90,96 @@ test('the key that seals the sign-in signing keys reaches global-management only
   assert.deepEqual(holders, ['global-management']);
 });
 
-test('each gRPC service signs with a key of its own, the one the services derive for that caller', () => {
-  const files = plan();
+test('the internal gRPC keys are exactly one per (caller, server) pair the policies allow', () => {
+  const files = plan().filter((f) => f.name.startsWith('SERVICE_AUTH_'));
   const master = decodeMasterKey(MASTER_HEX);
-  const holders = files.filter((f) => f.name === 'SERVICE_AUTH_KEY');
-  assert.deepEqual(
-    holders.map((f) => f.consumer).sort(),
-    ['analysis-reporting', 'external-integrations', 'file-management', 'gateway', 'global-management', 'policy-management', 'security-scanning'],
-  );
-  for (const f of holders) {
-    assert.equal(f.value, deriveKey(master, `service-to-service-auth/${f.consumer}`).toString('hex'), f.consumer);
-  }
-  assert.equal(new Set(holders.map((f) => f.value)).size, holders.length);
-  assert.deepEqual(SECRET_CONSUMERS.gateway, { uid: APP_UID, gid: APP_UID });
-});
-
-test('each server holds the verification keys of the callers it serves, and of no other', () => {
-  const files = plan();
-  const master = decodeMasterKey(MASTER_HEX);
+  // No single key signs every call of a service any more.
+  assert.deepEqual(files.filter((f) => f.name === 'SERVICE_AUTH_KEY'), []);
   for (const service of GRPC_SERVICES) {
-    const peers = files.filter((f) => f.consumer === service && f.name.startsWith('SERVICE_AUTH_PEER_KEY_'));
-    const expected = (GRPC_CALLERS[service] ?? []).filter((c) => c !== service);
-    assert.deepEqual(peers.map((f) => f.name).sort(), expected.map(peerFile).sort(), service);
-    for (const caller of expected) {
-      assert.equal(
-        valueOf(files, service, peerFile(caller)),
-        deriveKey(master, `service-to-service-auth/${caller}`).toString('hex'),
-        `${service} ← ${caller}`,
-      );
-    }
+    assert.deepEqual(
+      files.filter((f) => f.consumer === service).map((f) => f.name).sort(),
+      SERVICE_AUTH_FILES(service).sort(),
+      service,
+    );
   }
-  // The gateway serves no gRPC; its key, the one that may act for a user, reaches no other service but as a verification key.
-  assert.equal(GRPC_CALLERS.gateway, undefined);
-  const gatewayKey = deriveKey(master, 'service-to-service-auth/gateway').toString('hex');
-  const gatewayKeyHolders = files.filter((f) => f.value === gatewayKey);
-  for (const f of gatewayKeyHolders) {
-    assert.ok(f.consumer === 'gateway' || f.name === 'SERVICE_AUTH_PEER_KEY_GATEWAY', `${f.consumer}/${f.name}`);
+  assert.deepEqual(files.filter((f) => !GRPC_SERVICES.includes(f.consumer)), []);
+  // The caller signs with the key its server verifies with: the pair's own.
+  for (const { caller, server } of PAIRS) {
+    const key = pairKey(master, caller, server);
+    assert.equal(valueOf(files, caller, signingFile(server)), key, `${caller} → ${server}`);
+    assert.equal(valueOf(files, server, peerFile(caller)), key, `${server} ← ${caller}`);
   }
+  assert.equal(files.length, 2 * PAIRS.length);
   // Every caller a server lists is a gRPC service.
   for (const callers of Object.values(GRPC_CALLERS)) {
     for (const caller of callers) assert.ok(GRPC_SERVICES.includes(caller), caller);
+  }
+  assert.deepEqual(SECRET_CONSUMERS.gateway, { uid: APP_UID, gid: APP_UID });
+});
+
+test('two pairs never share a key, and each key is held by the two ends of its pair only', () => {
+  const files = plan().filter((f) => f.name.startsWith('SERVICE_AUTH_'));
+  const master = decodeMasterKey(MASTER_HEX);
+  const keys = PAIRS.map(({ caller, server }) => pairKey(master, caller, server));
+  assert.equal(new Set(keys).size, PAIRS.length);
+  PAIRS.forEach(({ caller, server }, i) => {
+    const holders = plan().filter((f) => f.value === keys[i]).map((f) => f.consumer).sort();
+    assert.deepEqual(holders, [caller, server].sort(), `${caller} → ${server}`);
+  });
+  // The gateway serves no gRPC: no service holds a key that signs as the
+  // gateway to another server.
+  assert.equal(GRPC_CALLERS.gateway, undefined);
+  for (const service of GRPC_SERVICES.filter((s) => s !== 'gateway')) {
+    for (const f of files.filter((g) => g.consumer === service)) {
+      const pair = PAIRS[keys.indexOf(f.value)];
+      assert.ok(pair.caller === service || pair.server === service, `${service}/${f.name}`);
+      if (pair.caller === 'gateway') assert.equal(pair.server, service, `${service}/${f.name}`);
+    }
+  }
+});
+
+test('no service folder holds a key that signs calls to another server', () => {
+  const files = plan().filter((f) => f.name.startsWith('SERVICE_AUTH_'));
+  for (const service of GRPC_SERVICES) {
+    for (const f of files.filter((g) => g.consumer === service)) {
+      // What this key verifies: calls from <caller> to <server>.
+      const signer = PAIRS.find((p) => valueOf(files, p.caller, signingFile(p.server)) === f.value);
+      assert.ok(signer, `${service}/${f.name}`);
+      // A server's verification key signs calls to that server only; a
+      // caller's signing key signs its own calls to one server only.
+      assert.ok(signer.server === service || signer.caller === service, `${service}/${f.name}`);
+      if (signer.server !== service) assert.equal(f.name, signingFile(signer.server));
+    }
+  }
+});
+
+test('the internal gRPC keys are stable for a given master key, and change with it', () => {
+  const keysOf = (master) =>
+    planSecretFiles(decodeMasterKey(master))
+      .filter((f) => f.name.startsWith('SERVICE_AUTH_'))
+      .map((f) => `${f.consumer}/${f.name}=${f.value}`)
+      .sort();
+  assert.deepEqual(keysOf(MASTER_HEX), keysOf(MASTER_HEX));
+  assert.deepEqual(keysOf(MASTER_HEX), keysOf(FIRST.base64));
+  const other = keysOf(vectors.masterKeys[1].base64);
+  assert.equal(other.length, keysOf(MASTER_HEX).length);
+  assert.equal(other.filter((line) => keysOf(MASTER_HEX).includes(line)).length, 0);
+});
+
+test('removes the single signing key an earlier version wrote to each gRPC service', () => {
+  const root = tmp();
+  for (const service of GRPC_SERVICES) {
+    mkdirSync(join(root, service), { recursive: true });
+    writeFileSync(join(root, service, 'SERVICE_AUTH_KEY'), 'old', { mode: 0o400 });
+  }
+  deriveRuntimeSecrets({ CYBEDEFEND_SECRET_KEY: MASTER_HEX }, root, { chown: noChown });
+  for (const service of GRPC_SERVICES) {
+    assert.ok(!existsSync(join(root, service, 'SERVICE_AUTH_KEY')), service);
+    assert.deepEqual(
+      readdirSync(join(root, service)).filter((n) => n.startsWith('SERVICE_AUTH_')).sort(),
+      SERVICE_AUTH_FILES(service).sort(),
+      service,
+    );
   }
 });
 

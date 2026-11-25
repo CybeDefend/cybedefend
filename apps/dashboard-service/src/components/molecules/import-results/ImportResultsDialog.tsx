@@ -15,6 +15,7 @@ import {
 import ImportCommandHint from './ImportCommandHint';
 import { importRefusalKey, importRefusalOfUpload, retryAfterSeconds, type ImportRefusal } from './importErrors';
 import { IMPORT_IMAGE_MAX_LENGTH, isImportImage } from './importImage';
+import { isUuid } from '@/utils/uuid';
 
 interface ImportResultsDialogProps {
   projectId: string;
@@ -92,8 +93,11 @@ const ImportResultsDialog: React.FC<ImportResultsDialogProps> = ({
     return next;
   };
 
+  // The id of the project the API answered for: none while it loads.
+  const projectLoaded = isUuid(projectId);
+
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submitting || !projectLoaded) return;
     const next = validate();
     setErrors(next);
     setRefusal(null);
@@ -146,7 +150,7 @@ const ImportResultsDialog: React.FC<ImportResultsDialogProps> = ({
           <Button variant="outline" onClick={onClose} disabled={submitting}>
             {t('components.importResults.cancel')}
           </Button>
-          <Button variant="secondary" onClick={handleSubmit} loading={submitting}>
+          <Button variant="secondary" onClick={handleSubmit} loading={submitting} disabled={!projectLoaded}>
             {t('components.importResults.submit')}
           </Button>
         </>

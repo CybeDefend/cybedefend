@@ -6,6 +6,7 @@
 Snyk의 오픈소스 대안: 직접 호스팅하는 에이전틱 AppSec, 그리고 여러분의 코딩 에이전트가 실행하는 AI 스캐너.</p>
 
 <p align="center">
+  <a href="https://github.com/CybeDefend/cybedefend/stargazers"><img src="https://img.shields.io/badge/Star%20on%20GitHub-7B5BFF?logo=github&logoColor=white" alt="Star CybeDefend on GitHub"></a>
   <a href="https://github.com/CybeDefend/cybedefend/tags"><img src="https://img.shields.io/github/v/tag/CybeDefend/cybedefend?sort=semver&label=release&color=7B5BFF" alt="최신 릴리스"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-7B5BFF" alt="라이선스: AGPL-3.0"></a>
   <a href="https://discord.gg/UPzm4n6SAJ"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -17,7 +18,7 @@ Snyk의 오픈소스 대안: 직접 호스팅하는 에이전틱 AppSec, 그리�
 <p align="center"><a href="README.md">English</a> &bull; <a href="README.fr.md">Français</a> &bull; <a href="README.zh-CN.md">中文</a> &bull; <a href="README.ja.md">日本語</a> &bull; <a href="README.ko.md">한국어</a> &bull; <a href="README.es.md">Español</a> &bull; <a href="README.pt-BR.md">Português</a></p>
 
 > [!NOTE]
-> 2026년 12월 4일 Product Hunt에 출시합니다. [Discord](https://discord.gg/UPzm4n6SAJ)에서 함께 이야기해요.
+> star 하나가 다른 개발자들이 이 저장소를 찾는 계기가 됩니다. 2026년 12월 4일 Product Hunt에 출시합니다. [Discord](https://discord.gg/UPzm4n6SAJ)에서 함께 이야기해요.
 
 **① 명령어 하나로 전체 감사.**
 코딩 에이전트에 `/cybedefend`를 입력하세요. 오픈소스 스캐너가 실행되고, AI 스캐너가 스캐너로는 보이지 않는 것을 찾아내며, 에이전트가 모든 발견 항목을 여러분의 코드에 비추어 판단합니다. 답은 **SHIP**, 또는 **NOT YET**과 함께 무엇이 막고 있는지와 각각의 수정 방법입니다.
@@ -385,6 +386,10 @@ docker compose up -d
     </td>
   </tr>
 </table>
+
+<br>
+
+<p align="center">감사에서 여러분의 코드에 문제가 발견되었다면, star 하나가 다른 개발자들이 이 프로젝트를 찾는 데 도움이 됩니다.</p>
 
 <br>
 

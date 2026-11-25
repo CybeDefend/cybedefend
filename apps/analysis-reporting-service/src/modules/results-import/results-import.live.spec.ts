@@ -48,12 +48,14 @@ import { ScaVulnerabilityDetections } from '../../entities/sca-vulnerability-det
 import { AutoFixRecord } from '../../entities/autofix-record.entity';
 import { VulnerabilityDetectionHistory } from '../../entities/vulnerability-detection-history.entity';
 import { CorrespondanceTable } from '../../entities/vulnerability/correspondance-table.entity';
+import { Vulnerability } from '../../entities/vulnerability/vulnerability.entity';
 import { CodeSnippet } from '../../entities/code-snippet.entity';
 import { DataFlowItem } from '../../entities/data-flow-item.entity';
 import { HistoryItem } from '../../entities/history-item.entity';
 import {
   CatalogueFallbackService,
   importedRuleKey,
+  organizationImportedRuleKey,
 } from './catalogue-fallback.service';
 import type { ImportFileSource } from './import-file.source';
 import { ResultsImportProcessor } from './results-import.processor';
@@ -161,6 +163,7 @@ describeLive('SARIF import end to end on a real database', () => {
 
   let live: LiveDatabase;
   let tmp: string;
+  let fallback: CatalogueFallbackService;
   let queues: Queue[];
   let scanQueue: ScanQueueService;
   let sastIac: SastIacService;
@@ -330,7 +333,7 @@ describeLive('SARIF import end to end on a real database', () => {
       getScan: jest.fn(() => of({ branch: 'main', isDiffScan: false })),
     };
 
-    const fallback = new CatalogueFallbackService(
+    fallback = new CatalogueFallbackService(
       live.dataSource,
       moduleRef.get(SastIacUtilsService),
       scanQueue,
@@ -453,7 +456,7 @@ describeLive('SARIF import end to end on a real database', () => {
     },
   );
 
-  it('gives two organisations importing the same rules their own catalogue rules, and two projects of one organisation the same', async () => {
+  it('gives two organisations, and two projects of one organisation, their own catalogue rules', async () => {
     const orgA = randomUUID();
     const orgB = randomUUID();
     const [a1, a2, b1] = [randomUUID(), randomUUID(), randomUUID()];
@@ -468,8 +471,216 @@ describeLive('SARIF import end to end on a real database', () => {
       rulesOf(b1),
     ]);
     expect(ruleA1.length).toBeGreaterThan(0);
-    expect(ruleA2).toEqual(ruleA1);
+    for (const id of ruleA2) expect(ruleA1).not.toContain(id);
     for (const id of ruleB1) expect(ruleA1).not.toContain(id);
+  });
+
+  /** A one-rule SARIF: the rule's wording, then one result per severity. */
+  const oneRuleSarif = async (
+    wording: string,
+    results: Array<{ line: number; securitySeverity: string }>,
+  ): Promise<string> => {
+    const ruleId = 'acme.crypto.weak-hash';
+    const file = join(tmp, `one-rule-${randomUUID()}.sarif`);
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: '2.1.0',
+        runs: [
+          {
+            tool: {
+              driver: {
+                name: 'Semgrep',
+                rules: [
+                  {
+                    id: ruleId,
+                    name: wording,
+                    shortDescription: { text: `${wording} (short)` },
+                    fullDescription: { text: `${wording} (full)` },
+                    help: { text: wording, markdown: `${wording} (help)` },
+                  },
+                ],
+              },
+            },
+            results: results.map(({ line, securitySeverity }) => ({
+              ruleId,
+              ruleIndex: 0,
+              message: { text: 'weak hash' },
+              properties: { 'security-severity': securitySeverity },
+              locations: [
+                {
+                  physicalLocation: {
+                    artifactLocation: { uri: 'src/hash.js' },
+                    region: {
+                      startLine: line,
+                      endLine: line,
+                      snippet: { text: `md5(input${line})` },
+                    },
+                  },
+                },
+              ],
+            })),
+          },
+        ],
+      }),
+    );
+    return file;
+  };
+
+  it("keeps each project's own wording and severity for a rule id two projects of one organisation import", async () => {
+    const organizationId = randomUUID();
+    const [first, second] = [randomUUID(), randomUUID()];
+    await runImport(
+      first,
+      await oneRuleSarif('Wording of the first project', [
+        { line: 3, securitySeverity: '9.8' },
+      ]),
+      organizationId,
+    );
+    await runImport(
+      second,
+      await oneRuleSarif('Wording of the second project', [
+        { line: 3, securitySeverity: '2.0' },
+      ]),
+      organizationId,
+    );
+
+    const [rowFirst] = await sastRows(first);
+    const [rowSecond] = await sastRows(second);
+    expect(rowFirst.vulnerability.id).not.toBe(rowSecond.vulnerability.id);
+    expect(rowFirst.vulnerability.name).toBe('Wording of the first project');
+    expect(rowSecond.vulnerability.name).toBe('Wording of the second project');
+    expect(rowFirst.currentSeverity.toLowerCase()).toBe('critical');
+    expect(rowSecond.currentSeverity.toLowerCase()).toBe('low');
+
+    // A later import into the first project refreshes its own rule only.
+    await runImport(
+      first,
+      await oneRuleSarif('Reworded by the first project', [
+        { line: 3, securitySeverity: '9.8' },
+      ]),
+      organizationId,
+    );
+    const refreshed = await repo(Vulnerability).findOneByOrFail({
+      id: rowFirst.vulnerability.id,
+    });
+    expect(refreshed.name).toBe('Reworded by the first project');
+    const untouched = await repo(Vulnerability).findOneByOrFail({
+      id: rowSecond.vulnerability.id,
+    });
+    expect(untouched.name).toBe('Wording of the second project');
+  });
+
+  // Findings imported while rules were kept per organisation point at the
+  // organisation's row. The next import into their project moves them to the
+  // project's own row: they keep their id, their status and their history.
+  it("carries a project's findings over from the organisation's former rule row on its next import", async () => {
+    const organizationId = randomUUID();
+    const [mine, other] = [randomUUID(), randomUUID()];
+    const file = await oneRuleSarif('Former wording', [
+      { line: 3, securitySeverity: '9.8' },
+      { line: 9, securitySeverity: '7.5' },
+    ]);
+    const ruleId = 'acme.crypto.weak-hash';
+    const formerKey = organizationImportedRuleKey(organizationId, ruleId);
+
+    // The state an import wrote before: one rule row for the organisation,
+    // which the findings of both projects point at.
+    await runImport(mine, file, organizationId);
+    const corr = await repo(CorrespondanceTable).findOneOrFail({
+      where: { ruleId: importedRuleKey(organizationId, mine, ruleId) },
+      relations: ['vulnerability'],
+    });
+    await repo(CorrespondanceTable).update(
+      { id: corr.id },
+      { ruleId: formerKey },
+    );
+    const formerRowId = corr.vulnerability.id;
+    await runImport(other, file, organizationId);
+    await repo(SastVulnerabilityDetections).update(
+      { projectId: other },
+      { vulnerability: { id: formerRowId } },
+    );
+
+    const before = (await sastRows(mine)).sort(
+      (a, b) => a.vulnerableStartLine - b.vulnerableStartLine,
+    );
+    expect(before.map((r) => r.vulnerability.id)).toEqual([
+      formerRowId,
+      formerRowId,
+    ]);
+    await repo(SastVulnerabilityDetections).update(
+      { id: before[0].id },
+      {
+        currentState: 'ignored',
+        stateManuallyModified: true,
+        triagedByType: 'user',
+        triagedBy: randomUUID(),
+        triagedAt: new Date(),
+        dismissalReason: 'accepted risk',
+      },
+    );
+
+    await runImport(mine, file, organizationId);
+
+    const after = (await sastRows(mine)).sort(
+      (a, b) => a.vulnerableStartLine - b.vulnerableStartLine,
+    );
+    expect(
+      after.map((r) => [r.id, r.vulnerableStartLine, r.currentState]),
+    ).toEqual([
+      [before[0].id, 3, 'ignored'],
+      [before[1].id, 9, 'to_verify'],
+    ]);
+    const ownRow = after[0].vulnerability.id;
+    expect(ownRow).not.toBe(formerRowId);
+    expect(after[1].vulnerability.id).toBe(ownRow);
+    // The other project's findings stay on the former row until its own
+    // next import.
+    expect((await sastRows(other)).map((r) => r.vulnerability.id)).toEqual([
+      formerRowId,
+      formerRowId,
+    ]);
+  });
+
+  it("updates an imported finding's severity from the project's next import", async () => {
+    const projectId = randomUUID();
+    await runImport(
+      projectId,
+      await oneRuleSarif('One rule', [{ line: 3, securitySeverity: '9.8' }]),
+    );
+    const [first] = await sastRows(projectId);
+    expect(first.currentSeverity.toLowerCase()).toBe('critical');
+
+    await runImport(
+      projectId,
+      await oneRuleSarif('One rule', [{ line: 3, securitySeverity: '2.0' }]),
+    );
+    const rows = await sastRows(projectId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(first.id);
+    expect(rows[0].currentSeverity.toLowerCase()).toBe('low');
+    expect(resolveEffectiveSeverity(rows[0])?.toLowerCase()).toBe('low');
+  });
+
+  it('gives each imported finding the severity of its own result', async () => {
+    const projectId = randomUUID();
+    await runImport(
+      projectId,
+      await oneRuleSarif('One rule, two severities', [
+        { line: 3, securitySeverity: '9.8' },
+        { line: 9, securitySeverity: '2.0' },
+      ]),
+    );
+    const rows = (await sastRows(projectId)).sort(
+      (a, b) => a.vulnerableStartLine - b.vulnerableStartLine,
+    );
+    expect(
+      rows.map((r) => [r.vulnerableStartLine, r.currentSeverity.toLowerCase()]),
+    ).toEqual([
+      [3, 'critical'],
+      [9, 'low'],
+    ]);
   });
 
   it('a second import without one result resolves exactly that finding', async () => {
@@ -503,10 +714,14 @@ describeLive('SARIF import end to end on a real database', () => {
       const scanId = await runImport(projectId, fixture('multi-run.sarif'));
 
       expect(await countSast(projectId)).toBe(3);
-      // An imported rule is kept under its organisation's own key.
+      // An imported rule is kept under its project's own key.
       const correspondances = await repo(CorrespondanceTable).find({
         where: {
-          ruleId: importedRuleKey(organisationOf(projectId), 'sql-injection'),
+          ruleId: importedRuleKey(
+            organisationOf(projectId),
+            projectId,
+            'sql-injection',
+          ),
         },
         relations: ['vulnerability'],
       });

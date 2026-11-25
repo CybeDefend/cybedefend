@@ -3,13 +3,15 @@
   "rootDir": "../../",
   "testRegex": ".e2e-spec\\.ts$",
   "moduleNameMapper": {
-    "^@grpc/(.*)$": "<rootDir>/src/core/grpc/$1",
+    "^@grpc/(?!grpc-js/|proto-loader/)([a-z0-9-]+)/(.*)$": "<rootDir>/src/core/grpc/$1/$2",
     "^src/(.*)$": "<rootDir>/src/$1"
   },
   "setupFiles": ["<rootDir>/test/e2e/jest.setup.ts"],
-  "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+  "transform": {
+    "^.+\\.(t|j)s$": "<rootDir>/src/core/testing/esm-node-modules.transformer.js"
+  },
   "transformIgnorePatterns": [
-    "node_modules/\\.pnpm/(?!(jose|uuid)@)",
-    "node_modules/(?!(\\.pnpm|jose|uuid))"
+    "node_modules/\\.pnpm/(?!(@nestjs\\+|jose@|uuid@))",
+    "node_modules/(?!(\\.pnpm|@nestjs|jose|uuid))"
   ]
 }

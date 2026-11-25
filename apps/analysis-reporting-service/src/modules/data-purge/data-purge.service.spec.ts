@@ -244,6 +244,7 @@ describe('DataPurgeService', () => {
       'aggregated_reports.scope_id',
       'organization_statistics.organization_id',
       'sca_license_overrides.organizationId',
+      'imported_advisory.organizationId',
     ]);
     // The SCA AutoFix live-job set moved to EE_PURGE_TABLES (ee).
     expect(redis.del).toHaveBeenCalledWith(`ovw:gen:${ORG_ID}`);

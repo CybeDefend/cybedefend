@@ -2331,9 +2331,10 @@ export class GitlabService {
           await this.handlePushEvent(payload, matchedRowIds);
           break;
 
-        case 'project_create':
-          await this.handleProjectCreateEvent(payload);
-          break;
+        // No `project_create` case: that event comes only from a system
+        // hook, which this instance never registers. A project hook's token
+        // proves nothing about the user the event names, so the event is
+        // ignored like any other unhandled kind.
 
         case 'project_destroy':
           // The payload for project_destroy contains the project_id
@@ -2373,72 +2374,6 @@ export class GitlabService {
         code: status.INTERNAL,
         message: 'Failed to handle GitLab webhook',
       });
-    }
-  }
-
-  /**
-   * Handles the 'project_create' event using the owner's GitLab ID.
-   * @param payload The webhook payload for the created project.
-   */
-  private async handleProjectCreateEvent(payload: any): Promise<void> {
-    // CHANGE: Use the owner's GitLab ID, which is much more reliable than email.
-    const gitlabUserId = payload.owner_id;
-    const gitlabProjectId = payload.project_id;
-
-    if (!gitlabUserId || !gitlabProjectId) {
-      this.logger.warn(
-        'Webhook payload for project_create is missing owner_id or project_id.',
-      );
-      return;
-    }
-
-    this.logger.log(
-      `Handling project_create for project ID: ${gitlabProjectId} by user ID: ${gitlabUserId}`,
-      GitlabService.name,
-    );
-
-    // Find the integration record using the GitLab user ID. No gRPC call needed.
-    const integration = await this.gitlabIntegrationRepository.findOne({
-      where: { gitlabUserId },
-    });
-
-    if (!integration) {
-      this.logger.warn(
-        `No integration found for GitLab user ID: ${gitlabUserId}`,
-      );
-      return;
-    }
-
-    // Now that we have the integration, we can use its token to get full project details
-    const accessToken = await this.decryptToken(integration.accessToken);
-    if (!accessToken) {
-      this.logger.error(
-        `Failed to decrypt token for integration: ${integration.id}`,
-      );
-      return;
-    }
-
-    const projectDetails = await this.fetchProjectById(
-      gitlabProjectId,
-      accessToken,
-    );
-
-    if (projectDetails) {
-      await this.createOrUpdateRepository(integration, projectDetails);
-      this.logger.log(
-        `Successfully created repository record for: ${projectDetails.name_with_namespace}`,
-      );
-
-      // Make sure the project's webhook receives push_events so we can track
-      // branch-lifecycle signals. Idempotent — no API call if already wired.
-      try {
-        await this.ensurePushEventsEnabled(integration, gitlabProjectId);
-      } catch (error) {
-        this.logger.warn(
-          `ensurePushEventsEnabled failed for project ${gitlabProjectId}: ${error.message}`,
-          GitlabService.name,
-        );
-      }
     }
   }
 
@@ -2576,34 +2511,6 @@ export class GitlabService {
     this.logger.log(
       `Successfully updated repository record for project: ${name}`,
     );
-  }
-
-  /**
-   * Fetches a single project's details from the GitLab API.
-   * @param projectId The ID of the project to fetch.
-   * @param accessToken A valid user access token.
-   * @returns The project details or null.
-   */
-  private async fetchProjectById(
-    projectId: number,
-    accessToken: string,
-  ): Promise<GitlabProject | null> {
-    try {
-      const response: AxiosResponse<GitlabProject> = await axios.get(
-        `${this.gitlabApiUrl}/projects/${projectId}`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      );
-      return response.data;
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch details for project ID ${projectId}`,
-        error.stack,
-        GitlabService.name,
-      );
-      return null;
-    }
   }
 
   /**
@@ -3807,97 +3714,6 @@ export class GitlabService {
       }
     }
     return 'failed';
-  }
-
-  /**
-   * Ensure the GitLab project has a webhook subscribed to `push_events` so we
-   * receive branch-lifecycle signals (create/delete via SHA-zero sentinels).
-   *
-   * Idempotent fast path: if an existing webhook for our URL already has
-   * `push_events: true`, no API call is issued. If it exists but with
-   * `push_events: false` we PUT to flip the flag. If no webhook exists for
-   * our URL, we POST a new one with the same payload `createProjectWebhook`
-   * uses (so the two helpers stay aligned).
-   *
-   * Best-effort — failures are logged but never thrown, mirroring
-   * `createProjectWebhook`.
-   */
-  @Span()
-  private async ensurePushEventsEnabled(
-    integration: GitlabIntegration,
-    gitlabProjectId: number,
-  ): Promise<void> {
-    try {
-      const gatewayUrl = this.configService
-        .get<string>('GATEWAY_URL')
-        ?.replaceAll(/\/$/g, '');
-      if (!gatewayUrl) {
-        this.logger.warn(
-          `BRANCHES_WEBHOOK_SUBSCRIPTION outcome=skipped reason=missing_gateway_url repo=${gitlabProjectId}`,
-          GitlabService.name,
-        );
-        return;
-      }
-      const webhookUrl = `${gatewayUrl}/webhooks/gitlab`;
-
-      const existingHooksResponse = await this.callGitlabApi<any[]>(
-        integration,
-        (accessToken) =>
-          axios.get(`${this.gitlabApiUrl}/projects/${gitlabProjectId}/hooks`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }),
-      );
-
-      const existingHook = (existingHooksResponse.data || []).find(
-        (hook: any) => hook?.url === webhookUrl,
-      );
-
-      if (existingHook && existingHook.push_events === true) {
-        this.logger.log(
-          `BRANCHES_WEBHOOK_SUBSCRIPTION outcome=skipped reason=already_enabled repo=${gitlabProjectId} hook=${existingHook.id}`,
-          GitlabService.name,
-        );
-        return;
-      }
-
-      if (existingHook) {
-        await this.withFreshWebhookToken(gitlabProjectId, (token) =>
-          this.callGitlabApi(integration, (accessToken) =>
-            axios.put(
-              `${this.gitlabApiUrl}/projects/${gitlabProjectId}/hooks/${existingHook.id}`,
-              this.hookSettings(webhookUrl, token),
-              { headers: { Authorization: `Bearer ${accessToken}` } },
-            ),
-          ),
-        );
-        this.logger.log(
-          `BRANCHES_WEBHOOK_SUBSCRIPTION outcome=updated reason=push_events_was_disabled repo=${gitlabProjectId} hook=${existingHook.id}`,
-          GitlabService.name,
-        );
-        return;
-      }
-
-      await this.withFreshWebhookToken(gitlabProjectId, (token) =>
-        this.callGitlabApi(integration, (accessToken) =>
-          axios.post(
-            `${this.gitlabApiUrl}/projects/${gitlabProjectId}/hooks`,
-            this.hookSettings(webhookUrl, token),
-            { headers: { Authorization: `Bearer ${accessToken}` } },
-          ),
-        ),
-      );
-      this.logger.log(
-        `BRANCHES_WEBHOOK_SUBSCRIPTION outcome=created reason=no_existing_hook repo=${gitlabProjectId}`,
-        GitlabService.name,
-      );
-    } catch (error) {
-      this.logger.error(
-        `BRANCHES_WEBHOOK_SUBSCRIPTION outcome=failed repo=${gitlabProjectId} error=${error.message}`,
-        error.stack,
-        GitlabService.name,
-      );
-      // best-effort, mirror createProjectWebhook
-    }
   }
 
   /**

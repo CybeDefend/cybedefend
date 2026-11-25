@@ -4,6 +4,7 @@ import { dialectApi } from '@cybedefend/db-dialect';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
 import { RpcException } from '@nestjs/microservices';
+import { Not } from 'typeorm';
 import { ENTITLEMENTS_PORT } from 'src/edition/ports/entitlements.port';
 import { status as grpcStatus } from '@grpc/grpc-js';
 import { ProjectService } from './project.service';
@@ -901,11 +902,43 @@ describe('ProjectService', () => {
 
     it('updateProject reads the project with one SELECT before saving it', async () => {
       const res = await service
-        .updateProject({ projectId: 'p1', name: 'Renamed' } as any)
+        .updateProject({ projectId: 'p1', applicationType: 'web' } as any)
         .catch(() => undefined);
 
       expect(selects(statements)).toHaveLength(1);
       expect(selects(statements)[0].sql).not.toMatch(/DISTINCT/);
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'p1',
+          applicationType: 'web',
+          team: expect.objectContaining({
+            id: 't1',
+            organization: expect.objectContaining({ id: 'o1' }),
+          }),
+        }),
+      );
+      expect(res?.success).toBe(true);
+    });
+
+    // A rename adds one read: is the name free in the project's team?
+    it('updateProject renaming reads the project, then checks the name in its team', async () => {
+      // The name check finds no other project.
+      setResponder((s) =>
+        /^\s*SELECT/i.test(s.sql) && !s.params.includes('Renamed')
+          ? [rawRow(s.sql, storedRow)]
+          : [],
+      );
+
+      const res = await service
+        .updateProject({ projectId: 'p1', name: 'Renamed' } as any)
+        .catch(() => undefined);
+
+      expect(selects(statements)).toHaveLength(2);
+      const [read, nameCheck] = selects(statements);
+      expect(read.sql).not.toMatch(/DISTINCT/);
+      expect(nameCheck.params).toEqual(
+        expect.arrayContaining(['Renamed', 't1', 'p1']),
+      );
       expect(projectRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'p1',
@@ -958,6 +991,191 @@ describe('ProjectService', () => {
       containerSeverities: ['critical'],
     } as any);
     expect(res.success).toBe(true);
+  });
+
+  // The issue-creation branches are a repeated field: an empty list cannot be
+  // told from an absent one, and every caller that does not mean to touch the
+  // setting (a scan updating lastScanSourceType, a PATCH of another field)
+  // sends one. Clearing is therefore explicit.
+  describe('updateProject issue-creation branches', () => {
+    const stored = () => ({
+      id: 'p1',
+      team: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      issueCreationBranches: ['main', 'release'],
+    });
+
+    beforeEach(() => {
+      projectRepo.save!.mockImplementation(async (p: any) => p);
+    });
+
+    it('keeps the stored branches when the update carries an empty list', async () => {
+      storeProject(stored());
+
+      await service.updateProject({
+        projectId: 'p1',
+        lastScanSourceType: 'github',
+        issueCreationBranches: [],
+      } as any);
+
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ issueCreationBranches: ['main', 'release'] }),
+      );
+    });
+
+    it('replaces the stored branches with a non-empty list', async () => {
+      storeProject(stored());
+
+      await service.updateProject({
+        projectId: 'p1',
+        issueCreationBranches: ['develop'],
+      } as any);
+
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ issueCreationBranches: ['develop'] }),
+      );
+    });
+
+    it('clears the stored branches only when asked explicitly', async () => {
+      storeProject(stored());
+
+      await service.updateProject({
+        projectId: 'p1',
+        issueCreationBranches: [],
+        clearIssueCreationBranches: true,
+      } as any);
+
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ issueCreationBranches: null }),
+      );
+    });
+  });
+
+  // The CI/CD agent categories are a repeated field too, with a default set at
+  // creation: an empty list cannot mean "disable", or the first scan of a
+  // project (which sends one) switches the CI/CD analysis off.
+  describe('updateProject CI/CD agent categories', () => {
+    const stored = () => ({
+      id: 'p1',
+      team: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      agentCategoriesCicd: ['cicd_security'],
+    });
+
+    beforeEach(() => {
+      projectRepo.save!.mockImplementation(async (p: any) => p);
+    });
+
+    it('keeps the stored categories when the update carries an empty list', async () => {
+      storeProject(stored());
+
+      await service.updateProject({
+        projectId: 'p1',
+        lastScanSourceType: 'github',
+        agentCategoriesCicd: [],
+      } as any);
+
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ agentCategoriesCicd: ['cicd_security'] }),
+      );
+    });
+
+    it('replaces the stored categories with a non-empty list, normalised', async () => {
+      storeProject(stored());
+
+      await service.updateProject({
+        projectId: 'p1',
+        agentCategoriesCicd: [' Secrets_Exposure ', 'secrets_exposure'],
+      } as any);
+
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ agentCategoriesCicd: ['secrets_exposure'] }),
+      );
+    });
+
+    it('disables the CI/CD analysis only when asked explicitly', async () => {
+      storeProject(stored());
+
+      await service.updateProject({
+        projectId: 'p1',
+        agentCategoriesCicd: [],
+        clearAgentCategoriesCicd: true,
+      } as any);
+
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ agentCategoriesCicd: null }),
+      );
+    });
+
+    it('refuses a list of blank categories instead of disabling the analysis', async () => {
+      storeProject(stored());
+
+      const thrown = await service
+        .updateProject({ projectId: 'p1', agentCategoriesCicd: ['  '] } as any)
+        .catch((e) => e);
+
+      expect(thrown).toBeInstanceOf(RpcException);
+      expect(thrown.getError()).toMatchObject({
+        code: grpcStatus.INVALID_ARGUMENT,
+      });
+      expect(projectRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // A rename follows the rule of creation: two projects of a team never share
+  // a name. The check is in the service because the gateway is not its only
+  // caller.
+  describe('updateProject rename', () => {
+    beforeEach(() => {
+      storeProject({
+        id: 'p1',
+        name: 'Payments',
+        team: { id: 't1', organization: { id: 'o1' } },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      projectRepo.save!.mockImplementation(async (p: any) => p);
+    });
+
+    it('refuses a name another project of the team already uses', async () => {
+      projectRepo.findOne!.mockResolvedValue({ id: 'p2', name: 'Billing' });
+
+      const thrown = await service
+        .updateProject({ projectId: 'p1', name: 'Billing' } as any)
+        .catch((e) => e);
+
+      expect(thrown).toBeInstanceOf(RpcException);
+      expect(thrown.getError()).toMatchObject({
+        code: grpcStatus.ALREADY_EXISTS,
+      });
+      expect(projectRepo.findOne).toHaveBeenCalledWith({
+        where: { name: 'Billing', team: { id: 't1' }, id: Not('p1') },
+      });
+      expect(projectRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('accepts a name no other project of the team uses', async () => {
+      projectRepo.findOne!.mockResolvedValue(null);
+
+      const res = await service.updateProject({
+        projectId: 'p1',
+        name: 'Billing',
+      } as any);
+
+      expect(res.success).toBe(true);
+      expect(projectRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Billing' }),
+      );
+    });
+
+    it('does not look for a duplicate when the name is unchanged', async () => {
+      await service.updateProject({ projectId: 'p1', name: 'Payments' } as any);
+
+      expect(projectRepo.findOne).not.toHaveBeenCalled();
+      expect(projectRepo.save).toHaveBeenCalled();
+    });
   });
 
   // Scan-on-commit: opting a VCS-linked project out of the automatic scan that
@@ -2305,5 +2523,54 @@ describe('ProjectService', () => {
         error: expect.objectContaining({ code: grpcStatus.INVALID_ARGUMENT }),
       });
     });
+  });
+
+  describe('a failed branch-archive statement', () => {
+    // The caller (and through the gateway, the client) gets a stable message;
+    // the statement's error, which can quote the branch name or other values,
+    // is only logged, through the serializer.
+    const VALUE = 'feature/private-value-7f3';
+    const dbError = () =>
+      new Error(`Duplicate entry 'p1-${VALUE}' for key 'archived_branch.UQ'`);
+
+    it.each([
+      [
+        'archiveBranch',
+        'findOne',
+        () => service.archiveBranch({ projectId: 'p1', branchName: VALUE }),
+      ],
+      [
+        'unarchiveBranch',
+        'delete',
+        () => service.unarchiveBranch({ projectId: 'p1', branchName: VALUE }),
+      ],
+      [
+        'getArchivedBranches',
+        'find',
+        () => service.getArchivedBranches({ projectId: 'p1' }),
+      ],
+    ])(
+      '%s answers INTERNAL with a stable message and logs the error',
+      async (_name, method, call) => {
+        archivedBranchRepo[method].mockRejectedValueOnce(dbError());
+        const logger = (service as unknown as { logger: { error: jest.Mock } })
+          .logger;
+
+        const thrown = await (call as () => Promise<unknown>)().catch(
+          (e: unknown) => e,
+        );
+
+        expect(thrown).toBeInstanceOf(RpcException);
+        const answer = (thrown as RpcException).getError();
+        expect(answer).toEqual(
+          expect.objectContaining({ code: grpcStatus.INTERNAL }),
+        );
+        expect(JSON.stringify(answer)).not.toContain(VALUE);
+        expect(JSON.stringify(answer)).not.toContain('Duplicate entry');
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ err: expect.any(Error) }),
+        );
+      },
+    );
   });
 });

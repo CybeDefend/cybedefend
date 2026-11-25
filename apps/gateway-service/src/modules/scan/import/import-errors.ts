@@ -21,6 +21,7 @@ export const IMPORT_REQUEST_CODES = [
   'IMPORT_IMAGE_INVALID',
   'IMPORT_TYPE_NOT_AVAILABLE',
   'IMPORT_INVALID_SBOM',
+  'IMPORT_UPLOAD_TIMEOUT',
 ] as const;
 
 export type ImportRequestCode = (typeof IMPORT_REQUEST_CODES)[number];
@@ -75,6 +76,10 @@ const REFUSALS: Readonly<
   IMPORT_INVALID_SBOM: {
     status: HttpStatus.BAD_REQUEST,
     message: 'The SBOM must be a CycloneDX JSON file (.json or .json.gz).',
+  },
+  IMPORT_UPLOAD_TIMEOUT: {
+    status: HttpStatus.REQUEST_TIMEOUT,
+    message: 'The upload took too long to arrive; retry.',
   },
 };
 

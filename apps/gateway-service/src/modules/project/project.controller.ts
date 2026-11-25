@@ -465,7 +465,9 @@ export class ProjectController {
       agentCategoriesSast: [],
       agentCategoriesIac: [],
       agentCategoriesCicd: [],
+      clearAgentCategoriesCicd: false,
       issueCreationBranches: [],
+      clearIssueCreationBranches: false,
       notifSeverityThreshold: [],
       notifScannerTypes: [],
       zeroDaySeverityThreshold: [],
@@ -577,9 +579,15 @@ export class ProjectController {
     ) {
       data.agentCategoriesIac = body.agentCategoriesIac;
     }
-    // CICD Agent categories (full replacement list)
-    if (body.agentCategoriesCicd !== undefined) {
-      data.agentCategoriesCicd = body.agentCategoriesCicd;
+    // CICD Agent categories (full replacement list). On the wire an empty
+    // list means "no change", so a body that really sends an empty array asks
+    // for the explicit disable; null is "not sent".
+    if (Array.isArray(body.agentCategoriesCicd)) {
+      if (body.agentCategoriesCicd.length === 0) {
+        data.clearAgentCategoriesCicd = true;
+      } else {
+        data.agentCategoriesCicd = body.agentCategoriesCicd;
+      }
     }
 
     // Issue integration fields
@@ -592,9 +600,16 @@ export class ProjectController {
     if (body.issueCreationMode !== undefined && body.issueCreationMode !== '') {
       data.issueCreationMode = body.issueCreationMode;
     }
-    // Issue creation branches (empty array clears the setting)
-    if (body.issueCreationBranches !== undefined) {
-      data.issueCreationBranches = body.issueCreationBranches;
+    // Issue creation branches. On the wire an empty list means "no change",
+    // so a body that really sends an empty array asks for the explicit clear;
+    // null is "not sent". The route's `update` permission is the one the
+    // setting requires.
+    if (Array.isArray(body.issueCreationBranches)) {
+      if (body.issueCreationBranches.length === 0) {
+        data.clearIssueCreationBranches = true;
+      } else {
+        data.issueCreationBranches = body.issueCreationBranches;
+      }
     }
 
     // Reference branch for vulnerability statistics (null clears the setting)

@@ -6,6 +6,7 @@
 A alternativa open source ao Snyk: AppSec agêntico e self-hosted, com um scanner de IA que o seu agente de código executa.</p>
 
 <p align="center">
+  <a href="https://github.com/CybeDefend/cybedefend/stargazers"><img src="https://img.shields.io/badge/Star%20on%20GitHub-7B5BFF?logo=github&logoColor=white" alt="Star CybeDefend on GitHub"></a>
   <a href="https://github.com/CybeDefend/cybedefend/tags"><img src="https://img.shields.io/github/v/tag/CybeDefend/cybedefend?sort=semver&label=release&color=7B5BFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-7B5BFF" alt="License: AGPL-3.0"></a>
   <a href="https://discord.gg/UPzm4n6SAJ"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -17,7 +18,7 @@ A alternativa open source ao Snyk: AppSec agêntico e self-hosted, com um scanne
 <p align="center"><a href="README.md">English</a> &bull; <a href="README.fr.md">Français</a> &bull; <a href="README.zh-CN.md">中文</a> &bull; <a href="README.ja.md">日本語</a> &bull; <a href="README.ko.md">한국어</a> &bull; <a href="README.es.md">Español</a> &bull; <a href="README.pt-BR.md">Português</a></p>
 
 > [!NOTE]
-> Lançamos no Product Hunt em 4 de dezembro de 2026. Venha conversar com a gente no [Discord](https://discord.gg/UPzm4n6SAJ).
+> Uma estrela é o que faz outros desenvolvedores descobrirem este repositório. Lançamos no Product Hunt em 4 de dezembro de 2026. Venha conversar com a gente no [Discord](https://discord.gg/UPzm4n6SAJ).
 
 **① Uma auditoria completa em um comando.**
 Digite `/cybedefend` no seu agente de código. Os scanners open source rodam, o scanner de IA caça o que eles não enxergam, e o seu agente julga cada achado com base no seu código. A resposta é **SHIP**, ou **NOT YET** com o que bloqueia e a correção de cada item.
@@ -385,6 +386,10 @@ Guarde um backup da chave mestra (`secret-key`) e nunca a altere: ela criptograf
     </td>
   </tr>
 </table>
+
+<br>
+
+<p align="center">Se a auditoria encontrou algo no seu código, uma estrela ajuda outros desenvolvedores a encontrar o projeto.</p>
 
 <br>
 

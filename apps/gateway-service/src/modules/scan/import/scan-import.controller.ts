@@ -46,8 +46,7 @@ import {
 } from './import-request';
 import { ScanImportService } from './scan-import.service';
 
-/** `Retry-After` of a 503 IMPORT_BUSY, in seconds. */
-export const IMPORT_BUSY_RETRY_AFTER_S = 15;
+export { IMPORT_BUSY_RETRY_AFTER_S } from './scan-import.service';
 
 type ImportRequest = FastifyRequest & { user?: { sub?: string } };
 
@@ -190,26 +189,28 @@ export class ScanImportController {
     const userId = req.user?.sub;
     if (!userId) throw new ForbiddenException('Permission denied');
 
-    if (!this.importService.tryAcquireSlot()) {
-      reply.header('Retry-After', String(IMPORT_BUSY_RETRY_AFTER_S));
-      throw importRefusal('IMPORT_BUSY');
-    }
-    try {
-      return await this.runImport(projectId, userId, req);
-    } finally {
-      this.importService.releaseSlot();
-    }
+    // The organization's share, a read place held until the answer, the
+    // body within its deadline, then a slot (ScanImportService.runUpload).
+    const organizationId =
+      await this.importService.organizationOfProject(projectId);
+    return this.importService.runUpload(
+      organizationId,
+      req,
+      reply,
+      () => this.readParts(req),
+      (parts) => this.runImport(projectId, userId, req, parts),
+    );
   }
 
   private async runImport(
     projectId: string,
     userId: string,
     req: ImportRequest,
+    { fields, file, sbom }: ImportParts,
   ): Promise<{ scanId: string }> {
     // The caller's id, so the storage key can name the scan before it exists.
     const scanId = uuidv6();
 
-    const { fields, file, sbom } = await this.readParts(req);
     if (!file) throw importRefusal('IMPORT_INVALID_REQUEST');
 
     // Every refusal of the request comes before an upload URL is asked for.

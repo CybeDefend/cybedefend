@@ -16,9 +16,14 @@
 //   <client>/permify-preshared-key
 //                             the key every Permify call carries, to its clients
 //                             (gateway, global-management, permify-schema)
-//   <service>/SERVICE_AUTH_KEY the key that signs the service's own gRPC calls
+//   <service>/SERVICE_AUTH_KEY_FOR_<SERVER>
+//                             the key that signs the service's gRPC calls to
+//                             that server, one per server it may call
 //   <service>/SERVICE_AUTH_PEER_KEY_<CALLER>
-//                             the key that verifies each caller the service serves
+//                             the key that verifies each caller the service
+//                             serves: the same key as the caller's
+//                             SERVICE_AUTH_KEY_FOR_<this service>, so each
+//                             (caller, server) pair has a key of its own
 //   <service>/redis-password, redis/redis-password
 //                             the password Redis requires (requirepass)
 //   postgres/<database>.scram the SCRAM verifier of each role, for the role
@@ -49,7 +54,7 @@ import { createHash, createHmac, pbkdf2Sync } from 'node:crypto';
 import { chmodSync, chownSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { decodeMasterKey, deriveKey, DERIVED_SECRET_KEYS, MASTER_KEY_VARIABLE, MasterKeyError, PACKAGING_KEYS, serviceAuthInfo } from './hkdf.mjs';
+import { decodeMasterKey, deriveKey, DERIVED_SECRET_KEYS, MASTER_KEY_VARIABLE, MasterKeyError, PACKAGING_KEYS, serviceAuthPairInfo } from './hkdf.mjs';
 
 /** Where a consumer mounts its own directory. */
 export const SECRETS_MOUNT = '/run/cybedefend-secrets';
@@ -145,7 +150,7 @@ export function storageSecretFiles(master) {
   return [file('storage', 'storage-secret-key', value), file('file-management', 'storage-secret-key', value)];
 }
 
-/** The services that call or serve gRPC, each signing its calls with a key of its own. */
+/** The services that call or serve gRPC. */
 export const GRPC_SERVICES = Object.freeze([
   'gateway',
   'global-management',
@@ -159,8 +164,8 @@ export const GRPC_SERVICES = Object.freeze([
 /**
  * Each gRPC server, the callers it serves: the callers its policy names
  * (src/core/service-auth/service-auth.policy.ts of the service, kept equal by
- * a test). The gateway serves no gRPC. A server receives the key of these
- * callers only, so no other service can sign as one of them.
+ * a test). The gateway serves no gRPC. Each (caller, server) pair listed here
+ * gets a key of its own, and only these pairs get one.
  */
 export const GRPC_CALLERS = Object.freeze({
   'global-management': ['gateway', 'analysis-reporting', 'security-scanning', 'external-integrations', 'policy-management'],
@@ -171,21 +176,41 @@ export const GRPC_CALLERS = Object.freeze({
   'policy-management': ['gateway', 'global-management', 'security-scanning'],
 });
 
-/** The variable (and file) name of a caller's verification key. */
+const variableSuffix = (service) => service.toUpperCase().replace(/-/g, '_');
+
+/** The file a server verifies a caller's calls with: SERVICE_AUTH_PEER_KEY_<CALLER>. */
 export function serviceAuthPeerKeyName(caller) {
-  return `SERVICE_AUTH_PEER_KEY_${caller.toUpperCase().replace(/-/g, '_')}`;
+  return `SERVICE_AUTH_PEER_KEY_${variableSuffix(caller)}`;
 }
 
-/** Each gRPC service's own signing key, and to each server the keys of the callers it serves. */
-export function serviceAuthKeyFiles(master) {
-  const keyOf = (caller) => deriveKey(master, serviceAuthInfo(caller)).toString('hex');
-  return GRPC_SERVICES.flatMap((service) => [
-    file(service, 'SERVICE_AUTH_KEY', keyOf(service)),
-    ...(GRPC_CALLERS[service] ?? [])
-      .filter((caller) => caller !== service)
-      .map((caller) => file(service, serviceAuthPeerKeyName(caller), keyOf(caller))),
-  ]);
+/** The file a caller signs its calls to a server with: SERVICE_AUTH_KEY_FOR_<SERVER>. */
+export function serviceAuthServerKeyName(server) {
+  return `SERVICE_AUTH_KEY_FOR_${variableSuffix(server)}`;
 }
+
+/**
+ * One key per (caller, server) pair the policies allow: the caller signs its
+ * calls to that server with it, the server verifies that caller with it. A key
+ * read from one service's folder therefore signs calls to one server only, and
+ * no server holds a key that would let it sign as one of its callers to
+ * another server.
+ */
+export function serviceAuthKeyFiles(master) {
+  return Object.entries(GRPC_CALLERS).flatMap(([server, callers]) =>
+    callers
+      .filter((caller) => caller !== server)
+      .flatMap((caller) => {
+        const key = deriveKey(master, serviceAuthPairInfo(caller, server)).toString('hex');
+        return [file(caller, serviceAuthServerKeyName(server), key), file(server, serviceAuthPeerKeyName(caller), key)];
+      }),
+  );
+}
+
+/** The files an earlier version wrote and this one no longer does: removed from each consumer's folder. */
+export const RETIRED_SECRET_FILES = Object.freeze(
+  // The single key each service signed all its calls with, which every server it called could also sign with.
+  GRPC_SERVICES.map((service) => ({ consumer: service, name: 'SERVICE_AUTH_KEY' })),
+);
 
 /** The containers that call Permify. */
 export const PERMIFY_CLIENTS = Object.freeze(['gateway', 'global-management', 'permify-schema']);
@@ -322,6 +347,14 @@ export function deriveRuntimeSecrets(env, secretsRoot, options = {}) {
   for (const f of files) {
     writeAtomically(join(secretsRoot, f.consumer, f.name), f.value, SECRET_CONSUMERS[f.consumer], chown);
     written.push(`wrote ${f.consumer}/${f.name}`);
+  }
+  for (const retired of RETIRED_SECRET_FILES) {
+    try {
+      rmSync(join(secretsRoot, retired.consumer, retired.name));
+      written.push(`removed ${retired.consumer}/${retired.name}`);
+    } catch (err) {
+      if (err?.code !== 'ENOENT') throw err;
+    }
   }
   if (options.legacyRuntimeDir) {
     const legacy = join(options.legacyRuntimeDir, 'storage-secret-key');

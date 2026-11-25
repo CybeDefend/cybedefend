@@ -91,6 +91,7 @@ const queryBuilder = (rows: unknown[]) => {
     'innerJoin',
     'where',
     'andWhere',
+    'groupBy',
   ]) {
     qb[m] = jest.fn().mockReturnValue(qb);
   }
@@ -113,6 +114,8 @@ describe('CweReportService', () => {
     const detectionRepoMock = () => ({
       find: jest.fn().mockResolvedValue([]),
       manager: {
+        // No imported advisory.
+        find: jest.fn().mockResolvedValue([]),
         createQueryBuilder: jest.fn(() => queryBuilder(fixedRows)),
       },
     });
@@ -259,7 +262,11 @@ describe('CweReportService', () => {
 
   describe('CWE mapping of dependency and container advisories', () => {
     it('maps an SCA advisory to the CWE ids of its OSV record', () => {
-      const mapped = (service as any).mapScaVulnerability(sca());
+      // The CVE is the catalogue's smallest CVE alias, read in one batch.
+      const mapped = (service as any).mapScaVulnerability(
+        sca(),
+        new Map([['GHSA-aaaa', 'CVE-2022-3517']]),
+      );
       expect(mapped.cwe).toEqual(['CWE-400', 'CWE-1333']);
       expect(mapped).toEqual(
         expect.objectContaining({
@@ -350,7 +357,7 @@ describe('CweReportService', () => {
       );
     });
 
-    it('resolves the installed-aware fixed version of SCA advisories in one batched query', async () => {
+    it('resolves the installed-aware fixed version of SCA advisories in one batched query (plus one for the CVE aliases)', async () => {
       repos.sca.find.mockResolvedValue([sca()]);
       fixedRows = [
         { osvId: 'GHSA-aaaa', fixedVersion: '4.0.0' },
@@ -360,7 +367,7 @@ describe('CweReportService', () => {
       const data = await jsonReport();
       const mapped = data.vulnerabilities.find((v) => v.id === 'a1');
       expect(mapped.fixedVersion).toBe('3.0.5');
-      expect(repos.sca.manager.createQueryBuilder).toHaveBeenCalledTimes(1);
+      expect(repos.sca.manager.createQueryBuilder).toHaveBeenCalledTimes(2);
     });
 
     it('still builds the report when the fixed-version lookup fails', async () => {

@@ -18,6 +18,10 @@ import {
 } from 'src/core/guards/permissions/decorator/permission.decorator';
 import { SseHeadersInterceptor } from 'src/core/interceptors/sse-headers.interceptor';
 import { RealtimeStreamFactory } from './realtime-stream.factory';
+import {
+  StreamAuthorization,
+  type StreamPermissionCheck,
+} from './stream-authorization';
 
 // SSE streams — OpenAPI cannot meaningfully render streaming endpoints, so they
 // are kept out of the public Swagger document. Routes stay live and guarded by
@@ -41,6 +45,7 @@ export class ProjectsRealtimeController {
   issuesStream(
     @Req() req: any,
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     return this.factory.createScopedStream({
       channels: [`cybe:event:project:${projectId}:issues`],
@@ -50,6 +55,7 @@ export class ProjectsRealtimeController {
       },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 
@@ -62,6 +68,7 @@ export class ProjectsRealtimeController {
   statsStream(
     @Req() req: any,
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     return this.factory.createScopedStream({
       channels: [`cybe:event:project:${projectId}:stats`],
@@ -71,6 +78,7 @@ export class ProjectsRealtimeController {
       },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 
@@ -83,6 +91,7 @@ export class ProjectsRealtimeController {
   policiesStream(
     @Req() req: any,
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     return this.factory.createScopedStream({
       channels: [`cybe:event:project:${projectId}:policies`],
@@ -92,6 +101,7 @@ export class ProjectsRealtimeController {
       },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 
@@ -100,12 +110,13 @@ export class ProjectsRealtimeController {
   })
   @Sse('reports/stream')
   @SubjectType('project')
-  @Permission('read_scan_result')
+  @Permission('read_report')
   @UseGuards(PermissionsGuard)
   @UseInterceptors(SseHeadersInterceptor)
   reportsStream(
     @Req() req: any,
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     return this.factory.createScopedStream({
       channels: [`cybe:event:project:${projectId}:reports`],
@@ -115,6 +126,7 @@ export class ProjectsRealtimeController {
       },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 
@@ -131,6 +143,7 @@ export class ProjectsRealtimeController {
     @Req() req: any,
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
     @Param('vulnerabilityId', new ParseUUIDPipe()) vulnerabilityId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     // The channel is built from the Permify-authorized :projectId, never from
     // the vulnerability id alone: an event for vulnerability V is
@@ -144,6 +157,7 @@ export class ProjectsRealtimeController {
       },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 }

@@ -1,15 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { applyDecorators } from '@nestjs/common';
+import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
+
+import {
+  PROJECT_NAME_MAX_LENGTH,
+  ProjectNameRules,
+} from './project-name.rules';
 
 /**
  * A reference branch is matched against stored scan branches. It once
@@ -21,10 +29,31 @@ import {
  */
 const REFERENCE_BRANCH_PATTERN = /^(?!.*\.\.)[^'"\\\u0000-\u001f\u007f]*$/;
 
+/**
+ * A list setting whose empty array is an explicit "clear": an array of
+ * non-empty strings, or null / absent for "not sent". The raw body value is
+ * validated (`obj[key]`), not the one the pipe's implicit conversion produced,
+ * which would turn `{}` into an empty array, i.e. into a clear.
+ */
+function ClearableStringList(): PropertyDecorator {
+  return applyDecorators(
+    Transform(({ obj, key }) => (obj as Record<string, unknown>)[key]),
+    IsOptional(),
+    IsArray(),
+    IsString({ each: true }),
+    IsNotEmpty({ each: true }),
+  );
+}
+
 export class ProjectUpdateBodyDto {
-  @ApiProperty({ description: 'Project name', required: false, type: 'string' })
+  @ApiProperty({
+    description: 'Project name, trimmed, from 1 to 255 characters',
+    required: false,
+    type: 'string',
+    maxLength: PROJECT_NAME_MAX_LENGTH,
+  })
   @IsOptional()
-  @IsString()
+  @ProjectNameRules()
   readonly name?: string;
 
   @ApiProperty({
@@ -304,14 +333,13 @@ export class ProjectUpdateBodyDto {
 
   @ApiProperty({
     description:
-      'Active CICD agent vulnerability categories (full replacement list of internal names, empty array to disable)',
+      'Active CICD agent vulnerability categories (full replacement list of internal names). An empty array disables the CICD agent analysis; leaving the field out, or null, keeps the current list.',
     required: false,
     isArray: true,
     type: 'string',
+    nullable: true,
   })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
+  @ClearableStringList()
   readonly agentCategoriesCicd?: string[];
 
   @ApiProperty({
@@ -345,15 +373,14 @@ export class ProjectUpdateBodyDto {
 
   @ApiProperty({
     description:
-      'List of branches for which issues should be created. Empty array clears the setting (all branches).',
+      'Branches for which GitHub/GitLab issues are created (full replacement list). An empty array clears the list, and with no branch configured no GitHub/GitLab issue is created; leaving the field out, or null, keeps the current list.',
     required: false,
     isArray: true,
     type: 'string',
+    nullable: true,
     example: ['main', 'develop'],
   })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
+  @ClearableStringList()
   readonly issueCreationBranches?: string[];
 
   @ApiProperty({

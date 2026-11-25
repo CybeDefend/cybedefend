@@ -23,6 +23,30 @@ import { IacVulnerabilityDetections } from 'src/entities/iac-vulnerability-detec
 import { VulnerabilityDetectionsContainer } from 'src/entities/container_vulnerability_detections.entity';
 import { installedAwareContainerFix } from '../../container/container.mapper';
 import { getMinFixedAbove } from '../../sca/sca.utils';
+import { VulnerabilityOsv } from 'src/entities/osv/vulnerability-osv.entity';
+import {
+  applyImportedAdvisories,
+  catalogueAdvisoryIds,
+  cveOfFinding,
+  fixesOfFinding,
+  loadCatalogueCveAliases,
+  loadCatalogueFixes,
+} from '../../results-import/imported-advisory.view';
+
+/** The package of an SCA finding, as the advisory reads compare it. */
+const scaPackageOf = (d: ScaVulnerabilityDetections) =>
+  d.scaDetectedPackage
+    ? {
+        packageName: d.scaDetectedPackage.packageName,
+        ecosystem: d.scaDetectedPackage.ecosystem,
+      }
+    : null;
+
+/** The package of a container finding (its ecosystem is not recorded). */
+const containerPackageOf = (d: VulnerabilityDetectionsContainer) =>
+  d.detectedPackage
+    ? { packageName: d.detectedPackage.packageName, ecosystem: '' }
+    : null;
 import { CWE_TOP_25_2024_DATA } from './constants/cwe-data.constants';
 import { CweReport } from 'src/entities/cwe-report.entity';
 import {
@@ -241,13 +265,24 @@ export class CweReportService {
       }),
     ]);
 
-    const scaMapped = scaVulns.map((v) => this.mapScaVulnerability(v));
-    await this.applyScaFixedVersions(scaMapped);
+    // An advisory the project imported is read from the project's own row;
+    // the catalogue's CVE aliases are read once for the others.
+    const manager = this.scaVulnDetectRepository.manager;
+    await applyImportedAdvisories(manager, scaVulns, scaPackageOf);
+    await applyImportedAdvisories(manager, containerVulns, containerPackageOf);
+    const catalogueCves = await this.loadCatalogueCves([
+      ...scaVulns.map((v) => v.vulnerability),
+      ...containerVulns.map((v) => v.vulnerability),
+    ]);
+    const scaMapped = scaVulns.map((v) =>
+      this.mapScaVulnerability(v, catalogueCves),
+    );
+    await this.applyScaFixedVersions(scaVulns, scaMapped);
 
     const sast = sastVulns.map((v) => this.mapSastVulnerability(v));
     const iac = iacVulns.map((v) => this.mapIacVulnerability(v));
     const container = containerVulns.map((v) =>
-      this.mapContainerVulnerability(v),
+      this.mapContainerVulnerability(v, catalogueCves),
     );
     // Cybe Analysis (detailed report): set once on the object, which the
     // list and the categories share by reference.
@@ -349,11 +384,8 @@ export class CweReportService {
 
   private mapScaVulnerability(
     vuln: ScaVulnerabilityDetections,
+    catalogueCves: ReadonlyMap<string, string> = new Map(),
   ): MappedVulnerability {
-    const cveAlias = vuln.vulnerability?.aliases?.find((a) =>
-      a.alias.startsWith('CVE-'),
-    );
-
     return {
       id: vuln.id,
       type: 'sca',
@@ -368,7 +400,7 @@ export class CweReportService {
       advisoryId: vuln.vulnerability?.id,
       ...(vuln.vulnerability?.withdrawnAt ? { withdrawn: true } : {}),
       ...(vuln.scaDetectedPackage?.isDev ? { devDependency: true } : {}),
-      cve: cveAlias?.alias || '',
+      cve: cveOfFinding(vuln.vulnerability, catalogueCves),
       cwe: advisoryCwes(vuln.vulnerability?.databaseSpecific),
       exploitability: exploitabilityOf(vuln),
       createdAt: vuln.createdAt,
@@ -378,11 +410,8 @@ export class CweReportService {
 
   private mapContainerVulnerability(
     vuln: VulnerabilityDetectionsContainer,
+    catalogueCves: ReadonlyMap<string, string> = new Map(),
   ): MappedVulnerability {
-    const cveAlias = vuln.vulnerability?.aliases?.find((a) =>
-      a.alias.startsWith('CVE-'),
-    );
-
     return {
       id: vuln.id,
       type: 'container',
@@ -399,7 +428,7 @@ export class CweReportService {
       // Installed-aware recommended fix (parity with the dashboard detail/list).
       fixedVersion: installedAwareContainerFix(vuln),
       cvssScore: vuln.cvssScore,
-      cve: cveAlias?.alias || '',
+      cve: cveOfFinding(vuln.vulnerability, catalogueCves),
       cwe: advisoryCwes(vuln.vulnerability?.databaseSpecific),
       exploitability: exploitabilityOf(vuln),
       createdAt: vuln.createdAt,
@@ -443,54 +472,61 @@ export class CweReportService {
     }
   }
 
+  /** The catalogue's CVE alias of each catalogue advisory. Fail-soft. */
+  private async loadCatalogueCves(
+    advisories: Array<VulnerabilityOsv | null | undefined>,
+  ): Promise<Map<string, string>> {
+    const ids = catalogueAdvisoryIds(advisories);
+    if (!ids.length) return new Map();
+    try {
+      return await loadCatalogueCveAliases(
+        this.scaVulnDetectRepository.manager,
+        ids,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `CWE report: CVE aliases unavailable (${(error as Error).message})`,
+      );
+      return new Map();
+    }
+  }
+
   /**
    * Installed-aware fixed version of the SCA findings shown in the report
-   * (those mapped to the Top 25): one batched SELECT over the OSV affected
-   * ranges, same query as the dashboard list (sca.service
-   * `loadFixedVersionsByOsv`). Fail-soft: the report never depends on it.
+   * (those mapped to the Top 25), of each finding's own package: its
+   * imported advisory's, else the catalogue's (one batched read, the
+   * dashboard list's rule). Fail-soft: the report never depends on it.
    */
   private async applyScaFixedVersions(
+    detections: ScaVulnerabilityDetections[],
     findings: MappedVulnerability[],
   ): Promise<void> {
-    const shown = findings.filter(
-      (f) => f.advisoryId && f.cwe.some((id) => CWE_TOP_25_2024_DATA[id]),
+    const shownIds = new Set(
+      findings
+        .filter(
+          (f) => f.advisoryId && f.cwe.some((id) => CWE_TOP_25_2024_DATA[id]),
+        )
+        .map((f) => f.id),
     );
-    const osvIds = Array.from(new Set(shown.map((f) => f.advisoryId)));
-    if (!osvIds.length) return;
+    const shown = detections.filter((d) => shownIds.has(d.id));
+    if (!shown.length) return;
     try {
-      const rows = await this.scaVulnDetectRepository.manager
-        .createQueryBuilder()
-        .select('aff.vulnerabilityOsvId', 'osvId')
-        .addSelect('evt.fixed', 'fixedVersion')
-        .from('vulnerability_osv_affected', 'aff')
-        .innerJoin(
-          'vulnerability_osv_affected_range',
-          'rng',
-          'rng.affectedId = aff.id',
-        )
-        .innerJoin(
-          'vulnerability_osv_affected_event',
-          'evt',
-          'evt.rangeId = rng.id',
-        )
-        .where('aff.vulnerabilityOsvId IN (:...osvIds)', { osvIds })
-        .andWhere('evt.fixed IS NOT NULL')
-        .andWhere("evt.fixed <> ''")
-        .getRawMany<{ osvId: string; fixedVersion: string | null }>();
-      const byOsv = new Map<string, string[]>();
-      for (const row of rows) {
-        if (!row.fixedVersion) continue;
-        byOsv.set(row.osvId, [
-          ...(byOsv.get(row.osvId) ?? []),
-          row.fixedVersion,
-        ]);
-      }
-      for (const finding of shown) {
+      const catalogueFixes = await loadCatalogueFixes(
+        this.scaVulnDetectRepository.manager,
+        catalogueAdvisoryIds(shown.map((d) => d.vulnerability)),
+      );
+      const byId = new Map(findings.map((f) => [f.id, f]));
+      for (const detection of shown) {
         const fixed = getMinFixedAbove(
-          byOsv.get(finding.advisoryId) ?? [],
-          finding.packageVersion ?? '',
+          fixesOfFinding(
+            detection.vulnerability,
+            scaPackageOf(detection),
+            catalogueFixes,
+          ),
+          detection.scaDetectedPackage?.packageVersion ?? '',
         );
-        if (fixed) finding.fixedVersion = fixed;
+        const finding = byId.get(detection.id);
+        if (fixed && finding) finding.fixedVersion = fixed;
       }
     } catch (error) {
       this.logger.warn(

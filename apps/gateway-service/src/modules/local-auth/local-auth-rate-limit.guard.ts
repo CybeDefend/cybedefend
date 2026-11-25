@@ -14,14 +14,23 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type Redis from 'ioredis';
+import { isEmail } from 'class-validator';
 import { clientRateLimitAddressOf } from 'src/core/http/client-ip';
 
 /** Login: 10 per (address, e-mail) and 100 per address per 15 min. */
 export const LOGIN_IP_EMAIL_LIMIT = 10;
 export const LOGIN_IP_LIMIT = 100;
 export const LOGIN_WINDOW_SECONDS = 900;
-/** Password reset request: 3 per e-mail and 100 per address per hour. */
-export const RESET_EMAIL_LIMIT = 3;
+/**
+ * Password reset request, per hour: 3 per (address, e-mail), 30 per e-mail
+ * from any address, 100 per address. The strict budget is keyed on the
+ * address too, so a caller who knows someone's e-mail cannot spend the
+ * owner's. The wider one per e-mail bounds the mail one inbox receives (at
+ * most 30 reset mails an hour); a request counts there only once the
+ * stricter buckets admitted it, so filling it takes 10 addresses or more.
+ */
+export const RESET_IP_EMAIL_LIMIT = 3;
+export const RESET_EMAIL_LIMIT = 30;
 export const RESET_IP_LIMIT = 100;
 export const RESET_WINDOW_SECONDS = 3600;
 /** Setup, reset confirmation, invitation acceptance. */
@@ -73,6 +82,22 @@ function emailOf(req: GuardedRequest): string {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
 }
 
+/** The longest e-mail the reset route accepts (its body DTO). */
+const RESET_EMAIL_MAX_LENGTH = 254;
+
+/**
+ * The reset body's e-mail, lower-cased, only when the route's body DTO would
+ * accept it (`@IsEmail()`, `@MaxLength(254)`, the value as sent): a request
+ * the route refuses counts against the address alone.
+ */
+function validResetEmailOf(req: GuardedRequest): string {
+  const email = (req.body as { email?: unknown } | null | undefined)?.email;
+  if (typeof email !== 'string' || email.length > RESET_EMAIL_MAX_LENGTH) {
+    return '';
+  }
+  return isEmail(email) ? email.toLowerCase() : '';
+}
+
 function setHeader(reply: ReplyLike | undefined, name: string, value: string) {
   if (typeof reply?.header === 'function') {
     reply.header(name, value);
@@ -84,10 +109,13 @@ function setHeader(reply: ReplyLike | undefined, name: string, value: string) {
 /**
  * Rate limits of the Community auth routes, in
  * the gateway's Redis. Each route names its kind with `@AuthRateLimit`; the
- * guard counts every bucket of that kind in ONE MULTI (`SET key 0 EX w NX` +
- * `INCR`, so a window is created with its TTL and never extended, the shape
- * of SsoConnectorsRateLimitGuard), then refuses the request when any bucket
- * is over its limit: 429 `RATE_LIMITED` with `Retry-After`. A Redis failure
+ * guard counts the buckets of that kind one after the other, the strictest
+ * first (each in one MULTI: `SET key 0 EX w NX` + `INCR`, so a window is
+ * created with its TTL and never extended, the shape of
+ * SsoConnectorsRateLimitGuard), and refuses the request at the first bucket
+ * over its limit: 429 `RATE_LIMITED` with `Retry-After`. A refused request is
+ * not counted in the wider buckets after it, so it never spends a budget
+ * other callers share. A Redis failure
  * is a 503 `rate_limit_unavailable`, never an open door.
  *
  * The address is `clientIpOf` (`cf-connecting-ip` is never read in the
@@ -123,8 +151,13 @@ export class LocalAuthRateLimitGuard implements CanActivate {
     const buckets = this.bucketsOf(kind, req);
     let over: Bucket | undefined;
     try {
-      const counts = await this.hit(buckets);
-      over = buckets.find((bucket, i) => counts[i] > bucket.limit);
+      for (const bucket of buckets) {
+        const [count] = await this.hit([bucket]);
+        if (count > bucket.limit) {
+          over = bucket;
+          break;
+        }
+      }
       if (over) {
         const ttl = await this.redis.ttl(over.key);
         const retryAfter = ttl > 0 ? ttl : over.windowSeconds;
@@ -185,20 +218,26 @@ export class LocalAuthRateLimitGuard implements CanActivate {
           : [byIp];
       }
       case 'reset': {
-        const email = emailOf(req);
+        const email = validResetEmailOf(req);
         const byIp: Bucket = {
           key: `rl:auth:reset:ip:${ip}`,
           limit: RESET_IP_LIMIT,
           windowSeconds: RESET_WINDOW_SECONDS,
         };
+        // Strictest first: a request refused by one is not counted after it.
         return email
           ? [
+              {
+                key: `rl:auth:reset:ipmail:${sha256(`${ip}\n${email}`)}`,
+                limit: RESET_IP_EMAIL_LIMIT,
+                windowSeconds: RESET_WINDOW_SECONDS,
+              },
+              byIp,
               {
                 key: `rl:auth:reset:mail:${sha256(email)}`,
                 limit: RESET_EMAIL_LIMIT,
                 windowSeconds: RESET_WINDOW_SECONDS,
               },
-              byIp,
             ]
           : [byIp];
       }
@@ -222,7 +261,7 @@ export class LocalAuthRateLimitGuard implements CanActivate {
     }
   }
 
-  /** Counts one hit in every bucket, in a single round-trip. */
+  /** Counts one hit in every bucket given, in a single round-trip. */
   private async hit(buckets: Bucket[]): Promise<number[]> {
     let multi = this.redis.multi();
     for (const bucket of buckets) {

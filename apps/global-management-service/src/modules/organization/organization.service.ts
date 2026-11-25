@@ -28,7 +28,7 @@ import {
   MemberGrant,
   MemberProductsPort,
 } from 'src/edition/ports/member-products.port';
-import { DataSource, In, MoreThan, Repository } from 'typeorm';
+import { DataSource, In, IsNull, MoreThan, Repository } from 'typeorm';
 import { OrganizationInvitation } from '../../entities/organization-invitation.entity';
 import { Organization } from '../../entities/organization.entity';
 import { TeamService } from '../team/team.service';
@@ -81,6 +81,12 @@ import {
   OrganizationProfilePort,
 } from 'src/edition/ports/organization-profile.port';
 import { membersPageCount, readMembersPage } from './members-page';
+import { withMembershipLock } from '../authorization/membership-lock';
+import {
+  INVITATION_LIMIT_WINDOW_MS,
+  invitationLimits,
+} from './invitation-limits';
+import { isUniqueViolation } from '@cybedefend/db-dialect';
 
 /**
  * Organization roles an inviter may confer, by the inviter's own role. A role is listed only when every permission it carries in
@@ -96,6 +102,19 @@ const INVITABLE_ORGANIZATION_ROLES = new Map<string, readonly string[]>([
   ['administrator', ['manager', 'billing_manager', 'member']],
   ['manager', ['member']],
 ]);
+
+/**
+ * An invitation consumed by an acceptance that never seated the member: its
+ * status turned `accepted` first and `acceptedAt` is written only once the
+ * member is seated. The next acceptance by the same invitee completes it.
+ * An invitation accepted before this rule existed always has `acceptedAt`.
+ */
+function isConsumedNotSeated(invitation: OrganizationInvitation): boolean {
+  return invitation.status === 'accepted' && !invitation.acceptedAt;
+}
+
+/** At most this many team seats in one invitation. */
+export const MAX_INVITATION_TEAM_ASSIGNMENTS = 50;
 
 /** Whether an inviter holding `inviterRole` may confer `role` (see above). */
 function mayInvite(inviterRole: string | undefined, role: string): boolean {
@@ -241,6 +260,16 @@ export class OrganizationService {
       });
     }
 
+    // Each team seat is granted one after the other at acceptance: bounded.
+    if (
+      (request.teamAssignments?.length ?? 0) > MAX_INVITATION_TEAM_ASSIGNMENTS
+    ) {
+      throw new RpcException({
+        code: status.INVALID_ARGUMENT,
+        message: `An invitation seats the member in at most ${MAX_INVITATION_TEAM_ASSIGNMENTS} teams`,
+      });
+    }
+
     // Validate team assignments if provided
     if (request.teamAssignments && request.teamAssignments.length > 0) {
       const teamIds = request.teamAssignments.map(
@@ -361,6 +390,48 @@ export class OrganizationService {
           lockedOrganization,
           grant,
         );
+
+        // 2b. How many invitations this organisation, and this inviter,
+        //     created over the last 24 hours, whatever became of them: an
+        //     invitation canceled right after it was sent still sent an
+        //     e-mail. Counted under the organisation lock, so parallel
+        //     invitations to one organisation cannot all pass it.
+        const limits = invitationLimits();
+        const since = new Date(Date.now() - INVITATION_LIMIT_WINDOW_MS);
+        const byOrganization = await manager.count(OrganizationInvitation, {
+          where: {
+            organization: { id: organization.id },
+            createdAt: MoreThan(since),
+          },
+        });
+        const byInviter = await manager.count(OrganizationInvitation, {
+          where: {
+            invitedBy: { id: invitedByUser.id },
+            createdAt: MoreThan(since),
+          },
+        });
+        // Canceled over the window (the cancellation is the row's last
+        // update): the invite-then-cancel loop.
+        const canceled = await manager.count(OrganizationInvitation, {
+          where: {
+            organization: { id: organization.id },
+            status: 'canceled',
+            updatedAt: MoreThan(since),
+          },
+        });
+        if (
+          byOrganization >= limits.perOrganization ||
+          byInviter >= limits.perInviter ||
+          canceled >= limits.canceledPerOrganization
+        ) {
+          this.logger.warn(
+            `Invitation refused: ${byOrganization} invitation(s) in organization ${organization.id} (${canceled} canceled) and ${byInviter} by user ${invitedByUser.id} in the last 24 hours`,
+          );
+          throw new RpcException({
+            code: status.RESOURCE_EXHAUSTED,
+            message: 'Too many invitations sent in the last 24 hours',
+          });
+        }
 
         // 3. Duplicate check, under the same lock: two parallel invitations
         //    of the same e-mail can no longer both pass it.
@@ -679,8 +750,23 @@ export class OrganizationService {
       });
     }
 
-    // Email uniqueness check removed: email field dropped
+    // One creation at a time per creator, the check below included: a burst
+    // of creations by one user each passed it before any had committed. The
+    // lock is held until the creation has settled (committed, or rolled back
+    // by the cleanup below), so the next one sees its outcome.
+    return withMembershipLock(
+      this.dataSource,
+      'creator',
+      user.id,
+      user.id,
+      () => this.createOrganizationLocked(request, user),
+    );
+  }
 
+  private async createOrganizationLocked(
+    request: OrganizationCreateRequest,
+    user: User,
+  ): Promise<OrganizationCreateResponse> {
     const existingOrganizationForUser =
       await this.organizationRepository.findOne({
         where: { creator: { id: request.creatorId } },
@@ -1141,7 +1227,13 @@ export class OrganizationService {
       });
     }
 
-    this.assertInvitationIsOpen(invitation);
+    // Open, or consumed by an acceptance that never seated the member (see
+    // below), and in both cases not expired.
+    if (isConsumedNotSeated(invitation)) {
+      this.assertInvitationNotExpired(invitation);
+    } else {
+      this.assertInvitationIsOpen(invitation);
+    }
     // A role the edition gives nobody (the Community Edition's billing
     // manager) is not granted by an invitation created before.
     assertRoleAvailable(invitation.role);
@@ -1184,9 +1276,86 @@ export class OrganizationService {
       grant,
     };
 
+    const alreadyAccepted = () =>
+      new RpcException({
+        code: status.FAILED_PRECONDITION,
+        message: 'Invitation has already been accepted or canceled',
+      });
+    const membershipExists = async () =>
+      Boolean(
+        await this.userOrganizationMembershipRepository.findOne({
+          where: {
+            user: { id: user.id },
+            organization: { id: invitation.organization.id },
+          },
+        }),
+      );
+
+    // A member already: nothing to consume, as before.
+    if (await membershipExists()) {
+      throw new RpcException({
+        code: status.ALREADY_EXISTS,
+        message: 'User is already a member of the organization',
+      });
+    }
+
+    // The invitation is consumed before anything is written, by one
+    // conditional update: of several acceptances sent at once, exactly one
+    // turns it from pending to accepted. `acceptedAt` stays empty until the
+    // member is seated: an invitation consumed by a request that never
+    // finished (its process stopped) is completed by the next acceptance,
+    // instead of staying refused for good.
+    if (invitation.status === 'pending') {
+      const consumed = await this.organizationInvitationRepository.update(
+        { id: invitation.id, status: 'pending' },
+        { status: 'accepted', acceptedAt: null },
+      );
+      if (consumed.affected !== 1) {
+        const now = await this.organizationInvitationRepository.findOne({
+          where: { id: invitation.id },
+        });
+        if (!now || !isConsumedNotSeated(now)) {
+          this.logger.warn(
+            `Invitation ${invitation.id} was accepted or canceled by a concurrent request`,
+          );
+          throw alreadyAccepted();
+        }
+      }
+    }
+    invitation.status = 'accepted';
+
     try {
+      // Under the organisation lock: of two acceptances that both reach
+      // here, the second finds the member the first seated.
       await this.addMemberOrganization(organizationAddMember);
     } catch (error) {
+      const seated = await membershipExists().catch(() => true);
+      if (seated) {
+        // Another acceptance seated the member, or the cleanup could not
+        // remove the row: the invitation stays consumed.
+        if (
+          error instanceof RpcException &&
+          (error.getError() as { code?: number })?.code ===
+            status.ALREADY_EXISTS
+        ) {
+          throw alreadyAccepted();
+        }
+      } else {
+        // Nothing seated and every role tuple deleted (see
+        // addMemberOrganization): the invitation is open again.
+        await this.organizationInvitationRepository
+          .update(
+            { id: invitation.id, status: 'accepted', acceptedAt: IsNull() },
+            { status: 'pending', acceptedAt: null },
+          )
+          .catch((reopen: unknown) =>
+            this.logger.error(
+              `Invitation ${invitation.id} not reopened after a failed acceptance: ${String(
+                (reopen as Error)?.message ?? reopen,
+              )}`,
+            ),
+          );
+      }
       if (error instanceof RpcException) {
         throw error;
       }
@@ -1196,10 +1365,14 @@ export class OrganizationService {
       });
     }
 
-    invitation.status = 'accepted';
-    invitation.acceptedAt = new Date();
+    // Seated: the acceptance is complete and can no longer be resumed.
+    const acceptedAt = new Date();
+    await this.organizationInvitationRepository.update(
+      { id: invitation.id, status: 'accepted', acceptedAt: IsNull() },
+      { acceptedAt },
+    );
+    invitation.acceptedAt = acceptedAt;
 
-    await this.organizationInvitationRepository.save(invitation);
     void this.realtime?.publish({
       eventId: ulid(),
       type: 'MEMBERSHIP_CHANGED',
@@ -1221,8 +1394,10 @@ export class OrganizationService {
       );
 
       const inviterId = invitation.invitedBy?.id;
-      const addToTeamsPromises = invitation.teamAssignments.map(
-        async (assignment) => {
+      // One team after the other: each seat takes a membership lock, and
+      // seats taken all at once would hold as many lock connections.
+      for (const assignment of invitation.teamAssignments) {
+        await (async () => {
           try {
             // Re-checked now, when the seat is granted: its author may have
             // lost the team since the invitation was created.
@@ -1252,11 +1427,8 @@ export class OrganizationService {
             );
             // Don't throw error - user is still member of organization
           }
-        },
-      );
-
-      // Wait for all team additions to complete
-      await Promise.allSettled(addToTeamsPromises);
+        })();
+      }
       this.logger.log(
         `Completed auto-adding user ${user.id} to teams for invitation ${invitation.id}`,
       );
@@ -1270,16 +1442,7 @@ export class OrganizationService {
 
   /** Refuses an invitation that has expired, or was accepted or canceled. */
   private assertInvitationIsOpen(invitation: OrganizationInvitation): void {
-    if (invitation.expiresAt < new Date()) {
-      this.logger.warn(
-        `Invitation ${invitation.id} has expired since ${invitation.expiresAt}`,
-      );
-      throw new RpcException({
-        code: status.FAILED_PRECONDITION,
-        message: 'Invitation has expired',
-      });
-    }
-
+    this.assertInvitationNotExpired(invitation);
     if (invitation.status !== 'pending') {
       this.logger.warn(
         `Invitation ${invitation.id} has already been accepted or canceled`,
@@ -1287,6 +1450,18 @@ export class OrganizationService {
       throw new RpcException({
         code: status.FAILED_PRECONDITION,
         message: 'Invitation has already been accepted or canceled',
+      });
+    }
+  }
+
+  private assertInvitationNotExpired(invitation: OrganizationInvitation): void {
+    if (invitation.expiresAt < new Date()) {
+      this.logger.warn(
+        `Invitation ${invitation.id} has expired since ${invitation.expiresAt}`,
+      );
+      throw new RpcException({
+        code: status.FAILED_PRECONDITION,
+        message: 'Invitation has expired',
       });
     }
   }
@@ -1322,6 +1497,31 @@ export class OrganizationService {
       });
     }
 
+    // Two arrivals of the same user (an invitation accepted twice, a
+    // webhook and an acceptance) run one after the other: the second one
+    // finds the membership the first one wrote.
+    return withMembershipLock(
+      this.dataSource,
+      'organization',
+      data.organizationId,
+      user.id,
+      () => this.addMemberOrganizationLocked(user, data, options),
+    );
+  }
+
+  private async addMemberOrganizationLocked(
+    user: User,
+    data: {
+      organizationId: string;
+      email: string;
+      role: string;
+      grant?: MemberGrant;
+    },
+    options?: {
+      skipLogtoSync?: boolean;
+      productsFromSso?: boolean;
+    },
+  ): Promise<{ message: string; userId: string }> {
     const organization = await this.organizationRepository.findOne({
       where: { id: data.organizationId },
     });
@@ -1354,19 +1554,32 @@ export class OrganizationService {
 
     // The membership, as the edition inserts it (the role alone in the
     // Community Edition).
-    let membership = await this.memberProducts.insertMembership({
-      organization,
-      user,
-      role: data.role,
-      grant: data.grant,
-      sso: Boolean(options?.productsFromSso),
-    });
-    if (!membership) {
-      membership = new UserOrganizationMembership();
-      membership.organization = organization;
-      membership.user = user;
-      membership.role = data.role;
-      await this.userOrganizationMembershipRepository.save(membership);
+    let membership: UserOrganizationMembership | null;
+    try {
+      membership = await this.memberProducts.insertMembership({
+        organization,
+        user,
+        role: data.role,
+        grant: data.grant,
+        sso: Boolean(options?.productsFromSso),
+      });
+      if (!membership) {
+        membership = new UserOrganizationMembership();
+        membership.organization = organization;
+        membership.user = user;
+        membership.role = data.role;
+        await this.userOrganizationMembershipRepository.save(membership);
+      }
+    } catch (error) {
+      // The unique (organizationId, userId) index: a membership written by a
+      // writer that does not take the lock above.
+      if (isUniqueViolation(error)) {
+        throw new RpcException({
+          code: status.ALREADY_EXISTS,
+          message: 'User is already a member of the organization',
+        });
+      }
+      throw error;
     }
 
     // What the member holds beyond its role first, then the role: without
@@ -1387,7 +1600,23 @@ export class OrganizationService {
       this.logger.error(
         `Can't add IAM relation for user ${user.id} in organization ${data.organizationId} : ${error}`,
       );
-      await this.userOrganizationMembershipRepository.remove(membership);
+      // The role write may have reached the permission engine although the
+      // call failed (a deadline): every role of the user goes first, then
+      // the row. If either step fails, the row stays, so the caller knows
+      // the arrival was not undone.
+      try {
+        await this.authorizationService.organizationRemoveMember({
+          organizationId: data.organizationId,
+          userId: user.id,
+        });
+        await this.userOrganizationMembershipRepository.remove(membership);
+      } catch (cleanup) {
+        this.logger.error(
+          `Arrival of user ${user.id} in org ${data.organizationId} not undone after a failed add: ${String(
+            (cleanup as Error)?.message ?? cleanup,
+          )}`,
+        );
+      }
       await this.memberProducts
         .memberLeft(data.organizationId, user.id)
         .catch((cleanup: unknown) =>
@@ -1453,6 +1682,23 @@ export class OrganizationService {
       });
     }
     assertRoleAvailable(role);
+
+    // One write at a time for this member of this organisation, the
+    // membership read again under the lock: a removal sent alongside either
+    // runs first (and this change finds no membership) or after it.
+    return withMembershipLock(
+      this.dataSource,
+      'organization',
+      organizationId,
+      userId,
+      () => this.updateMemberRoleLocked(request),
+    );
+  }
+
+  private async updateMemberRoleLocked(
+    request: OrganizationUpdateRoleRequest,
+  ): Promise<OrganizationUpdateRoleResponse> {
+    const { userId, organizationId, role } = request;
 
     const targetMembership =
       await this.userOrganizationMembershipRepository.findOne({
@@ -1589,6 +1835,21 @@ export class OrganizationService {
    */
   @Span()
   async deleteMember(
+    request: OrganizationDeleteMemberRequest,
+    options?: { skipLogtoSync?: boolean; fromLogto?: boolean },
+  ): Promise<OrganizationDeleteMemberResponse> {
+    // Serialised with every other write on this member of this organisation
+    // (see updateMemberRole).
+    return withMembershipLock(
+      this.dataSource,
+      'organization',
+      request.organizationId,
+      request.userId,
+      () => this.deleteMemberLocked(request, options),
+    );
+  }
+
+  private async deleteMemberLocked(
     request: OrganizationDeleteMemberRequest,
     options?: { skipLogtoSync?: boolean; fromLogto?: boolean },
   ): Promise<OrganizationDeleteMemberResponse> {

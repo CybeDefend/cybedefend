@@ -78,8 +78,12 @@ describe('patService in the Community Edition', () => {
       data: { id: 'id-3', name: 'deploy', lastFour: 'AAAA', createdAt: '2026-11-03T00:00:00.000Z', expiresAt: '2027-01-01T00:00:00.000Z', token: SECRET },
     });
     const { createToken } = await service('community');
-    const created = await createToken('deploy', '2027-01-01T00:00:00.000Z');
-    expect(api.post).toHaveBeenCalledWith('/me/personal-access-tokens', { name: 'deploy', expiresAt: '2027-01-01T00:00:00.000Z' });
+    const created = await createToken('deploy', '2027-01-01T00:00:00.000Z', 'the account password');
+    expect(api.post).toHaveBeenCalledWith('/me/personal-access-tokens', {
+      name: 'deploy',
+      expiresAt: '2027-01-01T00:00:00.000Z',
+      currentPassword: 'the account password',
+    });
     expect(created.token).toBe(SECRET);
     expect(created.view).toEqual({ id: 'id-3', name: 'deploy', lastFour: 'AAAA', createdAt: '2026-11-03T00:00:00.000Z', lastUsedAt: null, expiresAt: '2027-01-01T00:00:00.000Z' });
     expect(JSON.stringify(created.view)).not.toContain('cdp_');
@@ -88,8 +92,8 @@ describe('patService in the Community Edition', () => {
   it('community create without an expiry sends no expiresAt', async () => {
     api.post.mockResolvedValue({ data: { id: 'i', name: 'n', lastFour: 'AAAA', createdAt: '2026-11-03T00:00:00.000Z', expiresAt: null, token: SECRET } });
     const { createToken } = await service('community');
-    await createToken('n');
-    expect(api.post).toHaveBeenCalledWith('/me/personal-access-tokens', { name: 'n' });
+    await createToken('n', undefined, 'pw');
+    expect(api.post).toHaveBeenCalledWith('/me/personal-access-tokens', { name: 'n', currentPassword: 'pw' });
   });
 
   it('community create refuses an answer without a secret', async () => {

@@ -198,6 +198,8 @@ function ticketReasonOf(
 ): string | undefined {
   return outcome === 'ignored' ? dismissalReason || undefined : undefined;
 }
+import { applyProjectImportedAdvisories } from '../results-import/imported-advisory.view';
+
 @Injectable()
 export class ResultService {
   private readonly logger = new Logger(ResultService.name);
@@ -2851,6 +2853,26 @@ export class ResultService {
         order: { priorityScore: 'DESC', currentSeverity: 'ASC' },
       }),
     ]);
+
+    // An advisory the project imported is described by the project's own row.
+    await applyProjectImportedAdvisories(
+      this.scaVulnDetectRepository.manager,
+      projectId,
+      scaDetections,
+      (d) =>
+        d.scaDetectedPackage
+          ? {
+              packageName: d.scaDetectedPackage.packageName,
+              ecosystem: d.scaDetectedPackage.ecosystem ?? '',
+            }
+          : null,
+    );
+    await applyProjectImportedAdvisories(
+      this.containerVulnDetectRepository.manager,
+      projectId,
+      containerDetections,
+      () => null,
+    );
 
     // Helper: compute composite score for a detection
     const computeScore = (vuln: any, reachability?: string | null): number => {

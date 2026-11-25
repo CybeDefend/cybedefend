@@ -106,7 +106,11 @@ describe('OwaspReportService', () => {
   // bindAnalysis: REPORT_ANALYSIS is bound (an analysis extension); the
   // Community Edition binds none.
   const build = async (bindAnalysis = true) => {
-    const detectionRepoMock = () => ({ find: jest.fn().mockResolvedValue([]) });
+    const detectionRepoMock = () => ({
+      find: jest.fn().mockResolvedValue([]),
+      // No imported advisory.
+      manager: { find: jest.fn().mockResolvedValue([]) },
+    });
     repos = {
       sast: detectionRepoMock(),
       iac: detectionRepoMock(),

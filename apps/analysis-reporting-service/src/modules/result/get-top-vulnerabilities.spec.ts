@@ -55,6 +55,12 @@ describe('ResultService.getTopVulnerabilities', () => {
     secretRepo = createMockRepository();
     scaRepo = createMockRepository();
     containerRepo = createMockRepository();
+    // The advisory reads: no imported advisory.
+    for (const repo of [scaRepo, containerRepo]) {
+      (repo as unknown as { manager: unknown }).manager = {
+        find: jest.fn().mockResolvedValue([]),
+      };
+    }
 
     priorityCalculator = {
       calculate: jest.fn(),

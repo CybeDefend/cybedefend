@@ -18,6 +18,7 @@ import {
   JWKS_SOURCE,
   type RequestUser,
 } from 'src/edition/ports/jwks-source.port';
+import { LocalAuthRateLimitGuard } from './local-auth-rate-limit.guard';
 import { LocalAuthService } from './local-auth.service';
 import { PersonalAccessTokensController } from './personal-access-tokens.controller';
 
@@ -49,6 +50,7 @@ const TOKEN_B = {
   expiresAt: asInt64('1893456000000'),
 };
 const SECRET = 'cdp_0123456789abcdefghijklmnopqrstuvwxyzABCDEFG';
+const PASSWORD = 'the-account-password';
 const TOKEN_ID = '22222222-2222-4222-8222-222222222222';
 
 const grpcError = (code: number, details: string) =>
@@ -113,6 +115,11 @@ async function makeApp(
       },
     });
   }
+  // The rate limit of password proofs has its own spec
+  // (password-proof-rate-limit.spec.ts); here it lets everything through.
+  builder = builder
+    .overrideGuard(LocalAuthRateLimitGuard)
+    .useValue({ canActivate: () => true });
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(
     new FastifyAdapter(),
@@ -184,7 +191,11 @@ describe('PersonalAccessTokensController', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/me/personal-access-tokens',
-      payload: { name: 'ci', expiresAt: '2030-01-01T00:00:00.000Z' },
+      payload: {
+        name: 'ci',
+        expiresAt: '2030-01-01T00:00:00.000Z',
+        currentPassword: PASSWORD,
+      },
     });
     expect(res.statusCode).toBe(201);
     // The user is req.user.sub, never the body; the ISO expiry becomes ms.
@@ -192,6 +203,7 @@ describe('PersonalAccessTokensController', () => {
       userId: 'u1',
       name: 'ci',
       expiresAt: 1893456000000,
+      currentPassword: PASSWORD,
     });
     const body = res.json();
     expect(body.token).toBe(SECRET);
@@ -211,13 +223,14 @@ describe('PersonalAccessTokensController', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/me/personal-access-tokens',
-      payload: { name: 'ci' },
+      payload: { name: 'ci', currentPassword: PASSWORD },
     });
     expect(res.statusCode).toBe(201);
     expect(client.createPersonalAccessToken).toHaveBeenCalledWith({
       userId: 'u1',
       name: 'ci',
       expiresAt: 0,
+      currentPassword: PASSWORD,
     });
   });
 
@@ -225,18 +238,54 @@ describe('PersonalAccessTokensController', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/me/personal-access-tokens',
-      payload: { name: 'ci', expiresAt: '20300101' },
+      payload: { name: 'ci', expiresAt: '20300101', currentPassword: PASSWORD },
     });
     expect(res.statusCode).toBe(400);
     expect(res.json()).toMatchObject({ code: 'PAT_EXPIRY_INVALID' });
     expect(client.createPersonalAccessToken).not.toHaveBeenCalled();
   });
 
+  it('refuses with 400 a creation without the account password, before any call', async () => {
+    for (const payload of [
+      { name: 'ci' },
+      { name: 'ci', currentPassword: '' },
+    ]) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/me/personal-access-tokens',
+        payload,
+      });
+      expect(res.statusCode).toBe(400);
+    }
+    expect(client.createPersonalAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 CURRENT_PASSWORD_INVALID for a wrong password, never 401, and never echoes it', async () => {
+    client.createPersonalAccessToken.mockImplementation(() =>
+      grpcError(GrpcStatus.INVALID_ARGUMENT, 'CURRENT_PASSWORD_INVALID'),
+    );
+    const res = await app.inject({
+      method: 'POST',
+      url: '/me/personal-access-tokens',
+      payload: { name: 'ci', currentPassword: 'not-the-password' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({
+      code: 'CURRENT_PASSWORD_INVALID',
+      message: 'CURRENT_PASSWORD_INVALID',
+    });
+    expect(res.body).not.toContain('not-the-password');
+  });
+
   it('never reads the user from the body', async () => {
     await app.inject({
       method: 'POST',
       url: '/me/personal-access-tokens',
-      payload: { name: 'ci', userId: 'someone-else' },
+      payload: {
+        name: 'ci',
+        userId: 'someone-else',
+        currentPassword: PASSWORD,
+      },
     });
     expect(client.createPersonalAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1' }),
@@ -270,7 +319,11 @@ describe('PersonalAccessTokensController', () => {
 
   it.each([
     ['GET', '/me/personal-access-tokens', undefined],
-    ['POST', '/me/personal-access-tokens', { name: 'ci' }],
+    [
+      'POST',
+      '/me/personal-access-tokens',
+      { name: 'ci', currentPassword: PASSWORD },
+    ],
     ['DELETE', `/me/personal-access-tokens/${TOKEN_ID}`, undefined],
   ])(
     'refuses a personal access token on %s with 403 PAT_FORBIDDEN_FOR_PAT_MANAGEMENT',
@@ -336,7 +389,7 @@ describe('PersonalAccessTokensController', () => {
         : await app.inject({
             method: 'POST',
             url: '/me/personal-access-tokens',
-            payload: { name: 'ci' },
+            payload: { name: 'ci', currentPassword: PASSWORD },
           });
     expect(res.statusCode).toBe(http);
     expect(res.json()).toMatchObject({ code, message: code });
@@ -353,7 +406,7 @@ describe('PersonalAccessTokensController', () => {
     const create = await app.inject({
       method: 'POST',
       url: '/me/personal-access-tokens',
-      payload: { name: 'ci' },
+      payload: { name: 'ci', currentPassword: PASSWORD },
     });
     expect(create.statusCode).toBe(401);
     const revoke = await app.inject({

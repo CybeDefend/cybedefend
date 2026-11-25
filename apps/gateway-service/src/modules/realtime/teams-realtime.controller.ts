@@ -18,6 +18,10 @@ import {
 } from 'src/core/guards/permissions/decorator/permission.decorator';
 import { SseHeadersInterceptor } from 'src/core/interceptors/sse-headers.interceptor';
 import { RealtimeStreamFactory } from './realtime-stream.factory';
+import {
+  StreamAuthorization,
+  type StreamPermissionCheck,
+} from './stream-authorization';
 
 // SSE streams — OpenAPI cannot meaningfully render streaming endpoints, so they
 // are kept out of the public Swagger document. Routes stay live and guarded by
@@ -38,12 +42,14 @@ export class TeamsRealtimeController {
   teamStream(
     @Req() req: any,
     @Param('teamId', new ParseUUIDPipe()) teamId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     return this.factory.createScopedStream({
       channels: [`cybe:event:team:${teamId}`],
       membershipScope: { scopeKey: `team:${teamId}`, userId: req.user.sub },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 
@@ -61,12 +67,14 @@ export class TeamsRealtimeController {
   reportsStream(
     @Req() req: any,
     @Param('teamId', new ParseUUIDPipe()) teamId: string,
+    @StreamAuthorization() authorization?: StreamPermissionCheck[],
   ): Observable<MessageEvent> {
     return this.factory.createScopedStream({
       channels: [`cybe:event:team:${teamId}:reports`],
       membershipScope: { scopeKey: `team:${teamId}`, userId: req.user.sub },
       request: req,
       lastEventId: req.headers['last-event-id'] ?? null,
+      authorization,
     });
   }
 }

@@ -330,7 +330,7 @@ const SECRET_VOLUME_USERS = {
   'secrets-postgres-server': ['postgres'],
 };
 
-test('every container of a gRPC service reads the signing key from its own secrets volume', { skip }, () => {
+test('every container of a gRPC service reads its per-server signing keys and its callers\' keys from its own secrets volume', { skip }, () => {
   const all = config();
   const grpcVolumes = ['gateway', 'global-management', 'security-scanning', 'analysis-reporting', 'file-management', 'external-integrations', 'policy-management'].map((c) => `secrets-${c}`);
   const containers = Object.entries(all.services).filter(([name, svc]) =>
@@ -338,8 +338,11 @@ test('every container of a gRPC service reads the signing key from its own secre
   );
   assert.ok(containers.length >= grpcVolumes.length);
   for (const [name, svc] of containers) {
-    assert.equal(env(svc).SERVICE_AUTH_KEY_FILE, `${SECRETS_MOUNT}/SERVICE_AUTH_KEY`, name);
-    // The keys of the callers it serves, one file each, in the same volume.
+    // No single key that would sign its calls to every server.
+    assert.equal(env(svc).SERVICE_AUTH_KEY_FILE, undefined, name);
+    assert.equal(env(svc).SERVICE_AUTH_KEY, undefined, name);
+    // One file per (caller, server) pair, in the same volume: the keys it signs
+    // its calls to each server with, and the keys of the callers it serves.
     assert.equal(env(svc).SERVICE_AUTH_PEER_KEYS_DIR, SECRETS_MOUNT, name);
   }
 });
@@ -451,9 +454,8 @@ const COMMUNITY_KEYS = new Set([
   'DB_TYPE', 'DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD_FILE', 'DB_SSL_ENABLED', 'DB_DATABASE',
   // the derived keys, each as a file, to the one service that reads it
   ...Object.values(SERVICE_DERIVED_KEYS).flat().map((key) => `${key}_FILE`),
-  // the internal gRPC signing key, as a file, to every gRPC service
-  'SERVICE_AUTH_KEY_FILE',
-  // the directory of the verification keys of the callers each server serves
+  // the directory of the internal gRPC keys of each service: one per server it
+  // calls, one per caller it serves
   'SERVICE_AUTH_PEER_KEYS_DIR',
   // the Permify preshared key, as a file, to Permify's clients only
   'PERMIFY_PRESHARED_KEY_FILE',
@@ -470,15 +472,18 @@ const COMMUNITY_KEYS = new Set([
   'SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET',
   // security-scanning: scans on a connected Kubernetes cluster (empty by default: import-only)
   'CYBEDEFEND_SCANNER_KUBECONFIG_FILE', 'CYBEDEFEND_SCANNER_NAMESPACE', 'CYBEDEFEND_SCANNER_IMAGE_REGISTRY', 'CYBEDEFEND_SCANNER_IMAGE_TAG',
-  'CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET', 'CYBEDEFEND_SCANNER_MAX_CONCURRENT', 'CYBEDEFEND_SCANNER_RESOURCES', 'CYBEDEFEND_SCANNER_KEEP_PODS',
+  'CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET', 'CYBEDEFEND_SCANNER_MAX_CONCURRENT', 'CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION',
+  'CYBEDEFEND_SCANNER_RESOURCES', 'CYBEDEFEND_SCANNER_KEEP_PODS',
   'CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS', 'CYBEDEFEND_SCANNER_TRIVY_DB_REPOSITORY', 'CYBEDEFEND_SCANNER_TRIVY_JAVA_DB_REPOSITORY',
+  // analysis-reporting: stored report limits (unset by default)
+  'REPORTS_MAX_STORED_PER_ORG', 'REPORTS_RETENTION_DAYS',
   // gateway
   'AUTH_COOKIE_PATH', 'AUTH_COOKIE_INSECURE_LOCALHOST', 'TRUSTED_PROXY_CIDRS',
   // dashboard (nginx template and its config.js)
   'NGINX_ENVSUBST_OUTPUT_DIR', 'GATEWAY_UPSTREAM', 'CYBEDEFEND_STORAGE_PUBLIC_URL', 'CYBEDEFEND_API_URL', 'CYBEDEFEND_PUBLIC_URL', 'GITHUB_APP_URL',
   'CYBEDEFEND_TRUSTED_PROXIES',
   // mcp
-  'PORT', 'CYBEDEFEND_API_RESOURCE', 'PUBLIC_URL', 'TRUST_PROXY_CIDR',
+  'PORT', 'CYBEDEFEND_API_RESOURCE', 'PUBLIC_URL', 'TRUST_PROXY_CIDR', 'MCP_ALLOWED_ORIGINS',
   // postgres, permify and the Permify schema job
   'POSTGRES_USER', 'POSTGRES_PASSWORD_FILE', 'POSTGRES_DB', 'PERMIFY_DATABASE_ENGINE', 'PERMIFY_DATABASE_URI', 'PERMIFY_HTTP_ENABLED',
   'PERMIFY_URL', 'PERMIFY_SCHEMA_PATH', 'PERMIFY_SCHEMA_VERSION_OUT', 'PGPASSFILE',
@@ -732,6 +737,7 @@ const SCANNER_KEYS = [
   'CYBEDEFEND_SCANNER_IMAGE_TAG',
   'CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET',
   'CYBEDEFEND_SCANNER_MAX_CONCURRENT',
+  'CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION',
   'CYBEDEFEND_SCANNER_RESOURCES',
   'CYBEDEFEND_SCANNER_KEEP_PODS',
   'CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS',
@@ -1067,6 +1073,7 @@ test('the cluster variant points both scanning services at the kind cluster and 
         CYBEDEFEND_SCANNER_IMAGE_TAG: '0.0.0-smoke',
         CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET: '',
         CYBEDEFEND_SCANNER_MAX_CONCURRENT: '2',
+        CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: '',
         CYBEDEFEND_SCANNER_RESOURCES: '',
         CYBEDEFEND_SCANNER_KEEP_PODS: 'false',
         CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS: '',

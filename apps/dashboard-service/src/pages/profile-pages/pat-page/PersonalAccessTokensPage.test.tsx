@@ -102,9 +102,18 @@ vi.mock('./DeletePatModal', () => ({
   default: ({ onConfirm }: { onConfirm: () => void }) => <button onClick={onConfirm}>confirm delete</button>,
 }));
 vi.mock('./CreatePatModal', () => ({
-  default: ({ onCreate }: { onCreate: (name: string, expiresAt: number) => void }) => (
+  default: ({
+    onCreate,
+    requirePassword,
+  }: {
+    onCreate: (name: string, expiresAt: number, currentPassword?: string) => void;
+    requirePassword?: boolean;
+  }) => (
     <>
-      <button onClick={() => onCreate('test', 0)}>submit create</button>
+      {requirePassword && <span data-testid="asks-password" />}
+      <button onClick={() => onCreate('test', 0, requirePassword ? 'the account password' : undefined)}>
+        submit create
+      </button>
       <button onClick={() => onCreate('test', Date.UTC(2030, 0, 1))}>submit create expiring</button>
     </>
   ),
@@ -199,6 +208,30 @@ describe('PersonalAccessTokensPage — Community Edition', () => {
     state.listFailed = false;
   });
 
+  it('community asks for the account password and sends it with the creation', async () => {
+    patService.createToken.mockResolvedValue({ view: TOKEN, token: SECRET });
+    render(<PersonalAccessTokensPage />);
+    fireEvent.click(screen.getByText('open create'));
+    expect(screen.getByTestId('asks-password')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('submit create'));
+    await waitFor(() =>
+      expect(patService.createToken).toHaveBeenCalledWith('test', undefined, 'the account password'),
+    );
+  });
+
+  it('a wrong password shows its sentence and keeps the dialog open', async () => {
+    patService.createToken.mockRejectedValue(
+      httpError(400, { code: 'CURRENT_PASSWORD_INVALID', message: SERVER_TEXT }),
+    );
+    render(<PersonalAccessTokensPage />);
+    fireEvent.click(screen.getByText('open create'));
+    fireEvent.click(screen.getByText('submit create'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(translate(AUTH_REFUSAL_KEYS.CURRENT_PASSWORD_INVALID)),
+    );
+    expect(screen.getByText('submit create')).toBeInTheDocument();
+  });
+
   it('the rename action is absent in community', () => {
     render(<PersonalAccessTokensPage />);
     expect(screen.queryByText('open rename')).not.toBeInTheDocument();
@@ -250,7 +283,7 @@ describe('PersonalAccessTokensPage — Community Edition', () => {
     fireEvent.click(screen.getByText('open create'));
     fireEvent.click(screen.getByText('submit create'));
     await waitFor(() => expect(screen.getByTestId('shown-once')).toHaveTextContent(SECRET));
-    expect(patService.createToken).toHaveBeenCalledWith('test', undefined);
+    expect(patService.createToken).toHaveBeenCalledWith('test', undefined, 'the account password');
 
     fireEvent.click(screen.getByText('close display'));
     await waitFor(() => expect(screen.queryByTestId('shown-once')).not.toBeInTheDocument());

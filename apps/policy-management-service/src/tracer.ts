@@ -14,7 +14,12 @@ import {
   SpanProcessor,
   ReadableSpan,
   BatchSpanProcessor,
+  SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
+import {
+  DATABASE_INSTRUMENTATION_CONFIG,
+  RedactingSpanProcessor,
+} from './core/logger/trace-redaction';
 
 /**
  * Custom SpanProcessor to filter out RpcException errors from other microservices.
@@ -67,6 +72,18 @@ class RpcExceptionFilterProcessor implements SpanProcessor {
 const serviceName = 'policy-management-service';
 
 /**
+ * The processor chain every span goes through. The batch processor reads
+ * OTEL_BSP_MAX_QUEUE_SIZE and OTEL_BSP_MAX_EXPORT_BATCH_SIZE from the
+ * environment (SDK defaults: 2048 and 512). The first processor scrubs the
+ * values of statements and of errors out of each span.
+ */
+export function buildSpanProcessor(exporter: SpanExporter): SpanProcessor {
+  return new RedactingSpanProcessor(
+    new RpcExceptionFilterProcessor(new BatchSpanProcessor(exporter)),
+  );
+}
+
+/**
  * What the SDK exports: spans, through the processor chain built in start(),
  * and nothing else. Left unset, NodeSDK builds an OTLP metric reader and an
  * OTLP log pipeline from the environment, both without the ingest token: the
@@ -113,10 +130,7 @@ const tracer = {
         headers: otelToken ? { Authorization: `Bearer ${otelToken}` } : {},
       });
 
-      const batchProcessor = new BatchSpanProcessor(exporter);
-      const filteringProcessor = new RpcExceptionFilterProcessor(
-        batchProcessor,
-      );
+      const filteringProcessor = buildSpanProcessor(exporter);
 
       const resource = defaultResource().merge(
         resourceFromAttributes({
@@ -129,6 +143,7 @@ const tracer = {
         ...sdkOptions(filteringProcessor),
         instrumentations: [
           getNodeAutoInstrumentations({
+            ...DATABASE_INSTRUMENTATION_CONFIG,
             '@opentelemetry/instrumentation-fs': { enabled: false },
             '@opentelemetry/instrumentation-http': { enabled: true },
             '@opentelemetry/instrumentation-grpc': { enabled: true },

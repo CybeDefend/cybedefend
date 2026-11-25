@@ -41,15 +41,17 @@ service LocalAuthService {
   rpc Refresh (LocalRefreshRequest) returns (LocalRefreshResponse);
   // Revokes the token's family. Idempotent: an unknown token answers OK.
   rpc Logout (LocalLogoutRequest) returns (LocalLogoutResponse);
-  // Checks the current password, sets the new one, revokes every refresh family
-  // of the user, then opens a new session for the caller.
+  // Checks the current password, sets the new one, revokes every refresh family and
+  // every personal access token of the user (one transaction), then opens a new
+  // session for the caller.
   //   INVALID_ARGUMENT    CURRENT_PASSWORD_INVALID  (never UNAUTHENTICATED: the dashboard must not sign out)
   //   INVALID_ARGUMENT    PASSWORD_POLICY
   rpc ChangePassword (LocalChangePasswordRequest) returns (LocalChangePasswordResponse);
   // Same answer whether or not the e-mail has an account. Sends the link by SMTP when
   // configured. Never fails: the 3-per-user-per-hour cap is silent, the per-e-mail 429 is the gateway's.
   rpc RequestPasswordReset (RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
-  // Consumes the 30-minute, single-use token and revokes every refresh token of the user.
+  // Consumes the 30-minute, single-use token and revokes every refresh token and every
+  // personal access token of the user, in the transaction that sets the password.
   // A busy verifier (UNAVAILABLE PASSWORD_VERIFICATION_BUSY) leaves the token unused.
   //   INVALID_ARGUMENT    RESET_TOKEN_INVALID   (wrong, expired or used: never distinguished)
   //   INVALID_ARGUMENT    PASSWORD_POLICY
@@ -61,6 +63,9 @@ service LocalAuthService {
   rpc AcceptInvitation (AcceptLocalInvitationRequest) returns (AcceptLocalInvitationResponse);
   // Public keys that verify access tokens (the unretired signing keys). Never fails once booted.
   rpc GetJwks (GetJwksRequest) returns (GetJwksResponse);
+  // The caller proves the account's password first: an access token alone
+  // (short-lived) cannot turn itself into a lasting personal access token.
+  //   INVALID_ARGUMENT    CURRENT_PASSWORD_INVALID  (wrong or missing password; never UNAUTHENTICATED)
   //   INVALID_ARGUMENT    PAT_NAME_INVALID | PAT_EXPIRY_INVALID  (expiry in the past)
   //   ALREADY_EXISTS      PAT_NAME_TAKEN
   //   RESOURCE_EXHAUSTED  PAT_LIMIT_REACHED     (10 active tokens per user; gateway 409, not 429)
@@ -211,9 +216,10 @@ message LocalPersonalAccessToken {
 }
 
 message CreateLocalPersonalAccessTokenRequest {
-  string userId    = 1; // from the gateway's authenticated user, never the body
-  string name      = 2;
-  int64  expiresAt = 3; // epoch ms, 0 = never
+  string userId          = 1; // from the gateway's authenticated user, never the body
+  string name            = 2;
+  int64  expiresAt       = 3; // epoch ms, 0 = never
+  string currentPassword = 4; // the account's password, checked before the token is created; never logged
 }
 
 message CreateLocalPersonalAccessTokenResponse {

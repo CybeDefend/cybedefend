@@ -16,6 +16,7 @@ import {
   getOrganizationReportUsage,
 } from '../services/resultService';
 import { apiErrorText } from '@/utils/function/apiErrorKey';
+import { isForbidden } from '@/utils/function/isForbidden';
 
 /**
  * Scope of the stored-report history. Per-project reports live in a
@@ -33,6 +34,8 @@ export interface UseStoredReportsResult {
   pageSize: number;
   loading: boolean;
   error: string | null;
+  /** The API refused the reports of this scope to the member (403): a state, not an error. */
+  forbidden: boolean;
   deletingId: string | null;
   /**
    * Org-wide shared stored-report usage (project + org reports count
@@ -88,6 +91,7 @@ export const useStoredReports = (
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [usage, setUsage] = useState<ReportUsage | null>(null);
 
@@ -116,8 +120,9 @@ export const useStoredReports = (
           : await getOrganizationReportUsage(scope.organizationId);
       if (seq !== usageSeq.current) return; // superseded
       setUsage(u);
-    } catch {
+    } catch (err) {
       if (seq !== usageSeq.current) return;
+      if (isForbidden(err)) setForbidden(true);
       setUsage(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,7 +145,8 @@ export const useStoredReports = (
       setTotal(res.total ?? 0);
     } catch (err) {
       if (seq !== pageSeq.current) return;
-      setError(apiErrorText(err));
+      if (isForbidden(err)) setForbidden(true);
+      else setError(apiErrorText(err));
       setItems([]);
       setTotal(0);
     } finally {
@@ -238,6 +244,7 @@ export const useStoredReports = (
     pageSize,
     loading,
     error,
+    forbidden,
     deletingId,
     usage,
     setPage,

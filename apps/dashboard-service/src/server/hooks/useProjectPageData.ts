@@ -36,6 +36,7 @@ const PAGE_DATA_TTL = 2 * 60 * 1000; // 2 minutes
  */
 interface ProjectPageDataSnapshot {
   projectName: string;
+  loadedProjectId: string | null;
   integrationInfo: ProjectIntegrationInfo;
   linkedGithubRepo: string | null;
   linkedGitlabRepo: string | null;
@@ -178,6 +179,11 @@ export interface UseProjectPageDataReturn {
   // instead of flashing a skeleton. Empty string until the project loads.
   projectName: string;
 
+  // The id of the project the API answered for (the payload's own id), null
+  // until the project loads or when it could not be loaded. What a page puts
+  // in a command it offers to copy, never the id of the address.
+  loadedProjectId: string | null;
+
   // Integration info
   integrationInfo: ProjectIntegrationInfo;
   linkedGithubRepo: string | null;
@@ -259,6 +265,9 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
   // sibling issue-list page shows the real name on its first commit.
   const [projectName, setProjectName] = useState<string>(
     initialSnapshot?.projectName ?? '',
+  );
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(
+    initialSnapshot?.loadedProjectId ?? null,
   );
 
   // Integration state
@@ -365,6 +374,7 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
       );
       if (cached) {
         setProjectName(cached.projectName);
+        setLoadedProjectId(cached.loadedProjectId ?? null);
         setIntegrationInfo(cached.integrationInfo);
         setLinkedGithubRepo(cached.linkedGithubRepo);
         setLinkedGitlabRepo(cached.linkedGitlabRepo);
@@ -390,6 +400,8 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
     }
 
     isLoadingRef.current = true;
+    // Another project: the id the previous one loaded is no longer this page's.
+    if (!silent && lastProjectIdRef.current !== projectId) setLoadedProjectId(null);
     lastProjectIdRef.current = projectId;
     lastOrgIdRef.current = organizationId;
 
@@ -413,6 +425,7 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
       let linkedRepository: ProjectLinkedRepository | null | undefined;
       // Captured for the cache snapshot written at the end of a successful load.
       let snapProjectName = '';
+      let snapLoadedProjectId: string | null = null;
       let snapIsSecurityContextCustomized: boolean | null = null;
       let snapSecurityContextUpdatedAt: string | null = null;
       let snapIsJiraLinked: boolean | null = null;
@@ -422,6 +435,8 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
         const projectData = await fetchProject(projectId);
         linkedRepository = projectData.linkedRepository;
         snapProjectName = projectData.name ?? '';
+        snapLoadedProjectId = projectData.projectId ?? null;
+        setLoadedProjectId(snapLoadedProjectId);
         snapIsSecurityContextCustomized = projectData.securityContext?.isCustomized ?? false;
         snapSecurityContextUpdatedAt = projectData.securityContext?.updatedAt ?? null;
         snapIsJiraLinked = projectData.isJiraLinked ?? false;
@@ -527,6 +542,7 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
         PAGE_DATA_SCOPE,
         {
           projectName: snapProjectName,
+          loadedProjectId: snapLoadedProjectId,
           integrationInfo: detectedIntegration,
           linkedGithubRepo: detectedGithubRepo,
           linkedGitlabRepo: detectedGitlabRepo,
@@ -616,6 +632,7 @@ export const useProjectPageData = (projectId: string): UseProjectPageDataReturn 
     isLoadingBranches: loadingState === 'idle' || loadingState === 'loading',
     error,
     projectName,
+    loadedProjectId,
     integrationInfo,
     linkedGithubRepo,
     linkedGitlabRepo,

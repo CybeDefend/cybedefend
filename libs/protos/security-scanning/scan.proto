@@ -89,6 +89,44 @@ message StartScanRequest {
   optional int32 totalLOC = 6;
   optional string totalSize = 7;
   repeated string language = 8;
+
+  // What the upload filter left out of the archive forwarded to the
+  // scanners. Sent by file-management with an uploaded archive; absent on
+  // every other start (re-run, container scan, import).
+  optional UploadFilterSummary upload_filter_summary = 9;
+}
+
+// What the upload filter left out of an uploaded archive before the
+// scanners read it: the files counted by reason, and the excluded folders
+// that held them, each named by its path in the archive up to and including
+// the excluded folder (`web/build`, `packages/a/node_modules`). Counts and
+// paths only, never a file's content. security-scanning stores it on the
+// scan, bounded (at most 20 folders, each path cut to 200 characters, control
+// and bidirectional control characters removed).
+message UploadFilterSummary {
+  // A scanner's own configuration file (it could switch detection off).
+  int32 scanner_configuration = 1;
+  // An excluded folder (dependencies, build output, caches) or name pattern.
+  int32 excluded_path = 2;
+  // A binary or media file, a type no scanner reads, or documentation below
+  // the root.
+  int32 excluded_type = 3;
+  // An entry whose name is absolute or climbs out of the archive.
+  int32 unsafe_name = 4;
+  // Git metadata git would execute (hooks, attributes, nested repositories).
+  // Recorded only: no file of the repository's tree is among them, so it is
+  // not announced as files not scanned.
+  int32 git_metadata = 5;
+  // The excluded folders holding the most files left out, the largest first.
+  repeated ExcludedFolder excluded_folders = 6;
+}
+
+message ExcludedFolder {
+  // Path in the archive up to and including the excluded folder, for
+  // example `web/build` for the file `web/build/app.js`.
+  string name = 1;
+  // Files of the folder left out.
+  int32 count = 2;
 }
 
 // Registry authentication configuration for private container registries
@@ -238,6 +276,9 @@ message ScanResponse {
   // Git history pass recorded for this scan, and the history coverage of its branch
   optional GitHistoryPass history_pass = 31;
   optional GitHistoryCoverage history_coverage = 32;
+  // What the upload filter left out of the scanned archive. Absent on a scan
+  // with no upload and on a scan recorded before this field.
+  optional UploadFilterSummary upload_filter_summary = 33;
   reserved 17;
   reserved "potpie_project_id";
 }

@@ -23,8 +23,10 @@ import {
 } from '@cybedefend/db-dialect';
 import { withinSavepoint } from 'src/core/db/within-savepoint';
 import {
+  Brackets,
   DataSource,
   EntityTarget,
+  IsNull,
   Not,
   QueryDeepPartialEntity,
   Repository,
@@ -72,7 +74,13 @@ import { HistoryItem } from 'src/entities/history-item.entity';
 import { ScaDetectedPackages } from 'src/entities/sca-detected-packages.entity';
 import { ScaVulnerabilityDetections } from 'src/entities/sca-vulnerability-detections.entity';
 import { VulnerabilityDetectionHistory } from 'src/entities/vulnerability-detection-history.entity';
-import { VulnerabilityOsvAffected } from 'src/entities/osv';
+import {
+  VulnerabilityOsv,
+  VulnerabilityOsvAffected,
+  VulnerabilityOsvAlias,
+  VulnerabilityOsvReference,
+  VulnerabilityOsvSeverity,
+} from 'src/entities/osv';
 import { ScaLicenseOverride } from 'src/entities/sca-license-override.entity';
 
 // --- Service & Utility Imports ---
@@ -162,6 +170,17 @@ import {
   getAllKnownLicenses,
 } from './license.utils';
 import { getEffectiveLicenses } from './spdx-expression.utils';
+import { ImportedAdvisory } from '../../entities/imported-advisory.entity';
+import {
+  advisoryViewOf,
+  displayedCveOf,
+  entriesOfPackage,
+  loadCatalogueCveAliases,
+  loadCatalogueFixes,
+  advisoryTextSearchSql,
+  loadImportedAdvisories,
+  packageLookupNames,
+} from '../results-import/imported-advisory.view';
 
 /**
  * Configuration for batch processing SCA packages
@@ -173,6 +192,36 @@ export interface ScaScanMeta {
   /** The severity CSV, as ScanAddScaResultRequest.vulnerability_type. */
   vulnerabilityType: string;
 }
+
+/**
+ * What the detail of one finding reads of a catalogue advisory: a large
+ * advisory never loads every collection in one join.
+ */
+export const SCA_DETAIL_LIMITS = {
+  aliases: 100,
+  references: 100,
+  severities: 20,
+  /** Rows naming the finding's package read to choose its own. */
+  affectedScanned: 2_000,
+  /** Affected rows shown (own package first) with ranges and events. */
+  affected: 20,
+} as const;
+
+/** A fixed version of the catalogue, with the package of its affected row. */
+interface CatalogueFix {
+  ecosystem: string;
+  packageName: string;
+  fixed: string;
+}
+
+/** The package a detection is about, as the advisory reads compare it. */
+const packageOfDetection = (det: ScaVulnerabilityDetections) =>
+  det.scaDetectedPackage
+    ? {
+        packageName: det.scaDetectedPackage.packageName,
+        ecosystem: det.scaDetectedPackage.ecosystem,
+      }
+    : null;
 
 /** One scanned package and the advisories already matched to it. */
 export interface ScaMatchedItem {
@@ -1205,6 +1254,86 @@ export class ScaService implements OnModuleInit {
   }
 
   /**
+   * The detections of this branch that lost their package row (the
+   * dependency left the manifest, the row was deleted, the foreign key set
+   * NULL), keyed by fingerprint, for the (package, advisory) pairs of this
+   * tranche. The fingerprint is unique per (project, branch): when the same
+   * package version comes back, its finding is this row, never a new one.
+   */
+  private async loadOrphanedDetections(
+    projectId: string,
+    branchValue: string,
+    packagesWithVulns: ReadonlyArray<{
+      pkg: ScaDetectedPackages;
+      vulns: VulnerabilityOsvAffected[];
+    }>,
+  ): Promise<Map<string, ScaVulnerabilityDetections>> {
+    const fingerprints = new Set<string>();
+    for (const { pkg, vulns } of packagesWithVulns) {
+      for (const affected of vulns ?? []) {
+        const osvId = affected?.vulnerability?.id;
+        if (!osvId) continue;
+        fingerprints.add(
+          computeScaFingerprint({
+            projectId: pkg.projectId,
+            branch: branchValue,
+            ecosystem: pkg.ecosystem,
+            packageName: pkg.packageName,
+            packageVersion: pkg.packageVersion,
+            osvId,
+          }),
+        );
+      }
+    }
+    const orphans = new Map<string, ScaVulnerabilityDetections>();
+    const all = [...fingerprints];
+    for (let i = 0; i < all.length; i += SCA_WRITE_CHUNK) {
+      const rows = await this.scaVulnDetectRepo.find({
+        where: {
+          projectId,
+          branch: branchValue,
+          fingerprint: In(all.slice(i, i + SCA_WRITE_CHUNK)),
+          scaDetectedPackage: IsNull(),
+        },
+        relations: ['vulnerability', 'scaDetectedPackage'],
+      });
+      for (const row of rows) {
+        if (row.fingerprint && !row.scaDetectedPackage) {
+          orphans.set(row.fingerprint, row);
+        }
+      }
+    }
+    return orphans;
+  }
+
+  /**
+   * The detection a refused insert collided with: first by the key of the
+   * unique index (project, branch, fingerprint), which also finds a finding
+   * whose package row was deleted; then by package and advisory, for a row
+   * written before fingerprints existed.
+   */
+  private async findDetectionHoldingFingerprint(
+    pkg: ScaDetectedPackages,
+    osvId: string,
+    branchValue: string,
+    fingerprint: string,
+  ): Promise<ScaVulnerabilityDetections | null> {
+    const byFingerprint = await this.scaVulnDetectRepo.findOne({
+      where: { projectId: pkg.projectId, branch: branchValue, fingerprint },
+      relations: ['vulnerability', 'scaDetectedPackage'],
+    });
+    if (byFingerprint) return byFingerprint;
+    return this.scaVulnDetectRepo.findOne({
+      where: {
+        scaDetectedPackage: { id: pkg.id },
+        vulnerability: { id: osvId },
+        branch: branchValue,
+      },
+      relations: ['vulnerability', 'scaDetectedPackage'],
+    });
+  }
+
+  /**
    * Triage decisions taken on OTHER versions of the packages this scan just saw.
    *
    * A triage answers "is this advisory, on this package, a problem here?" — it
@@ -1353,6 +1482,14 @@ export class ScaService implements OnModuleInit {
       existingByPkg.get(pkgId)!.set(det.vulnerability.id, det);
     }
 
+    // Findings whose package row was deleted when the dependency left the
+    // manifest, found again by the key their unique index is built on.
+    const orphansByFingerprint = await this.loadOrphanedDetections(
+      projectId,
+      branchValue,
+      packagesWithVulns,
+    );
+
     // Decisions taken on other versions of these same packages, so a version
     // bump does not re-open them.
     const triageCarryOver = await this.loadTriageCarryOver(
@@ -1370,6 +1507,18 @@ export class ScaService implements OnModuleInit {
     const redetected: ScaVulnerabilityDetections[] = [];
     const resolvedDetections: ScaVulnerabilityDetections[] = [];
     const resolvedHistoryItems: HistoryItem[] = [];
+    // Findings found again after their dependency came back, and the status
+    // rows of those this scan reopened.
+    const relinked = new Set<ScaVulnerabilityDetections>();
+    const reopenHistoryItems: HistoryItem[] = [];
+    const reopenHistoryOf = (detection: ScaVulnerabilityDetections) =>
+      this.historyItemRepo.create({
+        type: 'status_change',
+        value: detection.currentState,
+        date: new Date(),
+        source: 'system',
+        scaVulnerabilityDetection: detection,
+      });
 
     // Track which vulnerability IDs were processed for each package
     const processedByPkg = new Map<string, Set<string>>();
@@ -1482,14 +1631,11 @@ export class ScaService implements OnModuleInit {
           pkg.reachability === 'potentially_used' ||
           pkg.reachability === 'test_only';
 
-        const existing = existingMap.get(osvVuln.id);
-
-        // SHADOW MODE: written, never read for matching yet. The pair
-        // (package, advisory) already carries the identity here — unlike the
-        // code families there is no line number to drift — so this is the
-        // low-risk half of the roll-out. Computed once for BOTH branches so
-        // the update path produces divergence evidence and backfills rows
-        // that predate the column, instead of leaving them NULL forever.
+        // The pair (package, advisory) carries the identity here — unlike the
+        // code families there is no line number to drift. Computed once for
+        // BOTH branches so the update path produces divergence evidence and
+        // backfills rows that predate the column, instead of leaving them
+        // NULL forever.
         const expectedFingerprint = computeScaFingerprint({
           projectId: pkg.projectId,
           branch: branchValue ?? null,
@@ -1498,6 +1644,24 @@ export class ScaService implements OnModuleInit {
           packageVersion: pkg.packageVersion,
           osvId: osvVuln.id,
         });
+
+        let existing = existingMap.get(osvVuln.id);
+        if (!existing) {
+          // The dependency came back: its finding is the same one, so it is
+          // linked to the new package row and goes through the re-detection
+          // below (a resolved finding reopens, a dismissal stays).
+          const orphan = orphansByFingerprint.get(expectedFingerprint);
+          if (orphan && orphan.vulnerability?.id === osvVuln.id) {
+            orphansByFingerprint.delete(expectedFingerprint);
+            orphan.scaDetectedPackage = pkg;
+            existingMap.set(osvVuln.id, orphan);
+            existing = orphan;
+            relinked.add(orphan);
+            this.logger.log(
+              `[SCA] dependency ${pkg.packageName}@${pkg.packageVersion} is back: detection ${orphan.id} (${osvVuln.id}, ${orphan.currentState}) linked to package ${pkg.id}`,
+            );
+          }
+        }
 
         if (existing) {
           if (
@@ -1562,6 +1726,13 @@ export class ScaService implements OnModuleInit {
           applySightingToDetection(existing, new Date());
           clearResolutionOnRevive(existing);
           redetected.push(existing);
+          if (
+            relinked.has(existing) &&
+            existingWasResolved &&
+            existing.currentState !== 'resolved'
+          ) {
+            reopenHistoryItems.push(reopenHistoryOf(existing));
+          }
         } else {
           // Create new detection - use upsert for multi-pod safety
           try {
@@ -1626,16 +1797,24 @@ export class ScaService implements OnModuleInit {
             historyToCreate.push({ detectionId: saved.id, scanId });
           } catch (e) {
             if (isUniqueViolation(e)) {
-              // Another pod created it - fetch and update instead
-              const already = await this.scaVulnDetectRepo.findOne({
-                where: {
-                  scaDetectedPackage: { id: pkg.id },
-                  vulnerability: { id: osvVuln.id },
-                  branch: branchValue,
-                },
-                relations: ['vulnerability'],
-              });
+              // The row already exists (another pod created it, or the
+              // dependency left and came back): read it by the key the unique
+              // index is built on, and update it instead.
+              const already = await this.findDetectionHoldingFingerprint(
+                pkg,
+                osvVuln.id,
+                branchValue,
+                expectedFingerprint,
+              );
+              if (!already) {
+                this.logger.warn(
+                  `SCA_DETECTION_LOST project=${pkg.projectId} branch='${branchValue}' package=${pkg.packageName}@${pkg.packageVersion} advisory=${osvVuln.id}: the insert was refused as a duplicate and no row holds its key`,
+                );
+              }
               if (already) {
+                if (already.scaDetectedPackage?.id !== pkg.id) {
+                  already.scaDetectedPackage = pkg;
+                }
                 // Same shadow-mode treatment as the update path above: this is
                 // the row another pod just created, so it is a re-detection
                 // from this pod's point of view.
@@ -1693,6 +1872,9 @@ export class ScaService implements OnModuleInit {
                 applySightingToDetection(already, new Date());
                 clearResolutionOnRevive(already);
                 await this.scaVulnDetectRepo.save(already);
+                if (alreadyWasResolved && already.currentState !== 'resolved') {
+                  await this.insertHistoryItems([reopenHistoryOf(already)]);
+                }
                 existingMap.set(osvVuln.id, already);
                 historyToCreate.push({ detectionId: already.id, scanId });
               }
@@ -1720,6 +1902,7 @@ export class ScaService implements OnModuleInit {
     for (const saved of await this.saveRedetections(redetected)) {
       historyToCreate.push({ detectionId: saved.id, scanId });
     }
+    await this.insertHistoryItems(reopenHistoryItems);
 
     // Find detections to resolve (not in current scan) - only for packages we processed
     // One instant for the sweep: its rows are written by one UPDATE.
@@ -2054,69 +2237,30 @@ export class ScaService implements OnModuleInit {
     osvIds: string[],
     dataSource: DataSource = this.dataSource,
   ): Promise<Map<string, string>> {
-    const result = new Map<string, string>();
-    if (!osvIds.length) return result;
-
-    const rows = await dataSource
-      .createQueryBuilder()
-      .select('a.vulnerabilityOsvId', 'osvId')
-      .addSelect('MIN(a.alias)', 'cve')
-      .from('vulnerability_osv_alias', 'a')
-      .where('a.vulnerabilityOsvId IN (:...osvIds)', { osvIds })
-      .andWhere(ilike('a.alias', "'CVE-%'").text)
-      .groupBy('a.vulnerabilityOsvId')
-      .getRawMany<{ osvId: string; cve: string | null }>();
-
-    for (const row of rows) {
-      if (row.cve) result.set(row.osvId, row.cve);
-    }
-    return result;
+    if (!osvIds.length) return new Map();
+    return loadCatalogueCveAliases(dataSource.manager, osvIds);
   }
 
+  /**
+   * The fixed versions of the catalogue's affected rows, per OSV id, each with
+   * the package and ecosystem of its affected row: the caller keeps only the
+   * entries of the detection's own package (entriesOfPackage).
+   */
   private async loadFixedVersionsByOsv(
     osvIds: string[],
     dataSource: DataSource = this.dataSource,
-  ): Promise<Map<string, string[]>> {
-    const result = new Map<string, string[]>();
-    if (!osvIds.length) return result;
+  ): Promise<Map<string, CatalogueFix[]>> {
+    if (!osvIds.length) return new Map();
+    return loadCatalogueFixes(dataSource.manager, osvIds);
+  }
 
-    const rows = await dataSource
-      .createQueryBuilder()
-      .select('aff.vulnerabilityOsvId', 'osvId')
-      .addSelect('evt.fixed', 'fixedVersion')
-      .from('vulnerability_osv_affected', 'aff')
-      .innerJoin(
-        'vulnerability_osv_affected_range',
-        'rng',
-        'rng.affectedId = aff.id',
-      )
-      .innerJoin(
-        'vulnerability_osv_affected_event',
-        'evt',
-        'evt.rangeId = rng.id',
-      )
-      .where('aff.vulnerabilityOsvId IN (:...osvIds)', { osvIds })
-      .andWhere('evt.fixed IS NOT NULL')
-      .andWhere("evt.fixed <> ''")
-      .getRawMany<{ osvId: string; fixedVersion: string | null }>();
-
-    // Group the raw fixed-version strings per OSV id. The installed-aware
-    // selection (smallest fix strictly above the installed version) is done per
-    // detection by the caller, since several detections can share one OSV id
-    // with different installed versions. Missing ids are simply absent (the
-    // caller defaults to an empty list).
-    for (const row of rows) {
-      const fixed = row.fixedVersion ?? '';
-      if (!fixed) continue;
-      const bucket = result.get(row.osvId);
-      if (bucket) {
-        bucket.push(fixed);
-      } else {
-        result.set(row.osvId, [fixed]);
-      }
-    }
-
-    return result;
+  /** The project's imported advisories among `osvIds` (empty without any). */
+  private async loadProjectImportedAdvisories(
+    projectId: string,
+    osvIds: string[],
+  ): Promise<Map<string, ImportedAdvisory>> {
+    if (!osvIds.length) return new Map();
+    return loadImportedAdvisories(this.dataSource.manager, projectId, osvIds);
   }
 
   /**
@@ -2261,13 +2405,20 @@ export class ScaService implements OnModuleInit {
       // keep matching by alias without hydrating `osv.aliases` for every row on
       // the page (those collections drive the 50 MB gRPC payload blow-up the
       // list-mode slimming targets).
+      // An imported advisory's own text and aliases are searched in the
+      // project's row only (advisoryTextSearchSql).
       qb.andWhere(
-        `(${ilike('osv.summary', ':search').text} OR ${ilike('osv.id', ':search').text}
+        `(${ilike('osv.id', ':search').text}
           OR ${ilike('scaPackage.ecosystem', ':search').text} OR ${ilike('scaPackage.fileName', ':search').text}
-          OR EXISTS (
-          SELECT 1 FROM vulnerability_osv_alias a
-          WHERE ${rawIdent('a.vulnerabilityOsvId')} = osv.id AND ${ilike('a.alias', ':search').text}
-        ))`,
+          OR ${advisoryTextSearchSql({
+            projectIdColumn: rawIdent('vulnDetection.projectId'),
+            advisoryIdColumn: 'osv.id',
+            param: ':search',
+            sharedTerms: `${ilike('osv.summary', ':search').text} OR EXISTS (
+              SELECT 1 FROM vulnerability_osv_alias a
+              WHERE ${rawIdent('a.vulnerabilityOsvId')} = osv.id AND ${ilike('a.alias', ':search').text}
+            )`,
+          })})`,
         { search: `%${searchQuery}%` },
       );
     }
@@ -2414,9 +2565,16 @@ export class ScaService implements OnModuleInit {
           .filter((id): id is string => !!id),
       ),
     );
+    // An advisory the project imported is read from the project's own row
+    // only; the catalogue is read for the others.
+    const imported = await this.loadProjectImportedAdvisories(
+      projectId,
+      osvIds,
+    );
+    const catalogueIds = osvIds.filter((id) => !imported.has(id));
     const [fixedVersionsMap, cveMap, cybeAnalysed] = await Promise.all([
-      this.loadFixedVersionsByOsv(osvIds),
-      this.loadCveMap(osvIds),
+      this.loadFixedVersionsByOsv(catalogueIds),
+      this.loadCveMap(catalogueIds),
       slim
         ? findCybeAnalysedDetectionIds(
             this.scaVulnDetectRepo,
@@ -2427,18 +2585,35 @@ export class ScaService implements OnModuleInit {
     ]);
 
     const vulnerabilities: VulnerabilitySca[] = detections.map((det) => {
-      // Installed-aware fix: the smallest fixed version strictly above this
-      // detection's installed version (never a downgrade); empty when already
-      // past every listed fix.
+      const osvId = det.vulnerability?.id ?? '';
+      const pkg = packageOfDetection(det);
+      const own = imported.get(osvId);
+      if (own) det.vulnerability = advisoryViewOf(own, pkg);
+      // The fixed versions of this detection's own package only, then the
+      // installed-aware fix: the smallest one strictly above the installed
+      // version (never a downgrade); empty when already past every fix.
+      const fixes = entriesOfPackage(
+        own ? own.fixes : (fixedVersionsMap.get(osvId) ?? []),
+        pkg,
+      ).map((fix) => fix.fixed);
       const fixedAbove = getMinFixedAbove(
-        fixedVersionsMap.get(det.vulnerability?.id ?? '') ?? [],
+        fixes,
         det.scaDetectedPackage?.packageVersion ?? '',
       );
+      const cve = own
+        ? displayedCveOf(
+            osvId,
+            det.vulnerability.aliases.map((a) => a.alias),
+          )
+        : displayedCveOf(
+            osvId,
+            cveMap.has(osvId) ? [cveMap.get(osvId) as string] : [],
+          );
       const item = mapScaDetectionEntityToListInterface(
         det,
         { hasFix: !!fixedAbove, fixedVersion: fixedAbove ?? '' },
         this.cvssExplainer,
-        cveMap.get(det.vulnerability?.id ?? '') ?? '',
+        cve,
       );
       if (cybeAnalysed) item.hasCybeAnalysis = cybeAnalysed.has(det.id);
       return item;
@@ -3164,12 +3339,6 @@ export class ScaService implements OnModuleInit {
         'scaDetectedPackage',
         'scaAutofixRecords',
         'vulnerability',
-        'vulnerability.aliases',
-        'vulnerability.references',
-        'vulnerability.severities',
-        'vulnerability.affected',
-        'vulnerability.affected.ranges',
-        'vulnerability.affected.ranges.events',
       ],
     });
 
@@ -3178,6 +3347,13 @@ export class ScaService implements OnModuleInit {
         code: status.NOT_FOUND,
         message: `Vulnerability detection not found in project`,
       });
+    }
+    if (detection.vulnerability) {
+      detection.vulnerability = await this.loadDetailAdvisory(
+        projectId,
+        detection.vulnerability,
+        packageOfDetection(detection),
+      );
     }
 
     // Dedupe userIds across history items + parallel fetch via
@@ -3318,6 +3494,135 @@ export class ScaService implements OnModuleInit {
       sca: scaResponse,
       isProjectParsed,
     };
+  }
+
+  /**
+   * The advisory of a finding's detail. When the project imported it, the
+   * project's own row and nothing else. Otherwise the catalogue's root with
+   * its collections read by separate, bounded queries (never one join of
+   * every collection): the aliases sorted, the references and severities,
+   * and only the affected rows of the finding's own package (entriesOfPackage)
+   * with their ranges and events.
+   */
+  private async loadDetailAdvisory(
+    projectId: string,
+    root: VulnerabilityOsv,
+    pkg: { packageName: string; ecosystem: string } | null,
+  ): Promise<VulnerabilityOsv> {
+    const own = (
+      await this.loadProjectImportedAdvisories(projectId, [root.id])
+    ).get(root.id);
+    if (own) return advisoryViewOf(own, pkg);
+
+    const manager = this.dataSource.manager;
+    const where = { vulnerability: { id: root.id } };
+    const [aliases, references, severities, affected] = await Promise.all([
+      manager.find(VulnerabilityOsvAlias, {
+        where,
+        order: { alias: 'ASC' },
+        take: SCA_DETAIL_LIMITS.aliases,
+      }),
+      manager.find(VulnerabilityOsvReference, {
+        where,
+        order: { id: 'ASC' },
+        take: SCA_DETAIL_LIMITS.references,
+      }),
+      manager.find(VulnerabilityOsvSeverity, {
+        where,
+        order: { id: 'ASC' },
+        take: SCA_DETAIL_LIMITS.severities,
+      }),
+      this.loadDetailAffected(root.id, pkg),
+    ]);
+    // The CVE the list shows for this advisory (the same rule) leads the
+    // aliases, whatever the bound cut.
+    const listCve = (await this.loadCveMap([root.id])).get(root.id);
+    if (listCve && !aliases.some((a) => a.alias === listCve)) {
+      aliases.unshift(
+        Object.assign(new VulnerabilityOsvAlias(), { id: '', alias: listCve }),
+      );
+    }
+    return Object.assign(root, { aliases, references, severities, affected });
+  }
+
+  /**
+   * The affected rows of a finding's detail, with their ranges and events:
+   * the rows of the finding's own package first (looked up in SQL by its
+   * names, PyPI forms included, so a large advisory never hides them), then
+   * the other packages the advisory names, up to SCA_DETAIL_LIMITS.affected.
+   * When no row names the package and the advisory names one single package,
+   * that package's rows are the finding's (entriesOfPackage).
+   */
+  private async loadDetailAffected(
+    advisoryId: string,
+    pkg: { packageName: string; ecosystem: string } | null,
+  ): Promise<VulnerabilityOsvAffected[]> {
+    const manager = this.dataSource.manager;
+    const limit = SCA_DETAIL_LIMITS.affected;
+    let ownIds: string[] = [];
+    if (pkg?.packageName) {
+      const { lower, pep503 } = packageLookupNames(pkg);
+      const candidates = await manager
+        .createQueryBuilder(VulnerabilityOsvAffected, 'aff')
+        .select(['aff.id', 'aff.ecosystem', 'aff.packageName'])
+        .where('aff.vulnerabilityOsvId = :advisoryId', { advisoryId })
+        .andWhere(
+          new Brackets((names) => {
+            names.where('LOWER(aff.packageName) IN (:...lower)', { lower });
+            if (pep503.length > 0) {
+              names.orWhere(
+                "REPLACE(REPLACE(LOWER(aff.packageName), '_', '-'), '.', '-') IN (:...pep503)",
+                { pep503 },
+              );
+            }
+          }),
+        )
+        .orderBy('aff.id', 'ASC')
+        .take(SCA_DETAIL_LIMITS.affectedScanned)
+        .getMany();
+      ownIds = entriesOfPackage(candidates, pkg)
+        .slice(0, limit)
+        .map((row) => row.id);
+      if (ownIds.length === 0) {
+        const distinct = await manager
+          .createQueryBuilder(VulnerabilityOsvAffected, 'aff')
+          .select('COUNT(DISTINCT LOWER(aff.packageName))', 'names')
+          .where('aff.vulnerabilityOsvId = :advisoryId', { advisoryId })
+          .getRawOne<{ names: string | number }>();
+        if (Number(distinct?.names ?? 0) === 1) {
+          ownIds = (
+            await manager.find(VulnerabilityOsvAffected, {
+              where: { vulnerability: { id: advisoryId } },
+              select: { id: true },
+              order: { id: 'ASC' },
+              take: limit,
+            })
+          ).map((row) => row.id);
+        }
+      }
+    }
+    const others =
+      ownIds.length < limit
+        ? await manager
+            .createQueryBuilder(VulnerabilityOsvAffected, 'aff')
+            .select(['aff.id'])
+            .where('aff.vulnerabilityOsvId = :advisoryId', { advisoryId })
+            .andWhere(
+              ownIds.length > 0 ? 'aff.id NOT IN (:...ownIds)' : '1 = 1',
+              { ownIds },
+            )
+            .orderBy('aff.id', 'ASC')
+            .take(limit - ownIds.length)
+            .getMany()
+        : [];
+    const ids = [...ownIds, ...others.map((row) => row.id)];
+    if (ids.length === 0) return [];
+    const rows = await manager.find(VulnerabilityOsvAffected, {
+      where: { id: In(ids) },
+      relations: { ranges: { events: true } },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids.map((id) => byId.get(id)).filter(Boolean);
   }
 
   /**

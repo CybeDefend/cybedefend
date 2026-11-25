@@ -5,10 +5,9 @@ import { Entity, Index, ManyToOne, Column } from 'typeorm';
 import { UuidPrimaryColumn } from '@cybedefend/db-dialect';
 
 @Entity('users_organizations_members')
-// Composite index for membership lookups by (organizationId, userId).
-// The PK is on the synthetic `id`; only single-column FK indexes exist on
-// organizationId / userId, so this composite is NOT redundant.
-@Index('IDX_uom_org_user', ['organization', 'user'])
+// One membership row per (organizationId, userId), and the index of the
+// membership lookups by that pair. The PK is on the synthetic `id`.
+@Index('UQ_uom_org_user', ['organization', 'user'], { unique: true })
 export class UserOrganizationMembership {
   @UuidPrimaryColumn()
   id: string;

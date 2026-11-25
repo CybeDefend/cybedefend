@@ -6,6 +6,7 @@
 La alternativa open source a Snyk: AppSec agéntica y autoalojada, con un escáner de IA que ejecuta tu agente de código.</p>
 
 <p align="center">
+  <a href="https://github.com/CybeDefend/cybedefend/stargazers"><img src="https://img.shields.io/badge/Star%20on%20GitHub-7B5BFF?logo=github&logoColor=white" alt="Star CybeDefend on GitHub"></a>
   <a href="https://github.com/CybeDefend/cybedefend/tags"><img src="https://img.shields.io/github/v/tag/CybeDefend/cybedefend?sort=semver&label=release&color=7B5BFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-7B5BFF" alt="License: AGPL-3.0"></a>
   <a href="https://discord.gg/UPzm4n6SAJ"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -17,7 +18,7 @@ La alternativa open source a Snyk: AppSec agéntica y autoalojada, con un escán
 <p align="center"><a href="README.md">English</a> &bull; <a href="README.fr.md">Français</a> &bull; <a href="README.zh-CN.md">中文</a> &bull; <a href="README.ja.md">日本語</a> &bull; <a href="README.ko.md">한국어</a> &bull; <a href="README.es.md">Español</a> &bull; <a href="README.pt-BR.md">Português</a></p>
 
 > [!NOTE]
-> Lanzamos en Product Hunt el 4 de diciembre de 2026. Ven a hablar con nosotros en [Discord](https://discord.gg/UPzm4n6SAJ).
+> Una estrella es lo que hace que otros desarrolladores descubran este repositorio. Lanzamos en Product Hunt el 4 de diciembre de 2026. Ven a hablar con nosotros en [Discord](https://discord.gg/UPzm4n6SAJ).
 
 **① Una auditoría completa en un comando.**
 Escribe `/cybedefend` en tu agente de código. Los escáneres open source se ejecutan, el escáner de IA busca lo que ellos no pueden ver, y tu agente evalúa cada hallazgo contra tu código. Responde **SHIP**, o **NOT YET** con lo que bloquea y la corrección de cada punto.
@@ -385,6 +386,10 @@ Guarda una copia de seguridad de la clave maestra (`secret-key`) y no la cambies
     </td>
   </tr>
 </table>
+
+<br>
+
+<p align="center">Si la auditoría encontró algo en tu código, una estrella ayuda a otros desarrolladores a encontrar el proyecto.</p>
 
 <br>
 

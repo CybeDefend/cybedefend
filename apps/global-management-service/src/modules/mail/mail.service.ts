@@ -30,6 +30,7 @@ import {
   type SupportContact,
 } from 'src/edition/ports/support-contact.port';
 import { CommunitySupportContact } from 'src/edition/community/support-contact.community';
+import { INVITATION_SUBJECT, inertOrganizationName } from './invitation-text';
 
 interface ConsolidatedSeverity {
   critical: number;
@@ -426,15 +427,18 @@ export class MailService implements OnModuleInit, BeforeApplicationShutdown {
       : cloudInviteUrl(frontendUrl, invite);
 
     const timeUntilExpiration = formatDistanceToNow(new Date(invite.expiresAt));
+    // Chosen freely by the organisation's creator: inert text only, and
+    // never in the subject or the title (see invitation-text.ts).
+    const organizationName = inertOrganizationName(invite.organizationName);
 
     const components = [
       {
         type: 'title',
-        content: `You're invited to join ${invite.organizationName} on CybeDefend! 🥳`,
+        content: `You're invited to join an organization on CybeDefend`,
       },
       {
         type: 'textBlock',
-        content: `Hello! You've been invited to join ${invite.organizationName} as a ${invite.organizationRole}. Please accept the invitation by clicking the link below.`,
+        content: `Hello! You've been invited to join the organization ${organizationName} as a ${invite.organizationRole}. Please accept the invitation by clicking the link below.`,
       },
       {
         type: 'button',
@@ -449,14 +453,14 @@ export class MailService implements OnModuleInit, BeforeApplicationShutdown {
     ];
 
     const html = await this.render('mainTemplate', {
-      title: `Invitation to join ${invite.organizationName} on CybeDefend`,
+      title: INVITATION_SUBJECT,
       components,
     });
 
     const mailOptions = {
       from: this.from(),
       to: invite.email,
-      subject: `Invitation to join ${invite.organizationName} on CybeDefend`,
+      subject: INVITATION_SUBJECT,
       html,
     };
 

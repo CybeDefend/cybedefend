@@ -11,6 +11,10 @@ import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { fetchOtelIngestToken } from './core/logger/otel-token-fetcher';
 import {
+  DATABASE_INSTRUMENTATION_CONFIG,
+  RedactingSpanProcessor,
+} from './core/logger/trace-redaction';
+import {
   SpanProcessor,
   ReadableSpan,
   BatchSpanProcessor,
@@ -132,11 +136,14 @@ class GrpcHealthCheckFilter implements SpanProcessor {
 /**
  * The processor chain every span goes through. The batch processor reads
  * OTEL_BSP_MAX_QUEUE_SIZE and OTEL_BSP_MAX_EXPORT_BATCH_SIZE from the
- * environment (SDK defaults: 2048 and 512).
+ * environment (SDK defaults: 2048 and 512). The first processor scrubs the
+ * values of statements and of errors out of each span.
  */
 export function buildSpanProcessor(exporter: SpanExporter): SpanProcessor {
-  return new RpcExceptionFilterProcessor(
-    new GrpcHealthCheckFilter(new BatchSpanProcessor(exporter)),
+  return new RedactingSpanProcessor(
+    new RpcExceptionFilterProcessor(
+      new GrpcHealthCheckFilter(new BatchSpanProcessor(exporter)),
+    ),
   );
 }
 
@@ -241,7 +248,8 @@ async function createSdk(): Promise<NodeSDK> {
   return new NodeSDK({
     ...sdkOptions(traceExporter),
     instrumentations: [
-      getNodeAutoInstrumentations(),
+      // Statements are recorded with their literals masked, never their values.
+      getNodeAutoInstrumentations(DATABASE_INSTRUMENTATION_CONFIG),
       new PinoInstrumentation({
         logHook: (span, record) => {
           record['service.name'] = serviceName;

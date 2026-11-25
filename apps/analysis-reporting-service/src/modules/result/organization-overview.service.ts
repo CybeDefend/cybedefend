@@ -460,6 +460,7 @@ export class OrganizationOverviewService {
       'sev',
       f.organizationId,
       f.userId,
+      ctx.projectIds,
       f,
       () => this.aggregateSeverityByProjects(ctx),
     );
@@ -481,6 +482,7 @@ export class OrganizationOverviewService {
       'state',
       f.organizationId,
       f.userId,
+      ctx.projectIds,
       f,
       () => this.aggregateStateByProjects(ctx),
     );
@@ -516,6 +518,7 @@ export class OrganizationOverviewService {
       'time',
       f.organizationId,
       f.userId,
+      ctx.projectIds,
       cacheKeyFilter,
       () => this.aggregateVulnerabilitiesOverTime(ctx),
     );

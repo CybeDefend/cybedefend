@@ -49,12 +49,11 @@ const PersonalAccessTokensPage: React.FC = () => {
   const [tokenToDelete, setTokenToDelete] = useState<PersonalAccessTokenView | null>(null);
   const [tokenToRename, setTokenToRename] = useState<PersonalAccessTokenView | null>(null);
 
-  const handleCreate = async (name: string, expiresAt: number) => {
+  const handleCreate = async (name: string, expiresAt: number, currentPassword?: string) => {
     try {
-      const created = await createToken(
-        name,
-        expiresAt > 0 ? new Date(expiresAt).toISOString() : undefined,
-      );
+      const expiry = expiresAt > 0 ? new Date(expiresAt).toISOString() : undefined;
+      // Community: the account's password goes with the creation (the server checks it).
+      const created = isCommunity ? await createToken(name, expiry, currentPassword) : await createToken(name, expiry);
       setNewTokenValue(created.token);
       setShowCreateModal(false);
       setShowDisplayModal(true);
@@ -150,6 +149,7 @@ const PersonalAccessTokensPage: React.FC = () => {
 
       {!isPatDisabled && showCreateModal && (
         <CreatePatModal
+          requirePassword={isCommunity}
           onCreate={handleCreate}
           onClose={() => setShowCreateModal(false)}
         />

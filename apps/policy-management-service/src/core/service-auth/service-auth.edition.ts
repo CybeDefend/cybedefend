@@ -5,11 +5,18 @@
 // from, and the channel options every gRPC server and client of this service
 // is built with. The service's own rules are in ./service-auth.policy.
 //
-// Keys: SERVICE_AUTH_KEY signs this service's own calls. Each caller it
-// serves is verified with SERVICE_AUTH_PEER_KEY_<CALLER> (then
-// <that name>_PREVIOUS during a rotation), read like any secret, else from
-// the file of that name in SERVICE_AUTH_PEER_KEYS_DIR. A server is handed
-// only the keys of the callers its policy names. SERVICE_AUTH_LEGACY_KEY, the
+// Keys: a call to a server signs with SERVICE_AUTH_KEY_FOR_<SERVER>, the key
+// of the pair (this service, that server), else with SERVICE_AUTH_KEY, a
+// single key for all of this service's calls (in the Community Edition, the
+// earlier layout: reported once per process). Each caller it serves is
+// verified with SERVICE_AUTH_PEER_KEY_<CALLER> (then <that name>_PREVIOUS
+// during a rotation). Each is read like any secret, else from the file of
+// that name in SERVICE_AUTH_PEER_KEYS_DIR (SERVICE_AUTH_KEY from
+// SERVICE_AUTH_KEY_FILE). With one key per pair, a server holds the keys of
+// the pairs it serves only, so it cannot sign as one of its callers to
+// another server. A server is handed only the keys of the callers its policy
+// names. In the Community Edition, a service that holds the master key
+// derives the key of each pair from it instead. SERVICE_AUTH_LEGACY_KEY, the
 // former key shared by every service, is only recognised (and reported)
 // while a deployment moves to per-caller keys. Outside the Community Edition,
 // registered credentials replace all of these keys on every call.
@@ -34,6 +41,8 @@ import {
   isServiceAuthCallerName,
   mergeServiceAuthRules,
   serviceAuthPeerKeyName,
+  serviceAuthServerKeyName,
+  serviceAuthServerOf,
 } from './service-auth';
 import { SERVICE_AUTH_POLICY } from './service-auth.policy';
 import {
@@ -57,9 +66,12 @@ let registeredCredentials: ServiceAuthCredentials | null = null;
 let registeredScannerCredentials: ScannerCredentials | null = null;
 const derived = new Map<string, { raw: string; key: string }>();
 
-/** The HKDF info of a caller's key in the Community Edition. */
-export function serviceAuthCommunityInfo(caller: string): string {
-  return `${SERVICE_AUTH_COMMUNITY_INFO}/${caller}`;
+/** The HKDF info of the key of a (caller, server) pair in the Community Edition. */
+export function serviceAuthCommunityPairInfo(
+  caller: string,
+  server: string,
+): string {
+  return `${SERVICE_AUTH_COMMUNITY_INFO}/${caller}/${server}`;
 }
 
 /**
@@ -180,20 +192,40 @@ function lookupPeer(name: string): string | undefined {
   return existsSync(file) ? readKeyFile(file) : undefined;
 }
 
-function communityKey(caller: string): string | undefined {
+let singleKeyReported = false;
+
+/** Lets the next use of the single key be reported again (tests). */
+export function resetServiceAuthSingleKeyWarning(): void {
+  singleKeyReported = false;
+}
+
+/**
+ * The Community Edition hands out one key per (caller, server) pair. A single
+ * SERVICE_AUTH_KEY there means the deploy files predate the images: every
+ * server this service calls then holds the key that signs all its calls. Said
+ * once per process, with no key material.
+ */
+function reportSingleKeyLayout(): void {
+  if (!isCommunity() || singleKeyReported) return;
+  singleKeyReported = true;
+  logger().warn(
+    `S2S_AUTH_SINGLE_KEY caller=${SERVICE_AUTH_POLICY.caller}: the internal gRPC keys are the earlier single-key layout, one key for all of this service's calls, held by every server it calls. Take docker-compose.yml and its runtime/ folder from the same release as the images.`,
+  );
+}
+
+/** The key of a (caller, server) pair, derived from the master key when this process holds it. */
+function communityKey(caller: string, server: string): string | undefined {
   let raw = process.env[MASTER_KEY_VARIABLE];
   if (raw === undefined || raw === '') {
     const file = process.env[`${MASTER_KEY_VARIABLE}_FILE`];
     if (file === undefined || file === '') return undefined;
     raw = readFileSync(file, 'utf8').replace(/\s+$/, '');
   }
-  const cached = derived.get(caller);
+  const info = serviceAuthCommunityPairInfo(caller, server);
+  const cached = derived.get(info);
   if (cached !== undefined && cached.raw === raw) return cached.key;
-  const key = deriveKey(
-    decodeMasterKey(raw),
-    serviceAuthCommunityInfo(caller),
-  ).toString('hex');
-  derived.set(caller, { raw, key });
+  const key = deriveKey(decodeMasterKey(raw), info).toString('hex');
+  derived.set(info, { raw, key });
   return key;
 }
 
@@ -202,23 +234,48 @@ const usable = (keys: (string | undefined)[]): string[] =>
     (k): k is string => k !== undefined && k.length >= MIN_KEY_LENGTH,
   );
 
-/** The key this service signs its calls with; undefined when none is configured. */
-export function resolveServiceAuthSigningKey(): string | undefined {
+/** The key this service signs its calls to `server` with (undefined: a server of no known name). */
+function signingKeyFor(server: string | undefined): string | undefined {
+  const own = SERVICE_AUTH_POLICY.caller;
+  const pairKey =
+    server === undefined
+      ? undefined
+      : lookupPeer(serviceAuthServerKeyName(server));
+  if (pairKey !== undefined) return usable([pairKey])[0];
+  const configured = lookup(SERVICE_AUTH_KEY_NAME);
+  if (configured !== undefined) {
+    const singleKey = usable([configured])[0];
+    if (singleKey !== undefined) reportSingleKeyLayout();
+    return singleKey;
+  }
   return usable([
-    lookup(SERVICE_AUTH_KEY_NAME) ??
-      (isCommunity() ? communityKey(SERVICE_AUTH_POLICY.caller) : undefined),
+    isCommunity() && server !== undefined
+      ? communityKey(own, server)
+      : undefined,
   ])[0];
+}
+
+/**
+ * The key this service signs a call to the method `path` with: the key of the
+ * pair (this service, the server of that method), else its single key;
+ * undefined when none is configured.
+ */
+export function resolveServiceAuthSigningKey(
+  path?: string,
+): string | undefined {
+  return signingKeyFor(
+    path === undefined ? undefined : serviceAuthServerOf(path),
+  );
 }
 
 /** The keys that verify a caller, its current one first; empty when this service holds none. */
 export function resolveServiceAuthCallerKeys(caller: string): string[] {
   if (!isServiceAuthCallerName(caller)) return [];
-  if (caller === SERVICE_AUTH_POLICY.caller) {
-    return usable([resolveServiceAuthSigningKey()]);
-  }
+  const own = SERVICE_AUTH_POLICY.caller;
+  if (caller === own) return usable([signingKeyFor(own)]);
   const name = serviceAuthPeerKeyName(caller);
   return usable([
-    lookupPeer(name) ?? (isCommunity() ? communityKey(caller) : undefined),
+    lookupPeer(name) ?? (isCommunity() ? communityKey(caller, own) : undefined),
     lookupPeer(`${name}_PREVIOUS`),
   ]);
 }
@@ -261,6 +318,17 @@ export function serviceAuthServerChannelOptions(): {
 export function serviceAuthClientChannelOptions(): {
   interceptors: Interceptor[];
 } {
+  // Said at start, not at the first call: a single key handed to this
+  // service is the earlier layout (see reportSingleKeyLayout).
+  if (isCommunity()) {
+    try {
+      if (usable([lookup(SERVICE_AUTH_KEY_NAME)]).length > 0) {
+        reportSingleKeyLayout();
+      }
+    } catch {
+      // An unreadable key file is reported by the call that needs it.
+    }
+  }
   return {
     interceptors: [
       createServiceAuthClientInterceptor({

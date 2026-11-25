@@ -4,6 +4,7 @@ import { ACTIVE_EXTENSIONS } from '@/edition/active';
 import type { EeProductId } from '@/edition/ee-entry';
 import type { ProductSpace } from '@/edition/extensions';
 import { shortDigest } from './shortDigest';
+import { registerLinkRoots } from './linkRoots';
 
 /**
  * The single owner of « which product is this ».
@@ -37,6 +38,9 @@ const APPSEC_SPACE: ProductSpace = {
 export const PRODUCT_SPACES: readonly ProductSpace[] = [...ACTIVE_EXTENSIONS.products, APPSEC_SPACE].sort(
   (a, b) => a.order - b.order,
 );
+
+// The Markdown link filter accepts the pages of these spaces.
+registerLinkRoots(PRODUCT_SPACES.map((space) => space.prefix));
 
 /** The product ids, in display order (the order of the switch). */
 export const PRODUCTS: readonly Product[] = PRODUCT_SPACES.map((space) => space.id as Product);

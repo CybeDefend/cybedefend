@@ -2,6 +2,7 @@ import * as path from 'path';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
 import { shouldExcludeFile } from '../core/data/filter-patterns';
+import { isScannerConfigurationFile } from './scanner-config-files';
 
 export interface DiffArchiveCaps {
   maxFiles: number;
@@ -91,6 +92,9 @@ export function validateDiffZipEntries(
     // checks so they never count toward the per-file / aggregate caps.
     const normalized = path.posix.normalize(rawPath.replaceAll('\\', '/'));
     if (shouldExcludeFile(normalized)) continue;
+    // A scanner's own configuration is never forwarded (see
+    // SCANNER_CONFIGURATION_FILES): it is not scanned and counts toward no cap.
+    if (isScannerConfigurationFile(normalized)) continue;
     const size = entry.size ?? 0;
     if (size > caps.maxFileBytes) {
       invalid(

@@ -16,7 +16,6 @@ import {
   checkImportFile,
   checkImportSbom,
 } from '../scan/import/import-request';
-import { IMPORT_BUSY_RETRY_AFTER_S } from '../scan/import/scan-import.controller';
 import { ScanImportService } from '../scan/import/scan-import.service';
 import { clusterScanRefusal, grpcStatusName } from './scan-run-errors';
 import { ScanRunThrottleGuard } from './scan-run-throttle.guard';
@@ -89,22 +88,25 @@ export class ScanRunController {
     // Set by ScanUploadTokenGuard, which refuses every request it cannot set it for.
     const run = req.scanRun as ScanRunContext;
 
-    if (!this.importService.tryAcquireSlot()) {
-      reply.header('Retry-After', String(IMPORT_BUSY_RETRY_AFTER_S));
-      throw importRefusal('IMPORT_BUSY');
-    }
-    try {
-      return await this.store(run, req);
-    } finally {
-      this.importService.releaseSlot();
-    }
+    // Same order as the results import (ScanImportService.runUpload): the
+    // organization's share, a read place held until the answer, the body
+    // within its deadline, then a slot. The share is the token's
+    // organization: an organization may run several scans at once, while the
+    // containers of one scan are a small set fixed by the server. A refused
+    // pod waits as Retry-After says and tries again.
+    return this.importService.runUpload(
+      run.organizationId || `scan:${run.scanId}`,
+      req,
+      reply,
+      () => this.readFiles(req),
+      (files) => this.store(run, files),
+    );
   }
 
   private async store(
     run: ScanRunContext,
-    req: ScanRunRequest,
+    { file, sbom }: { file: ScanRunFile; sbom?: ScanRunFile },
   ): Promise<{ accepted: true }> {
-    const { file, sbom } = await this.readFiles(req);
     // Every refusal of the request comes before anything is stored.
     if (
       sbom &&

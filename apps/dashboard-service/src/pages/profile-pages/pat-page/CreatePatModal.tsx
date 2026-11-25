@@ -7,12 +7,19 @@ import Select from '../../../components/atoms/select/Select';
 
 interface CreatePatModalProps {
   onClose: () => void;
-  onCreate: (name: string, expiresAt: number) => void;
+  /** `currentPassword` is set only when {@link CreatePatModalProps.requirePassword} is. */
+  onCreate: (name: string, expiresAt: number, currentPassword?: string) => void;
+  /**
+   * Asks for the account's password (Community Edition): a token outlives
+   * every session, so the server will not create one without it.
+   */
+  requirePassword?: boolean;
 }
 
-const CreatePatModal: React.FC<CreatePatModalProps> = ({ onClose, onCreate }) => {
+const CreatePatModal: React.FC<CreatePatModalProps> = ({ onClose, onCreate, requirePassword = false }) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [expirationDuration, setExpirationDuration] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const selectDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -37,11 +44,14 @@ const CreatePatModal: React.FC<CreatePatModalProps> = ({ onClose, onCreate }) =>
     if (!name.trim()) {
       newErrors.name = t('components.modal.createPat.errors.nameRequired');
     }
+    if (requirePassword && currentPassword === '') {
+      newErrors.currentPassword = t('components.modal.createPat.errors.passwordRequired');
+    }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-    onCreate(name.trim(), computeExpiresAt(expirationDuration));
+    onCreate(name.trim(), computeExpiresAt(expirationDuration), requirePassword ? currentPassword : undefined);
   };
 
   return (
@@ -76,6 +86,17 @@ const CreatePatModal: React.FC<CreatePatModalProps> = ({ onClose, onCreate }) =>
           onChange={setExpirationDuration}
           placeholder={t('components.modal.createPat.selectExpiration')}
         />
+        {requirePassword && (
+          <Input
+            type="password"
+            autoComplete="current-password"
+            label={t('components.modal.createPat.passwordLabel')}
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            hint={t('components.modal.createPat.passwordHint')}
+            error={errors.currentPassword}
+          />
+        )}
       </div>
     </Modal>
   );

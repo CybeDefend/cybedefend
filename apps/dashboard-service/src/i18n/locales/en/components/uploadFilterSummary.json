@@ -1,0 +1,19 @@
+{
+  "components": {
+    "uploadFilterSummary": {
+      "headline_one": "{{count}} file of the upload was not scanned.",
+      "headline_other": "{{count}} files of the upload were not scanned.",
+      "excludedPath_one": "{{count}} in excluded folders (dependencies, build output, caches) or with an excluded name (logs, bundled libraries).",
+      "excludedPath_other": "{{count}} in excluded folders (dependencies, build output, caches) or with an excluded name (logs, bundled libraries).",
+      "foldersLabel": "Excluded folders:",
+      "moreFolders_one": "and {{count}} more",
+      "moreFolders_other": "and {{count}} more",
+      "excludedType_one": "{{count}} of a file type no scanner reads (binaries, media, documentation outside the root).",
+      "excludedType_other": "{{count}} of a file type no scanner reads (binaries, media, documentation outside the root).",
+      "scannerConfiguration_one": "{{count}} scanner configuration file not used: a file of the repository cannot change what the scanners detect.",
+      "scannerConfiguration_other": "{{count}} scanner configuration files not used: a file of the repository cannot change what the scanners detect.",
+      "unsafeName_one": "{{count}} file with an unsafe name (an absolute path, or one that leaves the archive).",
+      "unsafeName_other": "{{count}} files with an unsafe name (an absolute path, or one that leaves the archive)."
+    }
+  }
+}

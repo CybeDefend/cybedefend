@@ -196,13 +196,12 @@ export class PdfGeneratorService implements OnModuleDestroy {
       this.logger.log('PDF generation completed successfully');
       return Buffer.from(pdfBuffer);
     } catch (error) {
-      this.logger.error(
-        `Failed to generate PDF: ${error.message}`,
-        error.stack,
-      );
+      // The cause is logged through the serializer; the caller gets a stable
+      // message (a browser error can quote the page or its URL).
+      this.logger.error({ err: error, msg: 'Failed to generate PDF' });
       throw new RpcException({
         code: status.INTERNAL,
-        message: `PDF generation failed: ${error.message}`,
+        message: 'PDF generation failed',
       });
     } finally {
       // Always close the browser first

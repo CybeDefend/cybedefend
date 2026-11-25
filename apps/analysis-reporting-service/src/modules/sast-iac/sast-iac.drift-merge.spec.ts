@@ -276,26 +276,38 @@ describe('a finding whose code moved merges instead of duplicating', () => {
     expect(existing.firstDetectedAt).toEqual(new Date('2026-02-05T12:59:44Z'));
   });
 
-  it('preserves a human dismissal across the merge', async () => {
-    // The decision was taken on THIS finding. Moving three lines down does not
-    // un-take it — and silently reopening it would flood a triaged backlog.
-    const existing = drifted({
-      currentState: 'ignored',
-      stateManuallyModified: true,
-      dismissalReason: 'accepted risk, internal runner',
-    });
-    armRepo(repos.cicd, existing);
+  it.each(['sast', 'iac', 'cicd'])(
+    'never hands a dismissed row to another occurrence of its code (%s)',
+    async (family) => {
+      // The same code at another line may be a NEW occurrence placed above the
+      // dismissed one (it takes the dismissed row's rank, hence its digest).
+      // The dismissal belongs to the row it was taken on: the incoming
+      // occurrence is created as a finding of its own, open, with an
+      // identity other than the digest the dismissed row holds. A real move is paired by the
+      // finalization, which keeps the dismissed row.
+      const existing = drifted({
+        currentState: 'ignored',
+        stateManuallyModified: true,
+        triagedByType: 'user',
+        triagedBy: 'u-manager',
+        dismissalReason: 'accepted risk, internal runner',
+      });
+      armRepo(repos[family], existing);
 
-    await run('cicd');
+      await run(family);
 
-    // Same guard as above: prove the row WAS the merge target before asserting
-    // that the merge left the decision alone.
-    expect(existing.vulnerableStartLine).toBe(41);
-    expect(insertedRows(repos.cicd)).toHaveLength(0);
-
-    expect(existing.currentState).toBe('ignored');
-    expect(existing.dismissalReason).toBe('accepted risk, internal runner');
-  });
+      expect(existing.vulnerableStartLine).toBe(38);
+      expect(existing.currentState).toBe('ignored');
+      expect(existing.dismissalReason).toBe('accepted risk, internal runner');
+      const inserted = insertedRows(repos[family]);
+      expect(inserted).toHaveLength(1);
+      expect(inserted[0].currentState).toBe('to_verify');
+      expect(inserted[0].vulnerableStartLine).toBe(41);
+      // An identity of its own, never the one the dismissed row holds.
+      expect(inserted[0].fingerprint).toEqual(expect.any(String));
+      expect(inserted[0].fingerprint).not.toBe(existing.fingerprint);
+    },
+  );
 
   // The allocator returns null when a batch could not be ranked. No index means
   // no derivable digest, so there is nothing to match on: the safe answer is the

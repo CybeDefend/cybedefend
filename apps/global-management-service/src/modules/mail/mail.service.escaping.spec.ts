@@ -86,8 +86,9 @@ describe('transactional mail bodies escape attacker-controlled values', () => {
     // the substring "evil.example" does — harmlessly — occur there too.
     expect(html).not.toMatch(/<a[^>]*href="https:\/\/evil\.example/i);
     expect(html).not.toContain('sign in again</a>');
-    // …and the payload is still delivered whole, visibly inert.
-    expect(html).toContain('Acme&lt;/p&gt;&lt;p&gt;&lt;a href');
+    // …and the payload is still delivered, escaped and visibly inert (a
+    // zero-width space follows each `/`, see invitation-text.ts).
+    expect(html).toContain('Acme&lt;/​p&gt;&lt;p&gt;&lt;a href');
   });
 
   it('invitation: the role is escaped too', async () => {
@@ -98,11 +99,12 @@ describe('transactional mail bodies escape attacker-controlled values', () => {
     expect(html).toContain('&lt;img');
   });
 
-  it('invitation: the <h1> title stays escaped as well', async () => {
+  it('invitation: the <h1> title carries no part of the name', async () => {
     const { html } = await invite(ORG_PAYLOAD);
     const title = html.slice(html.indexOf('<h1'), html.indexOf('</h1>'));
 
-    expect(title).toContain('&lt;a href');
+    expect(title).not.toContain('Acme');
+    expect(title).not.toContain('href');
     expect(title).not.toMatch(/<a\b/i);
   });
 

@@ -74,6 +74,10 @@ message TeamAddMemberResponse {
 message TeamRemoveUserRequest {
   string teamId = 1;
   string userId = 2;
+  // The user asking for the removal (the gateway's token subject): a team
+  // manager is removed only by the organization's creator or an
+  // administrator.
+  string removedBy = 3;
 }
 
 message TeamRemoveUserResponse {
@@ -84,6 +88,10 @@ message UpdateTeamRoleRequest {
   string teamId = 1;
   string userId = 2;
   string role   = 3;
+  // The user asking for the change (the gateway's token subject): a team
+  // manager's role is changed only by the organization's creator or an
+  // administrator.
+  string updatedBy = 4;
 }
 
 message UpdateTeamRoleResponse {

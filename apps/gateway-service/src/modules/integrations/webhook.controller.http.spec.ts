@@ -22,6 +22,7 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import { gatewayAdapterOptions } from 'src/core/http/body-limit';
 import { GithubService } from './github/github.service';
 import { GitlabService } from './gitlab/gitlab.service';
 import { JiraService } from './jira/jira.service';
@@ -65,9 +66,9 @@ async function createWebhookApp(services: {
     ],
   }).compile();
 
-  // The gateway's own limit, as set in main.ts, so the per-route cap is
-  // what refuses an oversize webhook body.
-  const adapter = new FastifyAdapter({ bodyLimit: 50 * 1024 * 1024 });
+  // The gateway's own adapter options, as main.ts sets them, so the
+  // per-route cap is what decides on a webhook body.
+  const adapter = new FastifyAdapter(gatewayAdapterOptions({}));
   registerWebhookBodyCap(adapter.getInstance());
   const app = moduleRef.createNestApplication<NestFastifyApplication>(adapter, {
     rawBody: true,

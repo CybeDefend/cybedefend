@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { columnType, UuidPrimaryColumn } from '@cybedefend/db-dialect';
 import { Container } from './container.entity';
+import type { UploadFilterSummary } from '@grpc/security-scanning/scan';
 
 @Entity()
 @Index('IDX_scan_projectId_state', ['projectId', 'state'])
@@ -137,6 +138,19 @@ export class Scan {
   // Null until then, and on rows older than this column.
   @Column({ type: 'timestamp', nullable: true })
   resultsFinalizedAt?: Date | null;
+
+  // What the upload filter left out of the archive the scanners read
+  // (counts by reason, at most 20 excluded folders), bounded when stored.
+  // Null on a scan with no upload and on rows older than this column.
+  // Written only by its own targeted UPDATE (ScanService.startScan): left
+  // out of the update set, so a save() of a copy of the scan loaded before
+  // that write never puts null back over it.
+  @Column({
+    type: columnType('json') as ColumnType,
+    nullable: true,
+    update: false,
+  })
+  uploadFilterSummary?: UploadFilterSummary | null;
 
   // The highest progress already served for the scan, shared by every pod so
   // it never goes down.

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import { ident, run, sql } from '@cybedefend/db-dialect';
 import { newOpaqueToken, tokenHash } from './token-hash';
 
@@ -42,7 +42,10 @@ const dateOrNull = (v: unknown): Date | null =>
  * the winner, and `run`'s `affected` counts the rows matched on both engines.
  * Concurrent rotations serialize on the row lock and the losers' UPDATE
  * re-evaluates its WHERE after the winner's commit, so it matches 0 rows on
- * MySQL's REPEATABLE READ and PostgreSQL's READ COMMITTED alike. A reuse 20 s
+ * MySQL's REPEATABLE READ and PostgreSQL's READ COMMITTED alike. The
+ * rotation first takes a shared lock on the user's `local_credential` row,
+ * which a password reset or change holds exclusively, so no replacement token
+ * slips past the revocation of a password write. A reuse 20 s
  * or more after the rotation revokes the whole family; `reused` is internal
  * (it drives the log line), the wire answers REFRESH_INVALID like `invalid`.
  */
@@ -79,6 +82,15 @@ export class RefreshTokenStore {
     const newToken = newOpaqueToken();
     const newId = randomUUID();
     const claimed = await this.dataSource.transaction(async (manager) => {
+      // Ordered against a password write: a reset or change holds this row
+      // exclusively for its whole transaction. Either the rotation waits and
+      // its claim then finds the token revoked, or the password write waits
+      // and its revocation sees the replacement inserted here.
+      await run(
+        manager,
+        sql`SELECT ${c('user_id')} FROM ${ident('local_credential')}
+          WHERE ${c('user_id')} = ${row.userId} FOR SHARE`,
+      );
       const { affected } = await run(
         manager,
         sql`UPDATE ${TABLE} SET ${c('rotated_at')} = ${now}, ${c('replaced_by')} = ${newId}
@@ -139,10 +151,18 @@ export class RefreshTokenStore {
     );
   }
 
-  /** After a password reset or change: revokes every family of the user. */
-  async revokeAllOfUser(userId: string, now: Date): Promise<void> {
+  /**
+   * After a password reset or change: revokes every family of the user. With
+   * `manager`, inside the caller's transaction (the one that writes the new
+   * password), so the password and the sign-out commit together.
+   */
+  async revokeAllOfUser(
+    userId: string,
+    now: Date,
+    manager?: EntityManager,
+  ): Promise<void> {
     await run(
-      this.dataSource,
+      manager ?? this.dataSource,
       sql`UPDATE ${TABLE} SET ${c('revoked_at')} = ${now}
         WHERE ${c('user_id')} = ${userId} AND ${c('revoked_at')} IS NULL`,
     );

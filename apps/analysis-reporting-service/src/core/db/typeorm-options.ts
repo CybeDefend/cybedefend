@@ -82,7 +82,7 @@ const MIGRATIONS_GLOB = `${ROOT}/core/migrations/*{.ts,.js}`;
 const CLI_ENTITIES_GLOB = join(ROOT, '**/*.entity.{ts,js}');
 const CLI_MIGRATIONS_GLOB = join(ROOT, 'core/migrations/*.{ts,js}');
 /**
- * The live helper's default entities: the 32 core entity files of
+ * The live helper's default entities: the 33 core entity files of
  * src/entities/ (never src/ee/, never a spec file next to them).
  */
 export const LIVE_ENTITIES_GLOB = `${ROOT}/entities/**/*.entity{.ts,.js}`;

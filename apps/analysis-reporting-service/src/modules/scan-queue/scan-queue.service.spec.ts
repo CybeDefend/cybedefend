@@ -10,12 +10,33 @@ describe('ScanQueueService – report and batch-update jobs', () => {
   let reportsQueue: { add: jest.Mock; client: Promise<unknown> };
   let aggregatedReportsQueue: { add: jest.Mock; client: Promise<unknown> };
   let vulnBatchUpdateQueue: { add: jest.Mock; client: Promise<unknown> };
-  let resultsImportQueue: { add: jest.Mock; client: Promise<unknown> };
+  let resultsImportQueue: {
+    add: jest.Mock;
+    getJob: jest.Mock;
+    toKey: (part: string) => string;
+    keys: Record<string, string>;
+    client: Promise<unknown>;
+  };
 
   beforeEach(async () => {
     resultsImportQueue = {
       add: jest.fn().mockResolvedValue({ id: 'results-import-scan-9' }),
-      client: Promise.resolve({ duplicate: () => ({}) }),
+      // An empty queue: no job yet; the first turn is 1 (the fairness and
+      // the cap themselves are proven on a real Redis by the live spec).
+      getJob: jest.fn().mockResolvedValue(undefined),
+      toKey: (part: string) => `bull:results-import:${part}`,
+      keys: {
+        prioritized: 'p',
+        wait: 'w',
+        delayed: 'd',
+        paused: 'z',
+      },
+      client: Promise.resolve({
+        duplicate: () => ({}),
+        eval: jest.fn().mockResolvedValue(1),
+        zadd: jest.fn().mockResolvedValue(0),
+        zrem: jest.fn().mockResolvedValue(0),
+      }),
     };
     reportsQueue = {
       add: jest.fn().mockResolvedValue({ id: 'report-rep-1' }),

@@ -1,4 +1,5 @@
 import {
+  DeleteFileResponse,
   UploadFileRequest,
   UploadFileResponse,
 } from '@grpc/file-management/file';
@@ -80,6 +81,16 @@ export class ScanService implements OnModuleInit {
   @Span()
   processUploadFile(data: UploadFileRequest): Promise<UploadFileResponse> {
     return safeGrpcCall(this.fileServiceClient.uploadFile(data));
+  }
+
+  /**
+   * Remove the upload registered for a scan that was never created (its
+   * pending record and any object already sent), so the upload processor
+   * stops waiting for it.
+   */
+  @Span()
+  discardPendingUpload(scanId: string): Promise<DeleteFileResponse> {
+    return safeGrpcCall(this.fileServiceClient.deleteFile({ scanId }));
   }
 
   /**

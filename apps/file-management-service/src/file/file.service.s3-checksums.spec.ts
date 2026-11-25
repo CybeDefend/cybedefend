@@ -8,6 +8,12 @@ import { Logger } from 'nestjs-pino';
 import { FileService } from './file.service';
 import { FileScan } from 'src/entities/file.entity';
 import { createLoggerMock, createMockRepository } from 'src/test-utils/mocks';
+
+/** The repository mock, with no pending upload counted for any project. */
+const fileScanRepository = () => ({
+  ...createMockRepository<FileScan>(),
+  count: jest.fn().mockResolvedValue(0),
+});
 import SecretsService from 'src/core/secrets/secrets.service';
 
 // Since @aws-sdk/client-s3 3.729 a client computes a CRC32 for every request
@@ -49,7 +55,7 @@ async function makeService(
       FileService,
       {
         provide: getRepositoryToken(FileScan),
-        useValue: createMockRepository<FileScan>(),
+        useValue: fileScanRepository(),
       },
       { provide: 'SECURITY_SCANNING_SERVICE', useValue: mockScanClient },
       { provide: ConfigService, useValue: config },

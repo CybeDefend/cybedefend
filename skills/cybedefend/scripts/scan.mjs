@@ -34,6 +34,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { SCANNED, envValue, launcher, runFile, which } from './os.mjs';
+import { insideRoot, runGit, trustedRoot, TreeRefused } from './trust.mjs';
 import { toolArea } from './watch.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -201,13 +202,17 @@ const node = (args, opts = {}) => spawnSync(process.execPath, args, { encoding: 
 
 /** The files git sees: tracked and new ones, never the ignored ones, as the instance scans an uploaded archive. */
 function gitFiles(repo) {
-  const r = spawnSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...SCANNED], { cwd: repo, maxBuffer: 256 * 1024 * 1024, windowsHide: true });
-  if (r.status !== 0) throw new Exit(3, `scan.mjs: git could not list the files of ${repo}.`);
-  return [...new Set(r.stdout.toString('utf8').split('\0').filter(Boolean))];
+  let listed;
+  try {
+    listed = runGit(['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...SCANNED], { cwd: repo, maxBuffer: 256 * 1024 * 1024 });
+  } catch {
+    throw new Exit(3, `scan.mjs: git could not list the files of ${repo}.`);
+  }
+  return [...new Set(listed.toString('utf8').split('\0').filter(Boolean))];
 }
 
 /** The copy the tools read: each file git sees, as it is in the working tree. */
-function stageFiles(repo, files, stage) {
+export function stageFiles(repo, files, stage) {
   for (const rel of files) {
     const from = join(repo, rel);
     const to = join(stage, rel);
@@ -220,6 +225,8 @@ function stageFiles(repo, files, stage) {
     mkdirSync(dirname(to), { recursive: true });
     try {
       if (st.isSymbolicLink()) {
+        // A link that leaves the repository (a key in the user's home, a system file) is not the repository's: left out.
+        if (!insideRoot(repo, rel)) continue;
         try {
           symlinkSync(readlinkSync(from), to);
         } catch {
@@ -312,9 +319,14 @@ async function main(argv) {
   const fetchedRules = join(appsecHome, 'scanners', 'rules', 'opengrep');
   const rulesDir = env.OPENGREP_RULES || (existsSync(fetchedRules) ? fetchedRules : '');
 
-  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
-  if (top.status !== 0 || !top.stdout.trim()) throw new Exit(3, 'scan.mjs: not inside a git repository. Run it from the repository to scan.');
-  const repo = resolve(top.stdout.trim());
+  // The repository, with its .cybedefend tree checked before the scan clears, writes or reads anything there (trust.mjs).
+  let repo;
+  try {
+    repo = trustedRoot();
+  } catch (e) {
+    if (e instanceof TreeRefused) throw new Exit(3, `scan.mjs: ${e.message}`);
+    throw new Exit(3, 'scan.mjs: not inside a git repository. Run it from the repository to scan.');
+  }
   if (!existsSync(lock)) throw new Exit(3, `scan.mjs: no registry at ${lock}`);
 
   const dockerOk = mode !== 'local' && which('docker') !== null && runFile('docker', ['info'], { timeout: 30_000, stdio: ['ignore', 'ignore', 'ignore'] }).status === 0;

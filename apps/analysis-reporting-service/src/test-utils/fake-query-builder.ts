@@ -224,6 +224,8 @@ export class FakeQueryBuilder {
 
 export class FakeRepository {
   readonly builders: FakeQueryBuilder[] = [];
+  /** The entity manager the advisory reads use: no imported advisory. */
+  readonly manager = { find: async (): Promise<Row[]> => [] };
   constructor(private readonly rows: () => Row[]) {}
   createQueryBuilder(alias: string): FakeQueryBuilder {
     const qb = new FakeQueryBuilder(alias, () => structuredClone(this.rows()));

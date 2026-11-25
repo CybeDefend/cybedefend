@@ -86,7 +86,11 @@ describe('AuthGuard', () => {
 
   it('accepts valid JWT', async () => {
     const { guard, sign } = await makeGuard();
-    const token = await sign({ cybeid: 'u1', email: 'test@example.com' });
+    const expiresAt = Math.floor(Date.now() / 1000) + 600;
+    const token = await sign(
+      { cybeid: 'u1', email: 'test@example.com' },
+      { expiresAt },
+    );
     const ctx = makeCtx({ authorization: `Bearer ${token}` });
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
     const req = (ctx.switchToHttp() as any).getRequest();
@@ -96,7 +100,17 @@ describe('AuthGuard', () => {
       name: undefined,
       picture: undefined,
       via: 'jwt',
+      exp: expiresAt,
     });
+  });
+
+  it('puts the expiry of the JWT on the request, for the streams it opens', async () => {
+    const { guard, sign } = await makeGuard();
+    const expiresAt = Math.floor(Date.now() / 1000) + 120;
+    const token = await sign({ cybeid: 'u1' }, { expiresAt });
+    const ctx = makeCtx({ authorization: `Bearer ${token}` });
+    await guard.canActivate(ctx);
+    expect((ctx.switchToHttp() as any).getRequest().user.exp).toBe(expiresAt);
   });
 
   it('rejects expired JWT', async () => {

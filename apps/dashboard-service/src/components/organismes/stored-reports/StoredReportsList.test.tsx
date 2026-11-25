@@ -58,6 +58,14 @@ const item = (over: Partial<any> = {}) => ({
 });
 
 describe('StoredReportsList', () => {
+  it('shows the « not allowed » state, and no list nor error text, when the API refused the reports', () => {
+    const controller = makeController({ forbidden: true, error: 'raw', items: [item()], total: 1 });
+    render(<StoredReportsList controller={controller as any} />);
+    expect(screen.getByText('errors.api.notAllowed')).toBeInTheDocument();
+    expect(screen.queryByText('raw')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
   it('daysLeft returns null for 0 (never expires)', () => {
     expect(daysLeft(0)).toBeNull();
   });

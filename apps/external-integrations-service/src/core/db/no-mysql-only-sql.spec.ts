@@ -21,12 +21,13 @@ const NO_MYSQL_ONLY_SQL_PENDING: ReadonlyArray<{ file: string; task: string }> =
 /** Files whose hits are intentional, each with its reason. */
 const MYSQL_ONLY_OPS: ReadonlyArray<{ file: string; reason: string }> = [
   {
-    file: 'src/modules/issue/issue-description.service.ts',
-    reason: 'markdown code spans in issue-description templates, not SQL',
+    file: 'src/modules/issue/markdown-text.ts',
+    reason:
+      'markdown escapes and code spans in GitHub and GitLab ticket text, not SQL',
   },
   {
-    file: 'src/modules/slack/slack-message.service.ts',
-    reason: 'markdown code spans in Slack message templates, not SQL',
+    file: 'src/modules/slack/slack-text.ts',
+    reason: 'code spans in Slack message text, not SQL',
   },
   {
     file: 'src/modules/linear/linear-description.service.ts',

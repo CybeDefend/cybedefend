@@ -813,6 +813,37 @@ describe('GitlabService', () => {
       });
     });
 
+    // The instance registers project hooks only, never a system hook, so a
+    // genuine `project_create` event never reaches it. A project hook's
+    // token is valid for its own project only: it must not let a delivery
+    // name another user (`owner_id`) and act with that user's connection.
+    it('ignores a project_create event: nothing is looked up, fetched or created', async () => {
+      repositoryRepo.find.mockResolvedValue([
+        { id: 'r1', webhookTokenHash: tokenHash },
+      ]);
+      const integrationRepo = (service as any).gitlabIntegrationRepository;
+      const createRepository = jest.spyOn(
+        service as any,
+        'createOrUpdateRepository',
+      );
+      const body = JSON.stringify({
+        event_name: 'project_create',
+        project_id: 42,
+        owner_id: 9999,
+        name: 'planted',
+        path_with_namespace: 'victim/planted',
+      });
+
+      await expect(deliver(body, token)).resolves.toEqual({ success: true });
+
+      expect(integrationRepo.findOne).not.toHaveBeenCalled();
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+      expect(createRepository).not.toHaveBeenCalled();
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+      expect(mockedAxios.put).not.toHaveBeenCalled();
+      expect(repositoryRepo.save).not.toHaveBeenCalled();
+    });
+
     it('refuses a missing token and an unparseable body', async () => {
       repositoryRepo.find.mockResolvedValue([
         { id: 'r1', webhookTokenHash: tokenHash },
@@ -2648,87 +2679,6 @@ describe('GitlabService.getGitlabRepositoryBranchesPaginated', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ensurePushEventsEnabled — Task D Part 2
-// ---------------------------------------------------------------------------
-
-describe('GitlabService.ensurePushEventsEnabled', () => {
-  let service: GitlabService;
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    const built = await buildService();
-    service = built.service;
-  });
-
-  const mockIntegration = {
-    id: 'integration-id',
-    organizationId: 'org-1',
-    accessToken: 'encrypted-token',
-    refreshToken: 'encrypted-refresh',
-    tokenExpiresAt: new Date(Date.now() + 3600 * 1000),
-  } as GitlabIntegration;
-
-  it('1. no webhook exists for our URL — POSTs a new hook with push_events=true', async () => {
-    // Mock callGitlabApi to behave like the real method: invoke the callback
-    // with a token and return its result.
-    const callGitlabApiSpy = jest
-      .spyOn(service as any, 'callGitlabApi')
-      .mockImplementationOnce(async () => ({
-        data: [{ id: 99, url: 'https://other.example.com/hook' }],
-      }))
-      .mockImplementationOnce(async () => ({ data: { id: 100 } }));
-
-    mockedAxios.post.mockResolvedValue({ data: { id: 100 } });
-
-    await (service as any).ensurePushEventsEnabled(mockIntegration, 12345);
-
-    // First call: GET existing hooks. Second call: POST new hook.
-    expect(callGitlabApiSpy).toHaveBeenCalledTimes(2);
-  });
-
-  it('2. webhook exists with push_events=false — PUTs to update it', async () => {
-    const callGitlabApiSpy = jest
-      .spyOn(service as any, 'callGitlabApi')
-      .mockImplementationOnce(async () => ({
-        data: [
-          {
-            id: 77,
-            url: 'https://app.example.com/webhooks/gitlab',
-            push_events: false,
-          },
-        ],
-      }))
-      .mockImplementationOnce(async () => ({
-        data: { id: 77, push_events: true },
-      }));
-
-    await (service as any).ensurePushEventsEnabled(mockIntegration, 12345);
-
-    // 1 GET + 1 PUT.
-    expect(callGitlabApiSpy).toHaveBeenCalledTimes(2);
-  });
-
-  it('3. webhook already has push_events=true — no API mutation (idempotent fast path)', async () => {
-    const callGitlabApiSpy = jest
-      .spyOn(service as any, 'callGitlabApi')
-      .mockImplementationOnce(async () => ({
-        data: [
-          {
-            id: 55,
-            url: 'https://app.example.com/webhooks/gitlab',
-            push_events: true,
-          },
-        ],
-      }));
-
-    await (service as any).ensurePushEventsEnabled(mockIntegration, 12345);
-
-    // Only the GET call — no POST/PUT.
-    expect(callGitlabApiSpy).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Webhook registration: every hook we create or update gets a fresh random
 // token; only its hash is stored, on every row of that GitLab project.
 // ---------------------------------------------------------------------------
@@ -2804,28 +2754,6 @@ describe('GitlabService webhook registration tokens', () => {
     const [token] = sentTokens('put');
     expectFreshToken(token);
     expect(repository.webhookId).toBe(77);
-  });
-
-  it('ensurePushEventsEnabled creates a missing hook with a fresh token', async () => {
-    passThrough();
-    mockedAxios.get.mockResolvedValue({ data: [] });
-    mockedAxios.post.mockResolvedValue({ data: { id: 100 } });
-
-    await (service as any).ensurePushEventsEnabled(integration, 12345);
-
-    expectFreshToken(sentTokens('post')[0]);
-  });
-
-  it('ensurePushEventsEnabled re-enables push events with a fresh token', async () => {
-    passThrough();
-    mockedAxios.get.mockResolvedValue({
-      data: [{ id: 77, url: hookUrl, push_events: false }],
-    });
-    mockedAxios.put.mockResolvedValue({ data: { id: 77 } });
-
-    await (service as any).ensurePushEventsEnabled(integration, 12345);
-
-    expectFreshToken(sentTokens('put')[0]);
   });
 
   it('stores no hash when GitLab refuses the hook', async () => {

@@ -27,7 +27,6 @@
     "proto:generate": "mkdir -p src/core/grpc && protoc -I ../../libs/protos --plugin=protoc-gen-ts_proto=$(pwd)/node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=\"nestJs=true:src/core/grpc\" $(find ../../libs/protos -name '*.proto' -print | sed 's|../../libs/protos/||')"
   },
   "dependencies": {
-    "@fastify/rate-limit": "^10.3.0",
     "@grpc/grpc-js": "^1.14.7",
     "@grpc/proto-loader": "^0.8.1",
     "@modelcontextprotocol/sdk": "1.32.2",

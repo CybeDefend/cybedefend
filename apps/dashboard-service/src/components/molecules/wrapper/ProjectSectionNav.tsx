@@ -8,6 +8,7 @@ import { APPSEC, projectPath, spaceOf, useProduct } from "@/utils/product";
 import { useSlotEntries } from "@/edition/slots";
 import { CORE_SCANNER_TABS, isScannerTabEntry, scannerTabSegment } from "./scannerTabs";
 import { ProjectSectionNavContext, ProjectSectionTab, type ProjectTabSkin } from "./ProjectSectionTab";
+import { REPORT_ROLES, useProjectRoleAccess } from "@/server/hooks/useProjectRoleAccess";
 
 interface ProjectSectionNavProps {
   projectId: string | undefined;
@@ -67,6 +68,9 @@ const ProjectSectionNav: React.FC<ProjectSectionNavProps> = ({ projectId, active
   // not to this section row: they are not rendered here.
   const entries = slotEntries.filter((entry) => !isScannerTabEntry(entry));
   const VULN_SEGMENTS = vulnSegments(slotEntries);
+  // Hidden only once the member is known to lack the report roles on the
+  // project's team; the API refuses the calls whatever the tab shows.
+  const reportAccess = useProjectRoleAccess(projectId, REPORT_ROLES);
 
   // On a phone the row is narrower than the tabs: bring the active one into
   // view, or the page a tab opens shows a row where no tab is marked.
@@ -94,7 +98,9 @@ const ProjectSectionNav: React.FC<ProjectSectionNavProps> = ({ projectId, active
       ? [
           { key: "overview", label: t("components.projectWrapper.tabs.overview"), to: base, icon: projectSectionIcon("overview"), order: 10 },
           { key: "vulnerabilities", label: t("components.projectWrapper.tabs.vulnerabilities"), to: `${base}/sast`, icon: projectSectionIcon("vulnerabilities"), order: 20 },
-          { key: "reports", label: t("components.projectWrapper.tabs.reports"), to: `${base}/reports`, icon: projectSectionIcon("reports"), order: 40 },
+          ...(reportAccess === false
+            ? []
+            : [{ key: "reports", label: t("components.projectWrapper.tabs.reports"), to: `${base}/reports`, icon: projectSectionIcon("reports"), order: 40 }]),
           { key: "compliance", label: t("components.projectWrapper.tabs.compliance"), to: `${base}/compliance`, icon: projectSectionIcon("compliance"), order: 50 },
           { key: "settings", label: t("components.projectWrapper.tabs.settings"), to: `${base}/settings`, icon: projectSectionIcon("settings"), order: 90 },
         ]

@@ -24,7 +24,8 @@ const PHONE_CELL = 'max-md:p-0 max-md:first:pl-0 max-md:last:pr-0';
 interface ResultsContainerImagesTableProps {
   images: ContainerImage[];
   onImageSelect: (image: ContainerImage) => void;
-  onDeleteClick: (image: ContainerImage) => void;
+  /** Left out for a member who may not delete images: no delete action is shown. */
+  onDeleteClick?: (image: ContainerImage) => void;
   loading: boolean;
   /** The images request failed: say so instead of "no image". */
   error?: string | null;
@@ -86,7 +87,7 @@ const ResultsContainerImagesTable: React.FC<ResultsContainerImagesTableProps> = 
    */
   const handleDelete = (e: React.MouseEvent, image: ContainerImage) => {
     e.stopPropagation();
-    onDeleteClick(image);
+    onDeleteClick?.(image);
   };
 
   return (
@@ -180,15 +181,17 @@ const ResultsContainerImagesTable: React.FC<ResultsContainerImagesTableProps> = 
                       {convertDate(image.updatedAt)}
                     </td>
                     <td className={cn(AS_TD, 'text-right', PHONE_CELL, 'max-md:ml-auto')}>
-                      <Button
-                        variant="ghost"
-                        onClick={e => handleDelete(e, image)}
-                        // Icon-only: a square 44 px reach on a phone, not the atom's height-only one.
-                        className={cn('w-8 px-0', AS_TOUCH_SQUARE)}
-                        aria-label={t('common.delete')}
-                      >
-                        <Trash2 size={16} className="text-red-600" />
-                      </Button>
+                      {onDeleteClick && (
+                        <Button
+                          variant="ghost"
+                          onClick={e => handleDelete(e, image)}
+                          // Icon-only: a square 44 px reach on a phone, not the atom's height-only one.
+                          className={cn('w-8 px-0', AS_TOUCH_SQUARE)}
+                          aria-label={t('common.delete')}
+                        >
+                          <Trash2 size={16} className="text-red-600" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}

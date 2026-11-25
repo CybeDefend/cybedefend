@@ -46,6 +46,28 @@ export interface ScanResponseDto {
     gaps: { fromSha: string; toSha: string; fromDate?: string; toDate?: string }[];
     lastPassOutcome?: string;
   } | null;
+  /**
+   * What the upload filter left out of the archive the scanners read. Absent
+   * (or null) on a scan with no upload and on a scan recorded before it was
+   * kept.
+   */
+  uploadFilterSummary?: UploadFilterSummaryDto | null;
+}
+
+/** Files of an uploaded archive the scanners never read, by reason. */
+export interface UploadFilterSummaryDto {
+  scannerConfiguration: number;
+  excludedPath: number;
+  excludedType: number;
+  unsafeName: number;
+  gitMetadata: number;
+  /**
+   * The excluded folders holding the most files left out (at most 20), the
+   * largest first. `name` is the path in the archive up to and including the
+   * excluded folder (`web/build`). `gitMetadata` is recorded only: it is not
+   * announced as files not scanned.
+   */
+  excludedFolders: { name: string; count: number }[];
 }
 
 /** Scanner containers of a scan, counted by status. */

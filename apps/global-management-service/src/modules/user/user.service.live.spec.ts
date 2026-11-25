@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Logger } from 'nestjs-pino';
 import { Brackets, DataSource, Repository } from 'typeorm';
-import { dialectApi, run } from '@cybedefend/db-dialect';
+import { dialectApi, isUniqueViolation, run } from '@cybedefend/db-dialect';
 
 import { UserService } from './user.service';
 import { ENTITLEMENTS_PORT } from 'src/edition/ports/entitlements.port';
@@ -541,86 +541,81 @@ describeLive('UserService on a real database', () => {
       }
     });
 
-    it('a membership held twice is listed once, with the role of the lowest membership id', async () => {
-      // addMember refuses a second membership, but nothing in the schema does.
-      // The previous read took the role of whichever row its plan returned
-      // first (on this fixture, not always the same one): the new read takes
-      // the row with the lowest membership id (a random UUID, not the oldest
-      // row), so only the content is compared with it.
-      const cleanup: string[] = [];
-      const extraMembership = async (
-        table: string,
-        row: Record<string, unknown>,
-      ) => {
-        const membershipId = randomUUID();
-        cleanup.push(membershipId);
-        await insert(table, [{ id: membershipId, ...row }]);
+    it('a second membership is refused by the database, and each membership is listed once', async () => {
+      // The listing must never show a user twice in one organisation or team.
+      // A second row for the same (organisation, user) or (team, user) used
+      // to be possible; the unique indexes now refuse it on both engines.
+      const refused = async (table: string, row: Record<string, unknown>) => {
+        const error = await insert(table, [{ id: randomUUID(), ...row }]).then(
+          () => null,
+          (e: unknown) => e,
+        );
+        return isUniqueViolation(error);
       };
-      try {
-        await extraMembership('teams_members', {
+      expect(
+        await refused('teams_members', {
           teamId: teams.CB,
           userId: users.caller,
           role: 'developer',
-        });
-        await extraMembership('users_organizations_members', {
+        }),
+      ).toBe(true);
+      expect(
+        await refused('users_organizations_members', {
           organizationId: orgs.M,
           userId: users.caller,
           role: 'member',
-        });
+        }),
+      ).toBe(true);
 
-        const current = await profileOf('caller');
-        const legacy = await legacyProfileOrganizations(
-          dataSource.getRepository(Organization),
-          users.caller,
-        );
-        const withoutRoles = (organizations: ProfileOrganization[]) =>
-          content(organizations).map((o) => ({
-            id: o.id,
-            teams: o.myTeams.map((t) => t.id),
-          }));
-        expect(withoutRoles(current)).toEqual(withoutRoles(legacy));
-
-        const lowestIdRole = async (
-          table: string,
-          column: string,
-          value: string,
-        ) =>
-          (
-            await run(
-              dataSource,
-              db.sql`SELECT role FROM ${db.ident(table)} WHERE ${db.ident(column)} = ${value} AND ${db.ident('userId')} = ${users.caller} ORDER BY id LIMIT 1`,
-            )
-          ).rows[0].role;
-        const cobalt = current.find((o) => o.id === orgs.C);
-        expect(cobalt.myTeams).toEqual([
-          {
-            id: teams.CB,
-            name: 'B',
-            myRole: await lowestIdRole('teams_members', 'teamId', teams.CB),
-          },
-        ]);
-        expect(current.filter((o) => o.id === orgs.M)).toEqual([
-          expect.objectContaining({
-            myRole: await lowestIdRole(
-              'users_organizations_members',
-              'organizationId',
-              orgs.M,
-            ),
-          }),
-        ]);
-        // And myAccessibleProjects still lists each project once.
-        const accessible = await accessibleOf('caller');
-        expect(accessible).toEqual(await legacyOf('caller'));
-      } finally {
-        await run(
-          dataSource,
-          db.sql`DELETE FROM teams_members WHERE id IN ${db.inList(cleanup)}`,
-        );
-        await run(
-          dataSource,
-          db.sql`DELETE FROM users_organizations_members WHERE id IN ${db.inList(cleanup)}`,
-        );
+      // On the states that can exist, the listing still names each
+      // organisation and each team once, with the role of its one row, and
+      // agrees with the previous read.
+      const current = await profileOf('caller');
+      const legacy = await legacyProfileOrganizations(
+        dataSource.getRepository(Organization),
+        users.caller,
+      );
+      const withoutRoles = (organizations: ProfileOrganization[]) =>
+        content(organizations).map((o) => ({
+          id: o.id,
+          teams: o.myTeams.map((t) => t.id),
+        }));
+      expect(withoutRoles(current)).toEqual(withoutRoles(legacy));
+      const ids = current.map((o) => o.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const organization of current) {
+        const teamIds = organization.myTeams.map((t) => t.id);
+        expect(new Set(teamIds).size).toBe(teamIds.length);
       }
+
+      const roleOf = async (table: string, column: string, value: string) => {
+        const { rows } = await run(
+          dataSource,
+          db.sql`SELECT role FROM ${db.ident(table)} WHERE ${db.ident(column)} = ${value} AND ${db.ident('userId')} = ${users.caller}`,
+        );
+        expect(rows).toHaveLength(1);
+        return rows[0].role;
+      };
+      const cobalt = current.find((o) => o.id === orgs.C);
+      expect(cobalt.myTeams).toEqual([
+        {
+          id: teams.CB,
+          name: 'B',
+          myRole: await roleOf('teams_members', 'teamId', teams.CB),
+        },
+      ]);
+      expect(current.filter((o) => o.id === orgs.M)).toEqual([
+        expect.objectContaining({
+          myRole: await roleOf(
+            'users_organizations_members',
+            'organizationId',
+            orgs.M,
+          ),
+        }),
+      ]);
+      // And myAccessibleProjects still lists each project once.
+      const accessible = await accessibleOf('caller');
+      expect(accessible).toEqual(await legacyOf('caller'));
     });
 
     it("reads the caller's memberships, never the other members of its teams", async () => {

@@ -26,6 +26,10 @@ import {
 } from '@opentelemetry/api';
 import type { IncomingMessage } from 'node:http';
 import { inspect } from 'node:util';
+import {
+  DATABASE_INSTRUMENTATION_CONFIG,
+  RedactingSpanProcessor,
+} from './core/logger/trace-redaction';
 
 // Custom SpanProcessor to filter out RpcException errors from other microservices
 class RpcExceptionFilterProcessor implements SpanProcessor {
@@ -132,11 +136,14 @@ class GrpcHealthCheckFilter implements SpanProcessor {
 /**
  * The processor chain every span goes through. The batch processor reads
  * OTEL_BSP_MAX_QUEUE_SIZE and OTEL_BSP_MAX_EXPORT_BATCH_SIZE from the
- * environment (SDK defaults: 2048 and 512).
+ * environment (SDK defaults: 2048 and 512). The first processor scrubs the
+ * values of statements and of errors out of each span.
  */
 export function buildSpanProcessor(exporter: SpanExporter): SpanProcessor {
-  return new RpcExceptionFilterProcessor(
-    new GrpcHealthCheckFilter(new BatchSpanProcessor(exporter)),
+  return new RedactingSpanProcessor(
+    new RpcExceptionFilterProcessor(
+      new GrpcHealthCheckFilter(new BatchSpanProcessor(exporter)),
+    ),
   );
 }
 
@@ -229,6 +236,7 @@ export function buildInstrumentations(
 ): ReturnType<typeof getNodeAutoInstrumentations> {
   return [
     ...getNodeAutoInstrumentations({
+      ...DATABASE_INSTRUMENTATION_CONFIG,
       '@opentelemetry/instrumentation-http': {
         ignoreIncomingRequestHook: probeHeartbeatFilter(),
       },

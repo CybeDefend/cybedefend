@@ -11,9 +11,10 @@ import {
 
 /**
  * Short-TTL Redis cache for the 3 dedicated org-overview blocks
- * (severity / state / over-time). Keyed by org + userId (Permify scope —
- * a security boundary, NOT just an optimisation) + a per-org generation
- * counter + a hash of the applied filters. Reuses the BullMQ-backed ioredis
+ * (severity / state / over-time). Keyed by org + userId + a digest of the
+ * caller's readable project ids (the Permify scope — a security boundary,
+ * NOT just an optimisation) + a per-org generation counter + a hash of the
+ * applied filters. Reuses the BullMQ-backed ioredis
  * client exposed by ScanQueueService.getRedisClient(). Best-effort: any Redis
  * error falls back to computing the value directly.
  */
@@ -26,6 +27,14 @@ export class OverviewCacheService {
   );
 
   constructor(private readonly scanQueue: ScanQueueService) {}
+
+  /** Order-independent digest of the caller's readable project ids. */
+  private digestScope(projectIds: readonly string[]): string {
+    return createHash('sha256')
+      .update(JSON.stringify([...projectIds].sort()))
+      .digest('hex')
+      .slice(0, 32);
+  }
 
   private hashFilter(filter: unknown): string {
     return createHash('sha1')
@@ -64,10 +73,16 @@ export class OverviewCacheService {
     }
   }
 
+  /**
+   * `readableProjectIds` are the projects the caller may read on this call
+   * (already resolved by the caller): the entry is keyed by them, so a
+   * member who lost a project is never served counts that include it.
+   */
   async getOrSet<T>(
     block: OverviewBlock,
     orgId: string,
     userId: string,
+    readableProjectIds: readonly string[],
     filter: unknown,
     producer: () => Promise<T>,
   ): Promise<T> {
@@ -76,6 +91,7 @@ export class OverviewCacheService {
       block,
       orgId,
       userId,
+      this.digestScope(readableProjectIds),
       generation,
       this.hashFilter(filter),
     );

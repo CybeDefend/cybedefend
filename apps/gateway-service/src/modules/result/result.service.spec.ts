@@ -1338,11 +1338,7 @@ describe('ResultService', () => {
         { vulnerabilityId: 'v2', priority: 'high' },
         { vulnerabilityId: 'v3', comment: 'ok' },
       ];
-      const result = await service.batchUpdate('proj-1', items, 'user-42', {
-        agentToolCallId: 'tc-1',
-        agentConversationId: 'conv-1',
-        agentStreamId: 'stream-1',
-      });
+      const result = await service.batchUpdate('proj-1', items, 'user-42');
 
       const expectedRequest: EnqueueBatchUpdateRequest = {
         projectId: 'proj-1',
@@ -1353,9 +1349,9 @@ describe('ResultService', () => {
           priority: i.priority,
           comment: i.comment,
         })),
-        agentToolCallId: 'tc-1',
-        agentConversationId: 'conv-1',
-        agentStreamId: 'stream-1',
+        agentToolCallId: '',
+        agentConversationId: '',
+        agentStreamId: '',
       };
       expect(grpcStub.enqueueBatchUpdate).toHaveBeenCalledWith(
         expectedRequest,
@@ -1364,7 +1360,7 @@ describe('ResultService', () => {
       expect(result).toEqual({ taskId: 't1', status: 'queued', total: 3 });
     });
 
-    it('defaults empty audit fields to empty strings when omitted', async () => {
+    it('always sends empty assistant audit fields', async () => {
       grpcStub.enqueueBatchUpdate.mockReturnValue(
         of({ taskId: 'task-abc', total: 1 }) as any,
       );

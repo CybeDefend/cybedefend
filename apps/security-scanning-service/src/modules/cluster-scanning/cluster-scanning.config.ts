@@ -53,6 +53,17 @@ export interface ClusterScanningConfig {
   imageTag: string;
   imagePullSecret: string | null;
   maxConcurrent: number;
+  /**
+   * CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION: how many scans of
+   * one organization run at once, an instance setting (the organization's
+   * own stored limit is set by a hosting plan, which this engine does not
+   * have, so it is not read). The instance maximum when unset, so an
+   * instance with one organization keeps its whole capacity; lower, it
+   * reserves slots for the other organizations. Read through
+   * organizationScanLimit, which keeps it between 1 and maxConcurrent.
+   * Optional in the type so that a configuration built in code may omit it.
+   */
+  maxConcurrentPerOrganization?: number;
   keepPods: boolean;
   /**
    * CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS=true: accept a kubeconfig whose
@@ -295,6 +306,12 @@ export function readClusterScanningConfig(
     SCANNER_MAX_CONCURRENT_PATTERN,
     'must be a whole number, at least one and at most fifty',
   );
+  const maxConcurrentPerOrganization = checked(
+    env,
+    'CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION',
+    SCANNER_MAX_CONCURRENT_PATTERN,
+    'must be a whole number, at least one and at most fifty',
+  );
   const keepPods = checked(
     env,
     'CYBEDEFEND_SCANNER_KEEP_PODS',
@@ -332,16 +349,24 @@ export function readClusterScanningConfig(
     );
   }
 
+  const max =
+    maxConcurrent === undefined
+      ? DEFAULT_SCANNER_MAX_CONCURRENT
+      : Number(maxConcurrent);
   return {
     kubeconfigFile,
     namespace,
     imageRegistry,
     imageTag,
     imagePullSecret,
-    maxConcurrent:
-      maxConcurrent === undefined
-        ? DEFAULT_SCANNER_MAX_CONCURRENT
-        : Number(maxConcurrent),
+    maxConcurrent: max,
+    // Above the instance maximum it would never be reached: clamped to it.
+    maxConcurrentPerOrganization: Math.min(
+      max,
+      maxConcurrentPerOrganization === undefined
+        ? max
+        : Number(maxConcurrentPerOrganization),
+    ),
     keepPods: keepPods === 'true',
     allowInsecureTls: allowInsecureTls === 'true',
     trivyDbRepository,
@@ -370,6 +395,8 @@ export function clusterScanningEnv(): NodeJS.ProcessEnv {
       process.env.CYBEDEFEND_SCANNER_IMAGE_PULL_SECRET,
     CYBEDEFEND_SCANNER_MAX_CONCURRENT:
       process.env.CYBEDEFEND_SCANNER_MAX_CONCURRENT,
+    CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION:
+      process.env.CYBEDEFEND_SCANNER_MAX_CONCURRENT_PER_ORGANIZATION,
     CYBEDEFEND_SCANNER_RESOURCES: process.env.CYBEDEFEND_SCANNER_RESOURCES,
     CYBEDEFEND_SCANNER_KEEP_PODS: process.env.CYBEDEFEND_SCANNER_KEEP_PODS,
     CYBEDEFEND_SCANNER_ALLOW_INSECURE_TLS:
@@ -381,6 +408,19 @@ export function clusterScanningEnv(): NodeJS.ProcessEnv {
     FRONTEND_URL: process.env.FRONTEND_URL,
     S3_PUBLIC_ENDPOINT: process.env.S3_PUBLIC_ENDPOINT,
   };
+}
+
+/**
+ * How many scans of one organization may run at once: the per-organization
+ * setting, the instance maximum when unset, kept to a whole number between 1
+ * and the instance maximum. Never below 1, whatever the value: a limit under
+ * 1 would leave an organization's scans queued until they time out.
+ */
+export function organizationScanLimit(config: ClusterScanningConfig): number {
+  const max = Math.max(1, Math.floor(config.maxConcurrent));
+  const value = config.maxConcurrentPerOrganization ?? max;
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(max, Math.max(1, Math.floor(value)));
 }
 
 /**

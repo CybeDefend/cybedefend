@@ -1,3 +1,4 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { ResultController } from './result.controller';
 import { RpcException } from '@nestjs/microservices';
 import { status } from '@grpc/grpc-js';
@@ -219,6 +220,14 @@ describe('ResultController async report generation', () => {
     };
     const reportQuota = {
       assertWithinQuotaForProject: jest.fn().mockResolvedValue(undefined),
+      admitQueuedReport: jest.fn(
+        async (_org: unknown, insert: (id: string) => Promise<void>) => {
+          // A new time-ordered id per admitted report, as the real one.
+          const id = `rep-${Math.random().toString(36).slice(2)}`;
+          await insert(id);
+          return id;
+        },
+      ),
       assertWithinQuotaForOrg: jest.fn().mockResolvedValue(undefined),
       getUsageForOrg: jest.fn().mockResolvedValue({ used: 7, limit: 500 }),
       getUsageForProject: jest.fn().mockResolvedValue({ used: 7, limit: 500 }),
@@ -227,8 +236,9 @@ describe('ResultController async report generation', () => {
       create: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
     };
+    const removeReportJob = jest.fn().mockResolvedValue(undefined);
     Object.assign(controller, {
-      scanQueueService: { addReportJob },
+      scanQueueService: { addReportJob, removeReportJob },
       generatedReportRepo: repo,
       reportUpload,
       reportRetention,
@@ -382,6 +392,14 @@ describe('ResultController async report generation', () => {
     const { controller, repo, addReportJob } = makeReportController({
       reportQuota: {
         assertWithinQuotaForProject: jest.fn().mockRejectedValue(quotaErr),
+        admitQueuedReport: jest.fn(
+          async (_org: unknown, insert: (id: string) => Promise<void>) => {
+            // A new time-ordered id per admitted report, as the real one.
+            const id = `rep-${Math.random().toString(36).slice(2)}`;
+            await insert(id);
+            return id;
+          },
+        ),
         assertWithinQuotaForOrg: jest.fn().mockResolvedValue(undefined),
       },
     });
@@ -447,6 +465,40 @@ describe('ResultController async report generation', () => {
       'reports/p1/r1.pdf',
       'p1',
     );
+    expect(repo.delete).toHaveBeenCalledWith({ id: 'r1', projectId: 'p1' });
+  });
+
+  it('deleteGeneratedReport also removes its queued job, so a deleted report does not render', async () => {
+    const { controller, repo } = makeReportController();
+    repo.findOne.mockResolvedValue({
+      id: 'r1',
+      projectId: 'p1',
+      status: 'queued',
+      objectPath: null,
+    });
+
+    await controller.deleteGeneratedReport({ projectId: 'p1', reportId: 'r1' });
+
+    expect(controller.scanQueueService.removeReportJob).toHaveBeenCalledWith(
+      'r1',
+    );
+  });
+
+  it('deleteGeneratedReport still deletes when the job cannot be removed (it renders already)', async () => {
+    const { controller, repo } = makeReportController();
+    repo.findOne.mockResolvedValue({
+      id: 'r1',
+      projectId: 'p1',
+      status: 'queued',
+      objectPath: null,
+    });
+    controller.scanQueueService.removeReportJob.mockRejectedValueOnce(
+      new Error('job is locked'),
+    );
+
+    await expect(
+      controller.deleteGeneratedReport({ projectId: 'p1', reportId: 'r1' }),
+    ).resolves.toEqual({ success: true });
     expect(repo.delete).toHaveBeenCalledWith({ id: 'r1', projectId: 'p1' });
   });
 
@@ -692,6 +744,14 @@ describe('ResultController aggregated report enqueue', () => {
     };
     const reportQuota = {
       assertWithinQuotaForProject: jest.fn().mockResolvedValue(undefined),
+      admitQueuedReport: jest.fn(
+        async (_org: unknown, insert: (id: string) => Promise<void>) => {
+          // A new time-ordered id per admitted report, as the real one.
+          const id = `rep-${Math.random().toString(36).slice(2)}`;
+          await insert(id);
+          return id;
+        },
+      ),
       assertWithinQuotaForOrg: jest.fn().mockResolvedValue(undefined),
       getUsageForOrg: jest.fn().mockResolvedValue({ used: 7, limit: 500 }),
       getUsageForProject: jest.fn().mockResolvedValue({ used: 7, limit: 500 }),
@@ -700,14 +760,23 @@ describe('ResultController aggregated report enqueue', () => {
       create: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
     };
+    // The team's projects, and the organization each project belongs to:
+    // what global-management answers for the team of the request.
+    const teamProjectIds = jest.fn().mockResolvedValue(['p-team']);
+    const projectOrgResolver = {
+      resolveOrgId: jest.fn().mockResolvedValue('org-1'),
+    };
+    const removeAggregatedReportJob = jest.fn().mockResolvedValue(undefined);
     Object.assign(controller, {
-      scanQueueService: { addAggregatedReportJob },
+      scanQueueService: { addAggregatedReportJob, removeAggregatedReportJob },
       aggregatedReportRepo,
       aggregatedReportsService: {
         validateBatchAccess,
         validateTeamAccess,
         getGeneratedAggregatedReport,
+        teamProjectIds,
       },
+      projectOrgResolver,
       reportRetention,
       reportQuota,
       reportUpload,
@@ -721,6 +790,8 @@ describe('ResultController aggregated report enqueue', () => {
       aggregatedReportRepo,
       validateBatchAccess,
       validateTeamAccess,
+      teamProjectIds,
+      projectOrgResolver,
       reportRetention,
       reportQuota,
       reportUpload,
@@ -823,6 +894,27 @@ describe('ResultController aggregated report enqueue', () => {
       'org-1',
     );
     expect(aggregatedReportRepo.delete).toHaveBeenCalledWith({ id: 'a1' });
+  });
+
+  it('deleteAggregatedReport also removes its queued job', async () => {
+    const { controller, aggregatedReportRepo } = makeAggController();
+    aggregatedReportRepo.findOne.mockResolvedValue({
+      id: 'a1',
+      scopeType: 'organization',
+      scopeId: 'org-1',
+      organizationId: 'org-1',
+      status: 'queued',
+      objectPath: null,
+    });
+
+    await controller.deleteAggregatedReport({
+      organizationId: 'org-1',
+      reportId: 'a1',
+    });
+
+    expect(
+      controller.scanQueueService.removeAggregatedReportJob,
+    ).toHaveBeenCalledWith('a1');
   });
 
   it('deleteAggregatedReport is NOT_FOUND when the report belongs to another org', async () => {
@@ -1004,19 +1096,11 @@ describe('ResultController aggregated report enqueue', () => {
   });
 
   it('generateTeamReport fails fast (no enqueue) when the org does not own the team (spoofed organizationId)', async () => {
-    const {
-      controller,
-      addAggregatedReportJob,
-      aggregatedReportRepo,
-      validateTeamAccess,
-    } = makeAggController();
-    validateTeamAccess.mockRejectedValueOnce({
-      error: {
-        code: 7,
-        message: 'Team does not belong to the specified organization',
-      },
-    });
+    const { controller, addAggregatedReportJob, aggregatedReportRepo } =
+      makeAggController();
 
+    // The team's own organization is org-1: a request naming another one
+    // is refused before anything is queued.
     await expect(
       controller.generateTeamReport({
         teamId: 'team-1',
@@ -1027,9 +1111,210 @@ describe('ResultController aggregated report enqueue', () => {
       }),
     ).rejects.toMatchObject({ error: { code: 7 } });
 
-    expect(validateTeamAccess).toHaveBeenCalledWith('team-1', 'victim-org');
     expect(aggregatedReportRepo.create).not.toHaveBeenCalled();
     expect(addAggregatedReportJob).not.toHaveBeenCalled();
+  });
+
+  it('generateTeamReport also refuses when global-management says the team is not in the org', async () => {
+    const { controller, addAggregatedReportJob, validateTeamAccess } =
+      makeAggController();
+    validateTeamAccess.mockRejectedValueOnce({
+      error: {
+        code: 7,
+        message: 'Team does not belong to the specified organization',
+      },
+    });
+
+    await expect(
+      controller.generateTeamReport({
+        teamId: 'team-1',
+        organizationId: 'org-1',
+        userId: 'u1',
+        reportType: 'cwe',
+        format: 'pdf',
+      }),
+    ).rejects.toMatchObject({ error: { code: 7 } });
+    expect(addAggregatedReportJob).not.toHaveBeenCalled();
+  });
+
+  it("generateTeamReport without organizationId takes the team's own organization: capped, counted and stored under it", async () => {
+    const {
+      controller,
+      addAggregatedReportJob,
+      aggregatedReportRepo,
+      reportQuota,
+      teamProjectIds,
+    } = makeAggController();
+
+    await controller.generateTeamReport({
+      teamId: 'team-1',
+      userId: 'u1',
+      reportType: 'owasp',
+      format: 'pdf',
+    });
+
+    expect(teamProjectIds).toHaveBeenCalledWith('team-1', 'u1');
+    expect(reportQuota.assertWithinQuotaForOrg).toHaveBeenCalledWith('org-1');
+    expect(reportQuota.admitQueuedReport).toHaveBeenCalledWith(
+      'org-1',
+      expect.any(Function),
+      expect.any(Function),
+    );
+    expect(aggregatedReportRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1' }),
+    );
+    expect(addAggregatedReportJob).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1' }),
+    );
+  });
+
+  it("generateTeamReport refuses INVALID_ARGUMENT when the team's organization cannot be resolved", async () => {
+    const {
+      controller,
+      addAggregatedReportJob,
+      aggregatedReportRepo,
+      teamProjectIds,
+    } = makeAggController();
+    teamProjectIds.mockResolvedValueOnce([]);
+
+    await expect(
+      controller.generateTeamReport({
+        teamId: 'team-1',
+        userId: 'u1',
+        reportType: 'owasp',
+        format: 'pdf',
+      }),
+    ).rejects.toMatchObject({ error: { code: status.INVALID_ARGUMENT } });
+    expect(aggregatedReportRepo.create).not.toHaveBeenCalled();
+    expect(addAggregatedReportJob).not.toHaveBeenCalled();
+  });
+
+  describe("generateTeamReport when the team's organization cannot be looked up", () => {
+    const callText = 'connect ECONNREFUSED 10.1.2.3:50051';
+    // What a ClientGrpc proxy rejects with: a plain Error carrying `code`.
+    const serviceError = (code: number) =>
+      Object.assign(new Error(`${code} ${callText}`), {
+        code,
+        details: callText,
+      });
+    // What ReportAggregationService.getTeamProjects throws on a failed call.
+    const listFailure = (cause: unknown) =>
+      new HttpException(
+        'Failed to fetch team projects',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        { cause },
+      );
+
+    const generate = (controller: ResultController) =>
+      controller.generateTeamReport({
+        teamId: 'team-1',
+        userId: 'u1',
+        reportType: 'owasp',
+        format: 'pdf',
+      });
+
+    const expectNothingDone = (h: ReturnType<typeof makeAggController>) => {
+      expect(h.validateTeamAccess).not.toHaveBeenCalled();
+      expect(h.reportQuota.assertWithinQuotaForOrg).not.toHaveBeenCalled();
+      expect(h.reportQuota.admitQueuedReport).not.toHaveBeenCalled();
+      expect(h.aggregatedReportRepo.create).not.toHaveBeenCalled();
+      expect(h.asyncTaskStore.create).not.toHaveBeenCalled();
+      expect(h.addAggregatedReportJob).not.toHaveBeenCalled();
+    };
+
+    it.each([
+      ['UNAVAILABLE', listFailure(serviceError(status.UNAVAILABLE))],
+      [
+        'DEADLINE_EXCEEDED',
+        listFailure(serviceError(status.DEADLINE_EXCEEDED)),
+      ],
+      ['an unexpected error', listFailure(new Error(callText))],
+      ['a bare UNAVAILABLE ServiceError', serviceError(status.UNAVAILABLE)],
+      ['a plain Error', new Error(callText)],
+    ])(
+      'answers UNAVAILABLE when the project list fails with %s, without the error text',
+      async (_label, failure) => {
+        const h = makeAggController();
+        h.teamProjectIds.mockRejectedValueOnce(failure);
+
+        const rejection = await generate(h.controller).catch((e: unknown) => e);
+
+        expect(rejection).toBeInstanceOf(RpcException);
+        const error = (rejection as RpcException).getError() as {
+          code: number;
+          message: string;
+        };
+        expect(error).toEqual({
+          code: status.UNAVAILABLE,
+          message: 'TEAM_ORGANIZATION_LOOKUP_UNAVAILABLE',
+        });
+        expect(JSON.stringify(error)).not.toContain('ECONNREFUSED');
+        expectNothingDone(h);
+      },
+    );
+
+    it.each([
+      ['NOT_FOUND', status.NOT_FOUND],
+      ['PERMISSION_DENIED', status.PERMISSION_DENIED],
+    ])(
+      'keeps INVALID_ARGUMENT when global-management answers %s for the team',
+      async (_label, code) => {
+        const h = makeAggController();
+        h.teamProjectIds.mockRejectedValueOnce(listFailure(serviceError(code)));
+
+        await expect(generate(h.controller)).rejects.toMatchObject({
+          error: {
+            code: status.INVALID_ARGUMENT,
+            message: 'TEAM_ORGANIZATION_UNRESOLVED',
+          },
+        });
+        expectNothingDone(h);
+      },
+    );
+
+    it('keeps INVALID_ARGUMENT for an RpcException NOT_FOUND from the list', async () => {
+      const h = makeAggController();
+      h.teamProjectIds.mockRejectedValueOnce(
+        new RpcException({ code: status.NOT_FOUND, message: 'no team' }),
+      );
+
+      await expect(generate(h.controller)).rejects.toMatchObject({
+        error: {
+          code: status.INVALID_ARGUMENT,
+          message: 'TEAM_ORGANIZATION_UNRESOLVED',
+        },
+      });
+      expectNothingDone(h);
+    });
+
+    it('keeps INVALID_ARGUMENT for a team without a project', async () => {
+      const h = makeAggController();
+      h.teamProjectIds.mockResolvedValueOnce([]);
+
+      await expect(generate(h.controller)).rejects.toMatchObject({
+        error: {
+          code: status.INVALID_ARGUMENT,
+          message: 'TEAM_ORGANIZATION_UNRESOLVED',
+        },
+      });
+      expect(h.projectOrgResolver.resolveOrgId).not.toHaveBeenCalled();
+      expectNothingDone(h);
+    });
+
+    it('answers UNAVAILABLE when the team has projects but none resolves to an organization', async () => {
+      const h = makeAggController();
+      h.teamProjectIds.mockResolvedValueOnce(['p-a', 'p-b']);
+      h.projectOrgResolver.resolveOrgId.mockResolvedValue(null);
+
+      await expect(generate(h.controller)).rejects.toMatchObject({
+        error: {
+          code: status.UNAVAILABLE,
+          message: 'TEAM_ORGANIZATION_LOOKUP_UNAVAILABLE',
+        },
+      });
+      expect(h.projectOrgResolver.resolveOrgId).toHaveBeenCalledTimes(2);
+      expectNothingDone(h);
+    });
   });
 
   it('generateBatchReport validates access before enqueue', async () => {
@@ -1089,7 +1374,13 @@ describe('ResultController aggregated report enqueue', () => {
         reportType: 'owasp',
         format: 'pdf',
       }),
-    ).rejects.toMatchObject({ error: expect.objectContaining({ code: 14 }) });
+    ).rejects.toMatchObject({
+      // A stable message: the queue error's text is only logged.
+      error: {
+        code: 14,
+        message: 'Failed to enqueue aggregated report job',
+      },
+    });
 
     expect(aggregatedReportRepo.save).toHaveBeenCalledTimes(1);
     expect(aggregatedReportRepo.delete).toHaveBeenCalledTimes(1);
@@ -1230,7 +1521,9 @@ describe('ResultController.enqueueBatchUpdate', () => {
         items: VALID_ITEMS,
       }),
     ).rejects.toMatchObject({
-      error: expect.objectContaining({ code: 14 }), // status.UNAVAILABLE
+      // status.UNAVAILABLE, with a stable message: the queue error's text is
+      // only logged.
+      error: { code: 14, message: 'Failed to enqueue batch update job' },
     });
 
     expect(storeDelete).toHaveBeenCalledTimes(1);

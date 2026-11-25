@@ -84,6 +84,48 @@ describe('validationSchema', () => {
       expect(error?.message).toMatch(/CYBEDEFEND_API_RESOURCE/);
     });
 
+    it('registers the budget of requests without credentials, 60 by default', () => {
+      const schema = loadSchema('community');
+      expect(
+        schema.validate(COMMUNITY_ENV).value.RATE_LIMIT_ANONYMOUS_MAX,
+      ).toBe(60);
+      expect(
+        schema.validate({ ...COMMUNITY_ENV, RATE_LIMIT_ANONYMOUS_MAX: '20' })
+          .error,
+      ).toBeUndefined();
+      expect(
+        schema.validate({ ...COMMUNITY_ENV, RATE_LIMIT_ANONYMOUS_MAX: '0' })
+          .error?.message,
+      ).toMatch(/RATE_LIMIT_ANONYMOUS_MAX/);
+    });
+
+    it.each([
+      'https://agent.example',
+      'https://agent.example/, http://localhost:6274',
+      '*',
+      '',
+    ])('accepts the allowed origins %p', (value) => {
+      const { error } = loadSchema('community').validate({
+        ...COMMUNITY_ENV,
+        MCP_ALLOWED_ORIGINS: value,
+      });
+      expect(error).toBeUndefined();
+    });
+
+    it.each([
+      'agent.example',
+      'https://agent.example/path',
+      'https://agent.example,not a url',
+      'ftp://agent.example',
+      'https://agent.example?x=1',
+    ])('refuses at boot the malformed allowed origins %p', (value) => {
+      const { error } = loadSchema('community').validate({
+        ...COMMUNITY_ENV,
+        MCP_ALLOWED_ORIGINS: value,
+      });
+      expect(error?.message).toMatch(/MCP_ALLOWED_ORIGINS/);
+    });
+
     it('registers no key of the cloud schema in community mode', () => {
       for (const key of ['LOGTO_ENDPOINT', ...Object.keys(EE_ENV_SCHEMA)]) {
         const { error } = loadSchema('community').validate({

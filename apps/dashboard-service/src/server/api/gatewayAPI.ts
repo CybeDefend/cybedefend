@@ -5,6 +5,7 @@ import { setAccessToken, clearAccessToken } from '../store/authSlice';
 import { refreshAccessToken, isSessionBroken } from './tokenManager';
 import { getRegionConfig } from '@/utils/function/region';
 import { ACTIVE_EXTENSIONS } from '@/edition/active';
+import { UnsafeApiPathError, unsafeApiPath } from './apiPath';
 
 const gatewayAPI = axios.create({
   headers: { 'Content-Type': 'application/json' },
@@ -18,7 +19,11 @@ ACTIVE_EXTENSIONS.responseInterceptors.forEach((handle) => {
 });
 
 gatewayAPI.interceptors.request.use(async (config) => {
+  // A path a value from the address bar could move to another route is
+  // refused here, before the bearer is attached and before anything is sent.
   const { apiUrl } = getRegionConfig();
+  if (unsafeApiPath(config.url, apiUrl || undefined)) throw new UnsafeApiPathError();
+
   config.baseURL = apiUrl;
 
   const token = store.getState().auth.accessToken;

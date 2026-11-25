@@ -4,7 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { ClientGrpc } from '@nestjs/microservices';
 import { Logger } from 'nestjs-pino';
 import { status } from '@grpc/grpc-js';
-import { FileService } from './file.service';
+import {
+  DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT,
+  FileService,
+} from './file.service';
 import { FileScan } from 'src/entities/file.entity';
 import { createLoggerMock, createMockRepository } from 'src/test-utils/mocks';
 import SecretsService from 'src/core/secrets/secrets.service';
@@ -44,6 +47,7 @@ describe('FileService with an edition storage backend', () => {
   // the S3-compatible store, whose client is then never built.
   const build = async (bound: ObjectStorageBackend | null) => {
     repo = createMockRepository<FileScan>();
+    repo.count = jest.fn().mockResolvedValue(0);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FileService,
@@ -168,6 +172,76 @@ describe('FileService with an edition storage backend', () => {
       'scan/p1/s1.history.tar',
     ]);
     expect(res).toEqual({ success: true, message: 'Deleted from Fake' });
+  });
+
+  // Every pending upload is checked in storage by the one upload processor
+  // until its deadline: a project may hold only so many at once.
+  describe('pending uploads of one project', () => {
+    it('refuses a new upload once the project holds the most pending uploads, before signing', async () => {
+      repo.count = jest
+        .fn()
+        .mockResolvedValue(DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT);
+      await expect(
+        service.uploadFile({
+          projectId: 'p1',
+          scanId: 's1',
+          typeScan: 'sast',
+        } as never),
+      ).rejects.toMatchObject({
+        error: { code: status.RESOURCE_EXHAUSTED },
+      });
+      expect(repo.count).toHaveBeenCalledWith({
+        where: { projectId: 'p1', status: 'PENDING_UPLOAD' },
+      });
+      expect(backend.signPut).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('accepts one below the bound', async () => {
+      repo.count = jest
+        .fn()
+        .mockResolvedValue(DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT - 1);
+      await expect(
+        service.uploadFile({
+          projectId: 'p1',
+          scanId: 's1',
+          typeScan: 'sast',
+        } as never),
+      ).resolves.toMatchObject({ url: 'https://put' });
+      expect(repo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds a staged pending upload to the same bound', async () => {
+      repo.count = jest
+        .fn()
+        .mockResolvedValue(DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT);
+      await expect(
+        service.stagePendingUpload({
+          scanId: 's1',
+          projectId: 'p1',
+          typeScan: 'sast',
+          objectPath: 'scan/p1/s1.zip',
+          isDiffScan: true,
+        }),
+      ).rejects.toMatchObject({
+        error: { code: status.RESOURCE_EXHAUSTED },
+      });
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not count a history artifact, which registers no pending upload', async () => {
+      repo.count = jest
+        .fn()
+        .mockResolvedValue(DEFAULT_MAX_PENDING_UPLOADS_PER_PROJECT);
+      await expect(
+        service.uploadFile({
+          projectId: 'p1',
+          scanId: 's1',
+          typeScan: 'sast',
+          artifact: 'history',
+        } as never),
+      ).resolves.toMatchObject({ url: 'https://put' });
+    });
   });
 
   describe('history artifact', () => {

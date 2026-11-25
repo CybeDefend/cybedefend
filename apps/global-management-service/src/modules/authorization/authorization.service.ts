@@ -75,41 +75,46 @@ export class AuthorizationService {
     userId: string;
     role: string;
   }): Promise<{ message: string }> {
-    const [currentRole] = await this.readHeldRoles(
+    const heldRoles = await this.readHeldRoles(
       'organization',
       data.organizationId,
       data.userId,
       ORGANIZATION_ROLES,
     );
 
-    if (!currentRole) {
+    if (heldRoles.length === 0) {
       throw new RpcException({
         code: status.NOT_FOUND,
         message: `User does not have any role in organization`,
       });
     }
 
-    if (currentRole === data.role) {
+    if (heldRoles.length === 1 && heldRoles[0] === data.role) {
       return {
         message: `User ${data.userId} already has role ${data.role} in organization ${data.organizationId}`,
       };
     }
 
-    await this.permifyService.deletePermission(
-      data.organizationId,
-      data.userId,
-      'user',
+    // Every other role goes, not only the first one read: a member holds one
+    // organisation role, and a second one left behind would grant more than
+    // the role the membership shows.
+    await this.permifyService.deleteRelationsOfSubject(
       'organization',
-      currentRole,
+      data.organizationId,
+      'user',
+      data.userId,
+      heldRoles.filter((role) => role !== data.role),
     );
 
-    await this.permifyService.writePermission(
-      data.organizationId,
-      data.userId,
-      'user',
-      'organization',
-      data.role,
-    );
+    if (!heldRoles.includes(data.role)) {
+      await this.permifyService.writePermission(
+        data.organizationId,
+        data.userId,
+        'user',
+        'organization',
+        data.role,
+      );
+    }
 
     return {
       message: `User ${data.userId} role updated to ${data.role} in organization ${data.organizationId}`,
@@ -163,33 +168,19 @@ export class AuthorizationService {
     organizationId: string;
     userId: string;
   }): Promise<{ message: string }> {
-    // Delete ALL matching roles — not just the first one.
-    // A user may have stale/duplicate Permify relations.
-    const heldRoles = await this.readHeldRoles(
+    // Every organisation role goes, whichever the member holds: a read
+    // first could miss a role written by a request that ran alongside, and
+    // a role left without its membership would stay invisible.
+    await this.permifyService.deleteRelationsOfSubject(
       'organization',
       data.organizationId,
+      'user',
       data.userId,
       ORGANIZATION_ROLES,
     );
-
-    for (const role of heldRoles) {
-      await this.permifyService.deletePermission(
-        data.organizationId,
-        data.userId,
-        'user',
-        'organization',
-        role,
-      );
-      this.logger.log(
-        `Deleted Permify relation '${role}' for user ${data.userId} in org ${data.organizationId}`,
-      );
-    }
-
-    if (heldRoles.length === 0) {
-      this.logger.warn(
-        `No Permify roles found for user ${data.userId} in org ${data.organizationId} — proceeding anyway`,
-      );
-    }
+    this.logger.log(
+      `Deleted the organisation roles of user ${data.userId} in org ${data.organizationId}`,
+    );
 
     return {
       message: `User ${data.userId} removed from organization ${data.organizationId}`,
@@ -267,14 +258,20 @@ export class AuthorizationService {
       ORGANIZATION_ROLES,
     );
 
+    // Called under the membership lock once no membership row exists: a
+    // role held now belongs to no membership (left by an earlier failure)
+    // and would keep its access. It goes before the new role is written.
     if (heldRoles.length > 0) {
       this.logger.warn(
-        `User ${data.userId} already has a role in organization ${data.organizationId}`,
+        `User ${data.userId} held role(s) ${heldRoles.join(', ')} in organization ${data.organizationId} with no membership: deleted before the new role is written`,
       );
-      throw new RpcException({
-        code: status.ALREADY_EXISTS,
-        message: `User already has a role in organization`,
-      });
+      await this.permifyService.deleteRelationsOfSubject(
+        'organization',
+        data.organizationId,
+        'user',
+        data.userId,
+        heldRoles,
+      );
     }
 
     await this.permifyService.writePermission(
@@ -456,14 +453,19 @@ export class AuthorizationService {
       TEAM_ROLES,
     );
 
+    // As organizationAddMember: a team role held with no membership row is
+    // left by an earlier failure, and goes before the new one is written.
     if (heldRoles.length > 0) {
       this.logger.warn(
-        `User ${data.userId} already has a role in team ${data.teamId}`,
+        `User ${data.userId} held role(s) ${heldRoles.join(', ')} in team ${data.teamId} with no membership: deleted before the new role is written`,
       );
-      throw new RpcException({
-        code: status.ALREADY_EXISTS,
-        message: `User already has a role in team`,
-      });
+      await this.permifyService.deleteRelationsOfSubject(
+        'team',
+        data.teamId,
+        'user',
+        data.userId,
+        heldRoles,
+      );
     }
 
     await this.permifyService.writePermission(
@@ -512,14 +514,14 @@ export class AuthorizationService {
     userId: string;
     role: string;
   }): Promise<{ message: string }> {
-    const [currentRole] = await this.readHeldRoles(
+    const heldRoles = await this.readHeldRoles(
       'team',
       data.teamId,
       data.userId,
       TEAM_ROLES,
     );
 
-    if (!currentRole) {
+    if (heldRoles.length === 0) {
       this.logger.warn(
         `User ${data.userId} does not have any role in team ${data.teamId}`,
       );
@@ -529,7 +531,7 @@ export class AuthorizationService {
       });
     }
 
-    if (currentRole === data.role) {
+    if (heldRoles.length === 1 && heldRoles[0] === data.role) {
       this.logger.log(
         `User ${data.userId} already has role ${data.role} in team ${data.teamId}`,
       );
@@ -538,21 +540,24 @@ export class AuthorizationService {
       };
     }
 
-    await this.permifyService.deletePermission(
-      data.teamId,
-      data.userId,
-      'user',
+    // Every other team role goes (see updateOrganizationRole).
+    await this.permifyService.deleteRelationsOfSubject(
       'team',
-      currentRole,
+      data.teamId,
+      'user',
+      data.userId,
+      heldRoles.filter((role) => role !== data.role),
     );
 
-    await this.permifyService.writePermission(
-      data.teamId,
-      data.userId,
-      'user',
-      'team',
-      data.role,
-    );
+    if (!heldRoles.includes(data.role)) {
+      await this.permifyService.writePermission(
+        data.teamId,
+        data.userId,
+        'user',
+        'team',
+        data.role,
+      );
+    }
 
     this.logger.log(
       `User ${data.userId} role updated to ${data.role} in team ${data.teamId}`,
@@ -570,16 +575,14 @@ export class AuthorizationService {
     teamId: string;
     userId: string;
   }): Promise<{ message: string }> {
-    // Unlike `organizationRemoveMember`, only the first held role is deleted —
-    // pre-existing behaviour, preserved as is.
-    const [currentRole] = await this.readHeldRoles(
+    const heldRoles = await this.readHeldRoles(
       'team',
       data.teamId,
       data.userId,
       TEAM_ROLES,
     );
 
-    if (!currentRole) {
+    if (heldRoles.length === 0) {
       this.logger.warn(
         `Cannot remove user ${data.userId} from team ${data.teamId} because it is not related to the team`,
       );
@@ -589,12 +592,14 @@ export class AuthorizationService {
       });
     }
 
-    await this.permifyService.deletePermission(
-      data.teamId,
-      data.userId,
-      'user',
+    // Every team role goes, not only the first one: a second role left
+    // behind would keep its access after the removal.
+    await this.permifyService.deleteRelationsOfSubject(
       'team',
-      currentRole,
+      data.teamId,
+      'user',
+      data.userId,
+      TEAM_ROLES,
     );
 
     this.logger.log(`User ${data.userId} removed from team ${data.teamId}`);

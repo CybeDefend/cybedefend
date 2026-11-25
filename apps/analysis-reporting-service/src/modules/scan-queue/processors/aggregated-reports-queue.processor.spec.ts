@@ -150,4 +150,34 @@ describe('AggregatedReportsQueueProcessor', () => {
       expect(asyncTaskStore.markTerminal).not.toHaveBeenCalled();
     });
   });
+
+  it('stale sweep: fails an old queued report whose job is gone, never one whose job still waits', async () => {
+    const repo = {
+      findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([{ id: 'lost' }, { id: 'waits' }]),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const queue = {
+      getJob: jest.fn(async (id: string) =>
+        id === 'aggregated-report-waits'
+          ? { getState: async () => 'prioritized' }
+          : undefined,
+      ),
+    };
+    const proc = new AggregatedReportsQueueProcessor(
+      aggregatedReports as any,
+      repo as any,
+      asyncTaskStore as any,
+      realtime as any,
+      queue as any,
+    );
+
+    await proc.sweepLostReports();
+
+    expect(repo.update).toHaveBeenCalledTimes(1);
+    expect(repo.update).toHaveBeenCalledWith(
+      { id: 'lost', status: 'queued' },
+      { status: 'failed', error: 'Report generation timed out' },
+    );
+  });
 });

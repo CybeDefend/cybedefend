@@ -39,8 +39,8 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
       currentPage: 2, totalPages: 5, pageSize: 3, totalCount: 14, onPageChange: vi.fn(),
     };
     renderAt(
-      '/project/p1/sast?issue=b',
-      <IssueQuickViewHost projectId="p1" type="sast" units={[['a'], ['b'], ['c']]} pagination={pagination} />,
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000b0',
+      <IssueQuickViewHost projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]} pagination={pagination} />,
     );
     // page 2, index 1 → 0-based global (2-1)*3 + 1 = 4 → displayed 1-based "5"
     expect(screen.getByTestId('position').textContent).toBe('5 / 14');
@@ -50,11 +50,11 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
 
   it('forwards the latest scan date to the drawer', () => {
     renderAt(
-      '/project/p1/sast?issue=b',
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000b0',
       <IssueQuickViewHost
         projectId="p1"
         type="sast"
-        units={[['a'], ['b'], ['c']]}
+        units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]}
         lastScanAt="2026-09-18T09:30:00Z"
       />,
     );
@@ -63,8 +63,8 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
 
   it('falls back to a within-page label when no pagination is given', () => {
     renderAt(
-      '/project/p1/sast?issue=b',
-      <IssueQuickViewHost projectId="p1" type="sast" units={[['a'], ['b'], ['c']]} />,
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000b0',
+      <IssueQuickViewHost projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]} />,
     );
     expect(screen.getByTestId('position').textContent).toBe('2 / 3');
   });
@@ -72,9 +72,9 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
   it('next on the last item of a non-final page requests the next page', () => {
     const onPageChange = vi.fn();
     renderAt(
-      '/project/p1/sast?issue=c',
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000c0',
       <IssueQuickViewHost
-        projectId="p1" type="sast" units={[['a'], ['b'], ['c']]}
+        projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]}
         pagination={{ currentPage: 1, totalPages: 3, pageSize: 3, totalCount: 7, onPageChange }}
       />,
     );
@@ -86,9 +86,9 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
   it('prev on the first item of a non-first page requests the previous page', () => {
     const onPageChange = vi.fn();
     renderAt(
-      '/project/p1/sast?issue=a',
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000a0',
       <IssueQuickViewHost
-        projectId="p1" type="sast" units={[['a'], ['b'], ['c']]}
+        projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]}
         pagination={{ currentPage: 2, totalPages: 3, pageSize: 3, totalCount: 7, onPageChange }}
       />,
     );
@@ -99,9 +99,9 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
 
   it('disables next on the very last item of the last page', () => {
     renderAt(
-      '/project/p1/sast?issue=c',
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000c0',
       <IssueQuickViewHost
-        projectId="p1" type="sast" units={[['a'], ['b'], ['c']]}
+        projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]}
         pagination={{ currentPage: 3, totalPages: 3, pageSize: 3, totalCount: 9, onPageChange: vi.fn() }}
       />,
     );
@@ -111,7 +111,7 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
   it('opens the first item of the next page once it has loaded (lazy cross-page)', () => {
     // Harness that swaps the page's units when onPageChange fires,
     // mimicking the list refetching page 2 only on the next-at-end action.
-    const PAGES: Record<number, string[]> = { 1: ['a', 'b', 'c'], 2: ['d', 'e', 'f'] };
+    const PAGES: Record<number, string[]> = { 1: ['00000000-0000-4000-8000-0000000000a0', '00000000-0000-4000-8000-0000000000b0', '00000000-0000-4000-8000-0000000000c0'], 2: ['00000000-0000-4000-8000-0000000000d0', '00000000-0000-4000-8000-0000000000e0', '00000000-0000-4000-8000-0000000000f0'] };
     const Harness: React.FC = () => {
       const [page, setPage] = useState(1);
       return (
@@ -123,24 +123,24 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
         />
       );
     };
-    renderAt('/project/p1/sast?issue=c', <Harness />);
-    expect(screen.getByTestId('issueId').textContent).toBe('c');
+    renderAt('/project/p1/sast?issue=00000000-0000-4000-8000-0000000000c0', <Harness />);
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000c0');
 
     act(() => {
       drawerProps.onNext(); // last of page 1 → load page 2, pending "first"
     });
-    // page 2 loaded (d,e,f); 'c' no longer present → host opens the first: 'd'
-    expect(screen.getByTestId('issueId').textContent).toBe('d');
+    // page 2 loaded (d,e,f); '00000000-0000-4000-8000-0000000000c0' no longer present → host opens the first: '00000000-0000-4000-8000-0000000000d0'
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000d0');
     expect(screen.getByTestId('position').textContent).toBe('4 / 6');
   });
 
   it('grouped view: counts every occurrence in the total (single occurrence-based counter)', () => {
     // Page 2: group A (a1,a2,a3), group B (b1). 20 occurrences precede this page.
     renderAt(
-      '/project/p1/sca?issue=a2',
+      '/project/p1/sca?issue=00000000-0000-4000-8000-0000000000a2',
       <IssueQuickViewHost
         projectId="p1" type="sca"
-        units={[['a1', 'a2', 'a3'], ['b1']]}
+        units={[['00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2', '00000000-0000-4000-8000-0000000000a3'], ['00000000-0000-4000-8000-0000000000b1']]}
         pagination={{ currentPage: 2, totalPages: 5, pageSize: 10, totalCount: 47, occurrenceOffset: 20, onPageChange: vi.fn() }}
       />,
     );
@@ -150,21 +150,21 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
 
   it('grouped view: next steps through occurrences WITHIN a category (no skip)', () => {
     renderAt(
-      '/project/p1/sca?issue=a1',
+      '/project/p1/sca?issue=00000000-0000-4000-8000-0000000000a1',
       <IssueQuickViewHost
         projectId="p1" type="sca"
-        units={[['a1', 'a2', 'a3'], ['b1']]}
+        units={[['00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2', '00000000-0000-4000-8000-0000000000a3'], ['00000000-0000-4000-8000-0000000000b1']]}
         pagination={{ currentPage: 1, totalPages: 5, pageSize: 10, totalCount: 47, onPageChange: vi.fn() }}
       />,
     );
     // a1 → a2 (same category), NOT straight to b1
     act(() => drawerProps.onNext());
-    expect(screen.getByTestId('issueId').textContent).toBe('a2');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000a2');
     act(() => drawerProps.onNext());
-    expect(screen.getByTestId('issueId').textContent).toBe('a3');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000a3');
     // last occurrence of group A → first of group B
     act(() => drawerProps.onNext());
-    expect(screen.getByTestId('issueId').textContent).toBe('b1');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000b1');
   });
 
   it('grouped view: stepping across a page keeps the exact running occurrence count (no estimate jump)', () => {
@@ -172,7 +172,7 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
     // page 1 packs 3 occurrences into one group, page 2 holds a single one.
     // The even-distribution estimate can't know page 1 was occurrence-heavy, so
     // stepping must carry the EXACT count (3 → 4), not fall back to the estimate.
-    const PAGES: Record<number, string[][]> = { 1: [['a1', 'a2', 'a3']], 2: [['b1']] };
+    const PAGES: Record<number, string[][]> = { 1: [['00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2', '00000000-0000-4000-8000-0000000000a3']], 2: [['00000000-0000-4000-8000-0000000000b1']] };
     const Harness: React.FC = () => {
       const [page, setPage] = useState(1);
       return (
@@ -193,20 +193,20 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
         />
       );
     };
-    renderAt('/project/p1/sca?issue=a3', <Harness />);
+    renderAt('/project/p1/sca?issue=00000000-0000-4000-8000-0000000000a3', <Harness />);
     expect(screen.getByTestId('position').textContent).toBe('3 / 4');
 
     act(() => drawerProps.onNext()); // last occurrence of page 1 → first of page 2
-    expect(screen.getByTestId('issueId').textContent).toBe('b1');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000b1');
     expect(screen.getByTestId('position').textContent).toBe('4 / 4'); // NOT 3/4 (the estimate)
 
     act(() => drawerProps.onPrev()); // back to the last occurrence of page 1
-    expect(screen.getByTestId('issueId').textContent).toBe('a3');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000a3');
     expect(screen.getByTestId('position').textContent).toBe('3 / 4');
   });
 
   it('closes the drawer when the page is changed from the list (issue leaves the list)', () => {
-    const PAGES: Record<number, string[][]> = { 1: [['a'], ['b'], ['c']], 2: [['d'], ['e'], ['f']] };
+    const PAGES: Record<number, string[][]> = { 1: [['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']], 2: [['00000000-0000-4000-8000-0000000000d0'], ['00000000-0000-4000-8000-0000000000e0'], ['00000000-0000-4000-8000-0000000000f0']] };
     const Harness: React.FC = () => {
       const [page, setPage] = useState(1);
       return (
@@ -221,13 +221,13 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
         </>
       );
     };
-    renderAt('/project/p1/sast?issue=b', <Harness />);
-    expect(screen.getByTestId('issueId').textContent).toBe('b');
+    renderAt('/project/p1/sast?issue=00000000-0000-4000-8000-0000000000b0', <Harness />);
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000b0');
     // Change page via the list's own control (NOT the drawer's next).
     act(() => {
       fireEvent.click(screen.getByText('list-page-2'));
     });
-    // 'b' is gone from the list and no cross-page was pending → drawer closes.
+    // '00000000-0000-4000-8000-0000000000b0' is gone from the list and no cross-page was pending → drawer closes.
     expect(screen.getByTestId('issueId').textContent).toBe('null');
   });
 
@@ -237,10 +237,10 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
     // (the user is still working on that vuln) AND prev/next must keep working
     // from the remembered slot.
     const Harness: React.FC = () => {
-      const [units, setUnits] = useState<string[][]>([['a'], ['b'], ['c']]);
+      const [units, setUnits] = useState<string[][]>([['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]);
       return (
         <>
-          <button onClick={() => setUnits([['a'], ['c']])}>edit-b-off-filter</button>
+          <button onClick={() => setUnits([['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000c0']])}>edit-b-off-filter</button>
           <IssueQuickViewHost
             projectId="p1"
             type="sast"
@@ -250,33 +250,33 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
         </>
       );
     };
-    renderAt('/project/p1/sast?issue=b', <Harness />);
-    expect(screen.getByTestId('issueId').textContent).toBe('b');
+    renderAt('/project/p1/sast?issue=00000000-0000-4000-8000-0000000000b0', <Harness />);
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000b0');
     expect(screen.getByTestId('position').textContent).toBe('2 / 3');
 
-    // The list refetches the SAME page after the edit; 'b' no longer matches.
+    // The list refetches the SAME page after the edit; '00000000-0000-4000-8000-0000000000b0' no longer matches.
     act(() => {
       fireEvent.click(screen.getByText('edit-b-off-filter'));
     });
 
-    // Drawer stays open on 'b' — page did not change, so it wasn't list nav.
-    expect(screen.getByTestId('issueId').textContent).toBe('b');
+    // Drawer stays open on '00000000-0000-4000-8000-0000000000b0' — page did not change, so it wasn't list nav.
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000b0');
     // The position is remembered, and prev/next stay enabled from that slot.
     expect(screen.getByTestId('position').textContent).toBe('2 / 3');
     expect(screen.getByTestId('canPrev').textContent).toBe('true');
     expect(screen.getByTestId('canNext').textContent).toBe('true');
 
-    // "Next" moves to the vuln that took 'b's slot ('c'); the drawer follows.
+    // "Next" moves to the vuln that took '00000000-0000-4000-8000-0000000000b0's slot ('00000000-0000-4000-8000-0000000000c0'); the drawer follows.
     act(() => drawerProps.onNext());
-    expect(screen.getByTestId('issueId').textContent).toBe('c');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000c0');
   });
 
   it('from a vuln edited off the filter, prev returns to the item before its slot', () => {
     const Harness: React.FC = () => {
-      const [units, setUnits] = useState<string[][]>([['a'], ['b'], ['c']]);
+      const [units, setUnits] = useState<string[][]>([['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]);
       return (
         <>
-          <button onClick={() => setUnits([['a'], ['c']])}>edit-b-off-filter</button>
+          <button onClick={() => setUnits([['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000c0']])}>edit-b-off-filter</button>
           <IssueQuickViewHost
             projectId="p1"
             type="sast"
@@ -286,20 +286,20 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
         </>
       );
     };
-    renderAt('/project/p1/sast?issue=b', <Harness />);
+    renderAt('/project/p1/sast?issue=00000000-0000-4000-8000-0000000000b0', <Harness />);
     act(() => {
       fireEvent.click(screen.getByText('edit-b-off-filter'));
     });
     act(() => drawerProps.onPrev());
-    expect(screen.getByTestId('issueId').textContent).toBe('a');
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000a0');
   });
 
   it('ignores rapid next clicks while a cross-page jump is loading (no request burst)', () => {
     const onPageChange = vi.fn();
     renderAt(
-      '/project/p1/sast?issue=c',
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000c0',
       <IssueQuickViewHost
-        projectId="p1" type="sast" units={[['a'], ['b'], ['c']]}
+        projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]}
         pagination={{ currentPage: 1, totalPages: 5, pageSize: 3, totalCount: 15, onPageChange }}
       />,
     );
@@ -314,8 +314,8 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
 
   it('leaves « Ask Cybe » to the finding.actions slot inside the drawer (no onAskCybe prop)', () => {
     renderAt(
-      '/project/p1/sast?issue=v9',
-      <IssueQuickViewHost projectId="p1" type="sast" units={[['v9']]} />,
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000f9',
+      <IssueQuickViewHost projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000f9']]} />,
     );
     // The host no longer wires the chat itself: the drawer renders the
     // `finding.actions` slot, whose ee registration owns the dispatch.
@@ -325,14 +325,14 @@ describe('IssueQuickViewHost — global position + cross-page navigation', () =>
 
   it('does not close on a deep link to an issue that is not on the current page', () => {
     renderAt(
-      '/project/p1/sast?issue=zz',
+      '/project/p1/sast?issue=00000000-0000-4000-8000-0000000000ff',
       <IssueQuickViewHost
-        projectId="p1" type="sast" units={[['a'], ['b'], ['c']]}
+        projectId="p1" type="sast" units={[['00000000-0000-4000-8000-0000000000a0'], ['00000000-0000-4000-8000-0000000000b0'], ['00000000-0000-4000-8000-0000000000c0']]}
         pagination={{ currentPage: 1, totalPages: 2, pageSize: 3, totalCount: 6, onPageChange: vi.fn() }}
       />,
     );
-    // 'zz' was never in the list → keep the drawer open (just no counter).
-    expect(screen.getByTestId('issueId').textContent).toBe('zz');
+    // '00000000-0000-4000-8000-0000000000ff' was never in the list → keep the drawer open (just no counter).
+    expect(screen.getByTestId('issueId').textContent).toBe('00000000-0000-4000-8000-0000000000ff');
     expect(screen.getByTestId('position').textContent).toBe('');
   });
 });

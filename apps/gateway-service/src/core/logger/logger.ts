@@ -1,6 +1,9 @@
 import Pino, { Logger, LoggerOptions } from 'pino';
 import { trace, context } from '@opentelemetry/api';
 import { redactUrlSecrets } from '../utils/redact-url-secrets.util';
+import { LOGGED_ERROR_LOGGER_OPTIONS } from './logged-error';
+
+export { createHttpLoggerOptions } from './logged-error';
 
 export function createLoggerOptions(opts?: {
   otelIngestToken?: string;
@@ -83,6 +86,9 @@ export function createLoggerOptions(opts?: {
       }
       return {};
     },
+    // Errors under any key, and the line's message, are logged without
+    // a statement, its parameters or a value an engine's message quotes.
+    ...LOGGED_ERROR_LOGGER_OPTIONS,
     // Redact sensitive information from logs
     redact: {
       paths: [

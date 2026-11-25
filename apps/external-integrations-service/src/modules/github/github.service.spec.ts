@@ -2930,6 +2930,7 @@ describe('GithubService.callbackInstall (OAuth code + installation ownership)', 
   const MY_ORG = 'my-org';
   const MY_USER = 'user-1';
   const TARGET_INSTALLATION_ID = 4242;
+  const TARGET_ACCOUNT_ID = 5150;
 
   /** Route the shared Octokit mock by request path. */
   const routeOctokit = (opts: { userInstallations?: () => any } = {}) => {
@@ -2943,9 +2944,17 @@ describe('GithubService.callbackInstall (OAuth code + installation ownership)', 
             id: TARGET_INSTALLATION_ID,
             // Installed moments ago: the normal onboarding path.
             created_at: new Date().toISOString(),
-            account: { login: 'target-account' },
+            account: {
+              id: TARGET_ACCOUNT_ID,
+              login: 'target-account',
+              type: 'User',
+            },
           },
         };
+      }
+      if (route === 'GET /user') {
+        // The authorizing GitHub user is the account that installed the App.
+        return { data: { id: TARGET_ACCOUNT_ID } };
       }
       if (route.startsWith('GET /installation/repositories')) {
         return { data: { repositories: [] } };
@@ -3131,9 +3140,16 @@ describe('GithubService.callbackInstall (OAuth code + installation ownership)', 
               data: {
                 id: TARGET_INSTALLATION_ID,
                 created_at: new Date().toISOString(),
-                account: { login: 'target-account' },
+                account: {
+                  id: TARGET_ACCOUNT_ID,
+                  login: 'target-account',
+                  type: 'User',
+                },
               },
             };
+          }
+          if (route === 'GET /user') {
+            return { data: { id: TARGET_ACCOUNT_ID } };
           }
           if (route.startsWith('GET /installation/repositories')) {
             return { data: { repositories: [] } };
@@ -3385,10 +3401,16 @@ describe('GithubService.callbackInstall (proof of administration of an older ins
   const routesCalled = () =>
     mockOctokitInstance.request.mock.calls.map((c: any[]) => c[0] as string);
 
-  const savedOrganizations = () =>
-    (repoIntegration.save as jest.Mock).mock.calls.map(
+  // The organizations written to the installation row, by an insert or
+  // save, or by the conditional update that binds a row with none.
+  const savedOrganizations = () => [
+    ...(repoIntegration.save as jest.Mock).mock.calls.map(
       (c) => c[0].organizationId,
-    );
+    ),
+    ...(repoIntegration.update as jest.Mock).mock.calls.map(
+      (c) => c[1].organizationId,
+    ),
+  ];
 
   const expectRefused = async () => {
     let caught: unknown;
@@ -3425,16 +3447,54 @@ describe('GithubService.callbackInstall (proof of administration of an older ins
       id: 'int-new',
       ...e,
     }));
+    // The row is still unbound: the conditional update changes it.
+    (repoIntegration.update as any).mockResolvedValue({ affected: 1 });
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
   });
 
-  it('a fresh installation (under 15 minutes) binds as before, with no further proof', async () => {
+  it('a fresh installation is refused for a GitHub user who can only read one of its repositories', async () => {
     github({
       createdAt: minutesAgo(2),
       accountType: 'Organization',
+      membership: async () => ({ data: { state: 'active', role: 'member' } }),
+      installationRepoIds: [1, 2, 3],
+      userRepos: [{ id: 2, admin: false }],
+    });
+    recorded(null);
+
+    await expectRefused();
+    expect(repoIntegration.save).not.toHaveBeenCalled();
+    // The proof ran although the installation is seconds old.
+    expect(routesCalled()).toContain('GET /user/memberships/orgs/{org}');
+  });
+
+  it('a fresh installation recorded by the webhook stays unbound for a read-only collaborator', async () => {
+    github({
+      createdAt: minutesAgo(1),
+      accountType: 'Organization',
+      installationRepoIds: [1],
+      userRepos: [{ id: 1, admin: false }],
+    });
+    const row = {
+      id: 'int-1',
+      installationId: INSTALLATION_ID,
+      organizationId: null,
+      userId: null,
+    };
+    recorded(row);
+
+    await expectRefused();
+    expect(row.organizationId).toBeNull();
+  });
+
+  it('a fresh installation is bound for an owner of its GitHub organization', async () => {
+    github({
+      createdAt: minutesAgo(2),
+      accountType: 'Organization',
+      membership: async () => ({ data: { state: 'active', role: 'admin' } }),
       installationRepoIds: [1],
     });
     recorded(null);
@@ -3442,7 +3502,9 @@ describe('GithubService.callbackInstall (proof of administration of an older ins
     await service.callbackInstall(callDto() as any);
 
     expect(savedOrganizations()).toContain(MY_ORG);
-    expect(routesCalled().filter((r) => PROOF_ROUTES.includes(r))).toEqual([]);
+    expect(routesCalled().filter((r) => PROOF_ROUTES.includes(r))).toEqual([
+      'GET /user/memberships/orgs/{org}',
+    ]);
   });
 
   it('an older installation with no row: a read-only collaborator is refused', async () => {
@@ -3477,6 +3539,7 @@ describe('GithubService.callbackInstall (proof of administration of an older ins
 
     await expectRefused();
     expect(repoIntegration.save).not.toHaveBeenCalled();
+    expect(repoIntegration.update).not.toHaveBeenCalled();
     expect(row.organizationId).toBeNull();
   });
 
@@ -3643,23 +3706,284 @@ describe('GithubService.callbackInstall (proof of administration of an older ins
     },
   );
 
-  it('a row bound to another organization is never re-bound, even for a fresh installation', async () => {
+  it('an installation bound to another organization answers ALREADY_EXISTS and stays where it was', async () => {
     github({
       createdAt: minutesAgo(1),
       accountType: 'Organization',
       membership: async () => ({ data: { state: 'active', role: 'admin' } }),
     });
-    recorded({
+    const row = {
+      id: 'int-1',
+      installationId: INSTALLATION_ID,
+      organizationId: OTHER_ORG,
+      userId: 'someone',
+      githubOwner: 'acme',
+    };
+    recorded(row);
+
+    await expect(
+      service.callbackInstall(callDto() as any),
+    ).rejects.toMatchObject({
+      error: expect.objectContaining({ code: GrpcStatus.ALREADY_EXISTS }),
+    });
+
+    expect(repoIntegration.save).not.toHaveBeenCalled();
+    expect(row).toEqual({
       id: 'int-1',
       installationId: INSTALLATION_ID,
       organizationId: OTHER_ORG,
       userId: 'someone',
       githubOwner: 'acme',
     });
+  });
 
-    await service.callbackInstall(callDto() as any);
+  it('an installation already bound to the same organization answers success and changes nothing', async () => {
+    github({
+      createdAt: minutesAgo(60),
+      accountType: 'Organization',
+    });
+    recorded({
+      id: 'int-1',
+      installationId: INSTALLATION_ID,
+      organizationId: MY_ORG,
+      userId: 'someone',
+      githubOwner: 'acme',
+    });
 
-    expect(savedOrganizations()).not.toContain(MY_ORG);
+    await expect(service.callbackInstall(callDto() as any)).resolves.toEqual({
+      returnUri: expect.any(String),
+    });
+    expect(repoIntegration.save).not.toHaveBeenCalled();
+  });
+
+  it('an installation bound by the webhook path to another organization while the callback ran answers ALREADY_EXISTS', async () => {
+    github({
+      createdAt: minutesAgo(60),
+      accountType: 'Organization',
+      membership: async () => ({ data: { state: 'active', role: 'admin' } }),
+      installationRepoIds: [1],
+    });
+    let reads = 0;
+    (repoIntegration.findOne as any).mockImplementation(
+      async (opts: { where: Record<string, unknown> }) => {
+        if ('organizationId' in opts.where) return null;
+        reads += 1;
+        // First read: no row yet. After the insert collides, the row that
+        // won belongs to another organization.
+        return reads === 1
+          ? null
+          : {
+              id: 'int-1',
+              installationId: INSTALLATION_ID,
+              organizationId: OTHER_ORG,
+              userId: 'someone',
+            };
+      },
+    );
+    (repoIntegration.save as any).mockImplementation(async () => {
+      throw Object.assign(new Error('Duplicate entry'), {
+        code: 'ER_DUP_ENTRY',
+        errno: 1062,
+      });
+    });
+
+    await expect(
+      service.callbackInstall(callDto() as any),
+    ).rejects.toMatchObject({
+      error: expect.objectContaining({ code: GrpcStatus.ALREADY_EXISTS }),
+    });
+  });
+
+  it('a GitHub organization member whose membership is pending is refused, even on a fresh installation', async () => {
+    github({
+      createdAt: minutesAgo(1),
+      accountType: 'Organization',
+      membership: async () => ({ data: { state: 'pending', role: 'member' } }),
+      installationRepoIds: [1],
+      userRepos: [{ id: 1, admin: false }],
+    });
+    recorded(null);
+
+    await expectRefused();
+    expect(repoIntegration.save).not.toHaveBeenCalled();
+  });
+
+  it('an outside collaborator (not a member of the GitHub organization) who can write to a repository is refused', async () => {
+    github({
+      createdAt: minutesAgo(1),
+      accountType: 'Organization',
+      // No membership: GitHub answers 404 for an outside collaborator.
+      installationRepoIds: [1, 2],
+      userRepos: [{ id: 1, admin: false }],
+    });
+    recorded(null);
+
+    await expectRefused();
+    expect(repoIntegration.save).not.toHaveBeenCalled();
+  });
+
+  // Two proven administrators of the same GitHub account, each in their own
+  // organization, finish the flow for an installation the webhook recorded
+  // without an organization. Exactly one binds it; the other is told.
+  describe('two organizations binding the same unbound installation', () => {
+    type Row = {
+      id: string;
+      installationId: number;
+      organizationId: string | null;
+      userId: string | null;
+      githubOwner: string | null;
+    };
+    let stored: Row;
+
+    const isNullOperator = (value: unknown): boolean =>
+      (value as { type?: string } | null)?.type === 'isNull';
+
+    /**
+     * The table, as one row: `update` applies its criteria atomically, like
+     * the database; `save` writes the entity as given, like TypeORM's
+     * update by primary key.
+     */
+    const table = (readBarrier?: Promise<void>, onRead?: () => void) => {
+      (repoIntegration.findOne as any).mockImplementation(
+        async (opts: { where: Record<string, unknown> }) => {
+          if ('organizationId' in opts.where) return null;
+          const snapshot = { ...stored };
+          onRead?.();
+          if (readBarrier) await readBarrier;
+          return snapshot;
+        },
+      );
+      (repoIntegration.update as any).mockImplementation(
+        async (criteria: Record<string, unknown>, changes: Partial<Row>) => {
+          const matches =
+            criteria.id === stored.id &&
+            (!('organizationId' in criteria) ||
+              (isNullOperator(criteria.organizationId)
+                ? stored.organizationId === null
+                : criteria.organizationId === stored.organizationId));
+          if (!matches) return { affected: 0 };
+          Object.assign(stored, changes);
+          return { affected: 1 };
+        },
+      );
+      (repoIntegration.save as any).mockImplementation(async (row: Row) => {
+        Object.assign(stored, row);
+        return { ...stored };
+      });
+    };
+
+    const dtoFor = (organizationId: string, userId: string) => ({
+      installationId: INSTALLATION_ID,
+      organizationId,
+      userId,
+      code: 'oauth-code',
+    });
+
+    beforeEach(() => {
+      stored = {
+        id: 'int-1',
+        installationId: INSTALLATION_ID,
+        organizationId: null,
+        userId: null,
+        githubOwner: 'acme',
+      };
+      github({
+        createdAt: minutesAgo(60),
+        accountType: 'Organization',
+        membership: async () => ({ data: { state: 'active', role: 'admin' } }),
+      });
+    });
+
+    it('both read the row before either writes: one binds it, the other answers ALREADY_EXISTS', async () => {
+      let reads = 0;
+      let release: () => void = () => undefined;
+      const bothRead = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      table(bothRead, () => {
+        reads += 1;
+        if (reads === 2) release();
+      });
+
+      const results = await Promise.allSettled([
+        service.callbackInstall(dtoFor(MY_ORG, 'user-a') as any),
+        service.callbackInstall(dtoFor(OTHER_ORG, 'user-b') as any),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter(
+        (r): r is PromiseRejectedResult => r.status === 'rejected',
+      );
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].reason).toMatchObject({
+        error: expect.objectContaining({ code: GrpcStatus.ALREADY_EXISTS }),
+      });
+      const winner = results[0].status === 'fulfilled' ? MY_ORG : OTHER_ORG;
+      expect(stored.organizationId).toBe(winner);
+    });
+
+    it('a callback that read the row before another one finished answers ALREADY_EXISTS and leaves the binding alone', async () => {
+      // B reads the row while it is still unbound...
+      let releaseB: () => void = () => undefined;
+      const bMayWrite = new Promise<void>((resolve) => {
+        releaseB = resolve;
+      });
+      let markBRead: () => void = () => undefined;
+      const bHasRead = new Promise<void>((resolve) => {
+        markBRead = resolve;
+      });
+      let reads = 0;
+      table(undefined, undefined);
+      (repoIntegration.findOne as any).mockImplementation(
+        async (opts: { where: Record<string, unknown> }) => {
+          if ('organizationId' in opts.where) return null;
+          const snapshot = { ...stored };
+          reads += 1;
+          // Only B is running when the first read happens. It goes on once
+          // A has fully bound the row.
+          if (reads === 1) {
+            markBRead();
+            await bMayWrite;
+          }
+          return snapshot;
+        },
+      );
+
+      const b = service.callbackInstall(dtoFor(OTHER_ORG, 'user-b') as any);
+      await bHasRead;
+      await expect(
+        service.callbackInstall(dtoFor(MY_ORG, 'user-a') as any),
+      ).resolves.toEqual({ returnUri: expect.any(String) });
+      expect(stored.organizationId).toBe(MY_ORG);
+
+      releaseB();
+      await expect(b).rejects.toMatchObject({
+        error: expect.objectContaining({ code: GrpcStatus.ALREADY_EXISTS }),
+      });
+      expect(stored.organizationId).toBe(MY_ORG);
+      expect(stored.userId).toBe('user-a');
+    });
+
+    it('two callbacks of the same organization both answer success', async () => {
+      let reads = 0;
+      let release: () => void = () => undefined;
+      const bothRead = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      table(bothRead, () => {
+        reads += 1;
+        if (reads === 2) release();
+      });
+
+      const results = await Promise.allSettled([
+        service.callbackInstall(dtoFor(MY_ORG, 'user-a') as any),
+        service.callbackInstall(dtoFor(MY_ORG, 'user-c') as any),
+      ]);
+
+      expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled']);
+      expect(stored.organizationId).toBe(MY_ORG);
+    });
   });
 });
 
@@ -4135,6 +4459,28 @@ describe('GithubService.getRepositories — reconciliation with GitHub', () => {
       { per_page: 100, page: 2 },
     );
   });
+
+  it.each([
+    [
+      'getInstallationRepositoriesFromAPI',
+      'Failed to retrieve installation repositories',
+    ],
+    ['getInstallationDetails', 'Failed to retrieve installation details'],
+  ])(
+    '%s answers a stable message, never the API error’s text',
+    async (method, message) => {
+      const apiError = new Error(
+        'Bad credentials - https://api.github.com/?token=private-value-5d1',
+      );
+      mockOctokitInstance.request.mockRejectedValue(apiError);
+
+      const thrown = await (service as any)
+        [method](INSTALLATION_ID)
+        .catch((e: { getError: () => unknown }) => e.getError());
+
+      expect(thrown).toEqual({ message, code: GrpcStatus.INTERNAL });
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

@@ -567,7 +567,7 @@ const SCRIPT = `
       title(h,'',S.repo||'This branch',S.verdict.ship?' can ship.':' is not ready to ship.');
       // The sentence the report opens on, with the same numbers: what blocks in the code, and the advisories on the packages. They add up to the count.
       var V=S.verdict,has=function(x){return x!==undefined&&x!==null};
-      var line=V.ship?"No rule of the team's policies blocks this branch.":plural(V.blocking,'finding blocks','findings block')+' the deploy'+(has(V.advisories)?': '+(has(V.findings)?V.findings:(V.flaws||0))+' in the code and its configuration, '+plural(V.advisories,'advisory','advisories')+' on '+plural(V.packages||0,'package','packages')+' to upgrade.':'.');
+      var line=V.ship?(V.toFix?'It can ship, with '+plural(V.toFix,'thing','things')+' to fix.'+(V.exit?" The team's policies still fail the CI on "+plural(V.blocking,'finding','findings')+'.':''):"Nothing to fix before this branch ships."):plural(V.blocking,'finding blocks','findings block')+' the deploy'+(has(V.advisories)?': '+(has(V.findings)?V.findings:(V.flaws||0))+' in the code and its configuration, '+plural(V.advisories,'advisory','advisories')+' on '+plural(V.packages||0,'package','packages')+' to upgrade.':'.');
       var d=safeLink(S.links&&S.links.dashboard),r=safeLink(S.links&&S.links.report);
       setSub('verdict|'+line+'|'+d+'|'+r,function(sub){
         sub.appendChild(el('span','',line+' '));

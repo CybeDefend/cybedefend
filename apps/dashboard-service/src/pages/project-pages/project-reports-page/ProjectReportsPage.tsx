@@ -15,6 +15,9 @@ import { useProjectBranchesList } from "@/server/hooks/useProjectBranchesList";
 import { selectDefaultReportBranch } from "./selectDefaultReportBranch";
 import { productHome } from "@/utils/product";
 import { useReportDeepLink } from "@/components/organismes/stored-reports/useReportDeepLink";
+import EmptyState from "@/components/molecules/empty-state/EmptyState";
+import { REPORT_ROLES, useProjectRoleAccess } from "@/server/hooks/useProjectRoleAccess";
+import { API_ERROR_KEYS } from "@/utils/function/apiErrorKey";
 
 const ProjectReportsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +37,8 @@ const ProjectReportsPage: React.FC = () => {
   const disabledFeatures = useDisabledFeatures();
   const isReportsDisabled = disabledFeatures.has('reports');
   const writesBlocked = useEditionEntitlements().writesBlocked;
+  // The member's report roles on the project's team (the API stays the authority).
+  const reportAccess = useProjectRoleAccess(projectId, REPORT_ROLES);
 
   // Paginated / backend-search branch list (replaces the one-shot
   // getProjectBranches + getArchivedBranches fetch). Archived branches are
@@ -50,13 +55,14 @@ const ProjectReportsPage: React.FC = () => {
     loading,
     cweLoading,
     error,
+    forbidden,
     generateOwasp,
     generateCwe,
     clearOwaspReport,
     clearCweReport,
     downloadOwaspReport,
     downloadCweReport,
-  } = useProjectReports(isReportsDisabled ? undefined : projectId, selectedBranch);
+  } = useProjectReports(isReportsDisabled || reportAccess === false ? undefined : projectId, selectedBranch);
 
   useEffect(() => {
     if (!projectId) return;
@@ -132,6 +138,12 @@ const ProjectReportsPage: React.FC = () => {
       toast.success(t('pages.projectReports.reportDownloadedSuccess'));
     }
   };
+
+  // The member lacks the report roles, or the gateway refused them the
+  // reports: one calm state, not an error per attempt.
+  if (forbidden || reportAccess === false) {
+    return <EmptyState title={t(API_ERROR_KEYS.notAllowed)} size="lg" />;
+  }
 
   return (
     <div>

@@ -51,11 +51,16 @@ import { useIssueTracking } from '@/server/hooks/useIssueTracking';
 import { useScanRealtime, ScanStatusChangedPayload } from '@/server/hooks/useScanRealtime';
 import { skipWhenHidden, useCatchUpWhenVisible } from '@/server/hooks/usePollingWhenVisible';
 import { isScanGone } from '@/server/store/scanTask';
-import { apiErrorKey } from '@/utils/function/apiErrorKey';
+import { API_ERROR_KEYS, apiErrorKey } from '@/utils/function/apiErrorKey';
+import { isForbidden } from '@/utils/function/isForbidden';
+import { IMAGE_DELETE_ROLES, useProjectRoleAccess } from "@/server/hooks/useProjectRoleAccess";
 
 const ResultsContainerPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { projectId } = useParams<{ projectId: string }>();
+  // Deleting an image needs the project delete and triage roles; the action
+  // is left out once the member is known to lack them (a 403 stays handled).
+  const canDeleteImages = useProjectRoleAccess(projectId, IMAGE_DELETE_ROLES) !== false;
   const { t } = useTranslation();
   const navigate = useNavigate();
   const organization = useSelector((state: RootState) => state.organization);
@@ -74,6 +79,7 @@ const ResultsContainerPage: React.FC = () => {
   const {
     isLoadingBranches,
     projectName: pageDataProjectName,
+    loadedProjectId,
     isSecurityContextCustomized,
     isJiraLinked,
     isLinearLinked,
@@ -363,6 +369,13 @@ const ResultsContainerPage: React.FC = () => {
       refreshGroupedImages(); // Refresh grouped images too
       fetchGlobalVulnCounts(); // Also refresh global counts
     } catch (error) {
+      if (isForbidden(error)) {
+        // The role may not delete an image of this project: say so, and close
+        // the confirmation, instead of reporting a failure.
+        setImageToDelete(null);
+        toast.info(t(API_ERROR_KEYS.notAllowed));
+        return;
+      }
       toast.error(
         t('container.images.deleteError')
       );
@@ -753,7 +766,7 @@ const ResultsContainerPage: React.FC = () => {
             loading={groupedImagesLoading}
             error={groupedImagesError}
             onImageSelect={handleImageSelect}
-            onDeleteClick={handleDeleteClick}
+            onDeleteClick={canDeleteImages ? handleDeleteClick : undefined}
             totalImages={groupedTotalRepositories}
             currentPage={groupedImagesCurrentPage}
             totalPages={groupedImagesTotalPages}
@@ -772,7 +785,7 @@ const ResultsContainerPage: React.FC = () => {
           loading={imagesLoading}
           error={imagesError}
           onImageSelect={handleImageSelect}
-          onDeleteClick={handleDeleteClick}
+          onDeleteClick={canDeleteImages ? handleDeleteClick : undefined}
           totalImages={totalImages}
           currentPage={imagesCurrentPage}
           totalPages={imagesTotalPages}
@@ -907,7 +920,7 @@ const ResultsContainerPage: React.FC = () => {
 
       {showImport && projectId && (
         <ImportResultsDialog
-          projectId={projectId}
+          projectId={loadedProjectId ?? ""}
           defaultType="container"
           defaultBranch={selectedBranch || defaultBranch || ''}
           onClose={() => setShowImport(false)}

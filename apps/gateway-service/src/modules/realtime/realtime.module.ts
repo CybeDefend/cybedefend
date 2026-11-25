@@ -24,6 +24,8 @@ import { ProjectsRealtimeController } from './projects-realtime.controller';
 import { TeamsRealtimeController } from './teams-realtime.controller';
 import { TasksRealtimeController } from './tasks-realtime.controller';
 import { AsyncTaskOwnerGuard } from './async-task-owner.guard';
+import { PermissionsGuard } from 'src/core/guards/permissions/permissions.guard';
+import { StreamAuthorizer } from './stream-authorization';
 
 const MEMBERSHIP_CONTROL_CHANNEL = 'cybe:event:membership';
 
@@ -57,6 +59,8 @@ const MEMBERSHIP_CONTROL_CHANNEL = 'cybe:event:membership';
     AuthGuard,
     RateLimitGuard,
     AsyncTaskOwnerGuard,
+    PermissionsGuard,
+    StreamAuthorizer,
   ],
   exports: [
     MembershipRegistry,
@@ -86,6 +90,9 @@ export class RealtimeModule implements OnModuleInit, OnApplicationShutdown {
             scopeType: p.scopeType,
             scopeId: p.scopeId,
           });
+          // The change may cut the access of a stream of another scope (a
+          // project stream after a team removal): those re-check now.
+          this.membership.recheckUser(p.userId);
         } catch (err) {
           this.logger.warn(
             `Malformed membership event: ${(err as Error).message}`,

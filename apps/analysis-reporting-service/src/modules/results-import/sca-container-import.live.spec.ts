@@ -1,58 +1,22 @@
 import { randomUUID } from 'node:crypto';
-import { createReadStream, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Test } from '@nestjs/testing';
-import { getQueueToken } from '@nestjs/bullmq';
-import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
-import type { ClientGrpc } from '@nestjs/microservices';
-import { Queue } from 'bullmq';
 import type { Job } from 'bullmq';
-import { Logger } from 'nestjs-pino';
-import { of } from 'rxjs';
-import { DataSource } from 'typeorm';
 import type {
   EntityTarget,
   ObjectLiteral,
   QueryDeepPartialEntity,
 } from 'typeorm';
 import { parseDialect } from '@cybedefend/db-dialect';
-import {
-  createLiveDatabase,
-  liveEnabled,
-  type LiveDatabase,
-} from '../../core/db/live-database';
-import { SastIacService } from '../sast-iac/sast-iac.service';
-import { SastIacUtilsService } from '../sast-iac/sast-iac.utils';
+import { liveEnabled } from '../../core/db/live-database';
 import { ScaService } from '../sca/sca.service';
 import { ContainerService } from '../container/container.service';
-import { ResultService } from '../result/result.service';
-import { IssueIntegrationService } from '../vulnerability/issue-integration.service';
-import { CvssCalculatorService } from '../cvss/cvss-calculator.service';
-import { CvssExplainerService } from '../cvss/cvss-explainer.service';
-import { SecretEncryptionService } from '../../core/crypto/secret-encryption.service';
-import { CyberiskRecomputeEnqueuer } from '../cyber-risk/cyberisk-recompute.enqueuer';
-import { ReferenceBranchResolver } from '../cyber-risk/reference-branch.resolver';
-import { ProjectOrgResolver } from '../../core/realtime/project-org-resolver.service';
-import { SecurityContextCacheService } from '../security-context/security-context-cache.service';
-import { OwaspReportService } from '../reports/owasp-report/owasp-report.service';
-import { CweReportService } from '../reports/cwe-report/cwe-report.service';
 import type { OwaspReportData } from '../reports/owasp-report/owasp-report.types';
 import type { CweReportData } from '../reports/cwe-report/cwe-report.types';
-import { PdfGeneratorService } from '../../core/utils/pdf-generator.service';
-import { ProjectNameResolver } from '../reports/shared/project-name-resolver.service';
-import { DataPurgeService } from '../data-purge/data-purge.service';
-import { OrganizationStatisticsService } from '../organization-statistics/organization-statistics.service';
-import { QUEUE_NAMES } from '../scan-queue/queue-names';
-import {
-  ResultsImportJobData,
-  ScanQueueService,
-} from '../scan-queue/scan-queue.service';
+import { ResultsImportJobData } from '../scan-queue/scan-queue.service';
 import type { ImportCategory } from './catalogue-fallback.service';
-import type { ScanCompleteNotificationService } from '../scan-queue/scan-complete-notification.service';
-import type { RealtimeBatchPublisher } from '../../core/realtime/realtime-batch-publisher.service';
-import { HistoryItem } from '../../entities/history-item.entity';
 import { SastVulnerabilityDetections } from '../../entities/sast-vulnerability-detections.entity';
 import { IacVulnerabilityDetections } from '../../entities/iac-vulnerability-detections.entity';
 import { SecretVulnerabilityDetections } from '../../entities/secret-vulnerability-detections.entity';
@@ -62,15 +26,16 @@ import { ContainerDetectedImage } from '../../entities/container-detected-image.
 import { ContainerDetectedPackage } from '../../entities/container-detected-package.entity';
 import { VulnerabilityDetectionsContainer } from '../../entities/container_vulnerability_detections.entity';
 import { VulnerabilityOsv } from '../../entities/osv/vulnerability-osv.entity';
+import { ImportedAdvisory } from '../../entities/imported-advisory.entity';
 import { VulnerabilityOsvAlias } from '../../entities/osv/vulnerability-osv-alias.entity';
 import { VulnerabilityOsvSeverity } from '../../entities/osv/vulnerability-osv-severity.entity';
 import { VulnerabilityOsvAffected } from '../../entities/osv/vulnerability-osv-affected.entity';
 import { VulnerabilityOsvAffectedRange } from '../../entities/osv/vulnerability-osv-affected-range.entity';
 import { VulnerabilityOsvAffectedEvent } from '../../entities/osv/vulnerability-osv-affected-event.entity';
-import { CatalogueFallbackService } from './catalogue-fallback.service';
-import { AdvisoryFallbackService } from './advisory-fallback.service';
-import type { ImportFileSource } from './import-file.source';
-import { ResultsImportProcessor } from './results-import.processor';
+import {
+  ImportHarness,
+  openImportHarness,
+} from '../../test-utils/results-import.live-harness';
 
 /**
  * LIVE end-to-end proofs of the SCA and container imports, on PostgreSQL (the import is a Community Edition feature,
@@ -109,8 +74,6 @@ const describeLive =
   LIVE && parseDialect(process.env.LIVE_DB_TYPE) === 'postgres'
     ? describe
     : describe.skip;
-const REDIS_URL =
-  process.env.RESULTS_IMPORT_REDIS_URL ?? 'redis://127.0.0.1:6379';
 const FIXTURES = join(__dirname, '../../../../../libs/test-fixtures/sarif');
 const fixture = (name: string) => join(FIXTURES, name);
 const sbomFixture = (name: string) =>
@@ -128,236 +91,8 @@ const GRYPE_IMAGE = 'ghcr.io/example/web:1.4.2';
 const TRIVY_IMAGE_ID =
   'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-interface Harness {
-  live: LiveDatabase;
-  processor: ResultsImportProcessor;
-  sca: ScaService;
-  container: ContainerService;
-  owasp: OwaspReportService;
-  cwe: CweReportService;
-  purge: DataPurgeService;
-  completeImportScan: jest.Mock;
-  onScannerFinalized: jest.Mock;
-  close: () => Promise<void>;
-}
-
-/** One migrated database and every service of the import on it. */
-async function openHarness(
-  dialect: ReturnType<typeof parseDialect>,
-  bullPrefix: string,
-): Promise<Harness> {
-  const live = await createLiveDatabase({
-    prefix: 'results_import',
-    envPrefix: 'RESULTS_IMPORT',
-    dialect,
-    migrations: 'track',
-  });
-  const queues: Queue[] = [];
-  let scanQueue: ScanQueueService | undefined;
-  const close = async () => {
-    // Each cleanup step on its own: one failing handle must not leave the
-    // others open and hang the Jest process.
-    try {
-      if (scanQueue) await (await scanQueue.getRedisClient()).quit();
-    } catch {
-      /* the client never came up */
-    }
-    for (const queue of queues) {
-      try {
-        await queue.close();
-      } catch {
-        /* ignore */
-      }
-    }
-    await live.drop();
-  };
-
-  try {
-    const logger = {
-      log: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      debug: jest.fn(),
-    };
-    const url = new URL(REDIS_URL);
-    const connection = { host: url.hostname, port: Number(url.port || 6379) };
-    for (const name of Object.values(QUEUE_NAMES)) {
-      queues.push(new Queue(name, { connection, prefix: bullPrefix }));
-    }
-
-    const getScan = jest.fn(() => of({ branch: 'main', isDiffScan: false }));
-    const project = {
-      id: '',
-      name: 'live-import-project',
-      referenceBranch: 'main',
-      parsedBranches: [],
-      scaReachabilityPriorityEnabled: false,
-      scaReachabilityStatusEnabled: false,
-      githubIssueEnabled: false,
-      gitlabIssueEnabled: false,
-      issueCreationBranches: [],
-    };
-
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        SastIacService,
-        SastIacUtilsService,
-        ScaService,
-        ContainerService,
-        OwaspReportService,
-        CweReportService,
-        DataPurgeService,
-        ScanQueueService,
-        ...queues.map((queue) => ({
-          provide: getQueueToken(queue.name),
-          useValue: queue,
-        })),
-        // Every entity's repository, on the live data source.
-        ...live.dataSource.entityMetadatas.map((metadata) => ({
-          provide: getRepositoryToken(
-            metadata.target as Parameters<typeof getRepositoryToken>[0],
-          ),
-          useValue: live.dataSource.getRepository(metadata.target),
-        })),
-        { provide: DataSource, useValue: live.dataSource },
-        { provide: getDataSourceToken(), useValue: live.dataSource },
-        {
-          provide: ResultService,
-          useValue: {
-            addHistoryItem: (item: HistoryItem) =>
-              live.dataSource.getRepository(HistoryItem).save(item),
-            computeEnvironmentalForProject: async () => null,
-            recalculatePriority: async () => ({
-              priority: 'high',
-              priorityScore: 60,
-            }),
-            getCountVulnerabilitiesCountByType: async () => ({}),
-            getAutofixCountByType: async () => ({}),
-          },
-        },
-        {
-          provide: IssueIntegrationService,
-          useValue: { closeIssuesForResolvedVulnerabilities: async () => {} },
-        },
-        {
-          provide: CvssCalculatorService,
-          useValue: new CvssCalculatorService(),
-        },
-        {
-          provide: CvssExplainerService,
-          useValue: { buildExplanationForEntity: () => undefined },
-        },
-        { provide: SecretEncryptionService, useValue: {} },
-        {
-          provide: CyberiskRecomputeEnqueuer,
-          useValue: { enqueue: async () => {} },
-        },
-        {
-          provide: ReferenceBranchResolver,
-          useValue: { getScoringBranches: async () => ['main', 'master'] },
-        },
-        {
-          provide: ProjectOrgResolver,
-          useValue: { resolveOrgId: async () => null },
-        },
-        { provide: SecurityContextCacheService, useValue: {} },
-        { provide: PdfGeneratorService, useValue: {} },
-        {
-          provide: ProjectNameResolver,
-          useValue: { resolve: async () => 'live-import-project' },
-        },
-        {
-          provide: OrganizationStatisticsService,
-          useValue: { markDirtyIfPresent: async () => undefined },
-        },
-        {
-          provide: 'GLOBAL_MANAGEMENT_SERVICE',
-          useValue: {
-            getService: () => ({
-              get: ({ projectId }: { projectId: string }) =>
-                of({ ...project, id: projectId }),
-              getById: () => of({}),
-              getProjectBranches: () => of({ branches: [] }),
-            }),
-          },
-        },
-        {
-          provide: 'SECURITY_SCANNING_SERVICE',
-          useValue: {
-            getService: () => ({
-              getScan,
-              getLastScanStatus: () => of({}),
-            }),
-          },
-        },
-        { provide: 'AGENT_SERVICE', useValue: { getService: () => ({}) } },
-        { provide: Logger, useValue: logger },
-      ],
-    }).compile();
-
-    scanQueue = moduleRef.get(ScanQueueService);
-    await scanQueue.onModuleInit();
-    const sastIac = moduleRef.get(SastIacService);
-    (sastIac as unknown as { scanServiceClient: unknown }).scanServiceClient = {
-      getScan,
-    };
-    const sca = moduleRef.get(ScaService);
-    sca.onModuleInit();
-    const container = moduleRef.get(ContainerService);
-    container.onModuleInit();
-
-    const catalogue = new CatalogueFallbackService(
-      live.dataSource,
-      moduleRef.get(SastIacUtilsService),
-      scanQueue,
-      logger as unknown as Logger,
-    );
-    const advisories = new AdvisoryFallbackService(
-      live.dataSource,
-      scanQueue,
-      logger as unknown as Logger,
-    );
-    const files = {
-      open: (_projectId: string, fileKey: string) => async () =>
-        createReadStream(fileKey),
-    } as unknown as ImportFileSource;
-
-    const completeImportScan = jest.fn(() => of({}));
-    const onScannerFinalized = jest.fn(async () => undefined);
-    const processor = new ResultsImportProcessor(
-      sastIac,
-      scanQueue,
-      { onScannerFinalized } as unknown as ScanCompleteNotificationService,
-      { publishNow: jest.fn() } as unknown as RealtimeBatchPublisher,
-      catalogue,
-      files,
-      {
-        getService: () => ({ completeImportScan }),
-      } as unknown as ClientGrpc,
-      sca,
-      container,
-      advisories,
-    );
-    processor.onModuleInit();
-    processor.delay = async () => undefined;
-
-    return {
-      live,
-      processor,
-      sca,
-      container,
-      owasp: moduleRef.get(OwaspReportService),
-      cwe: moduleRef.get(CweReportService),
-      purge: moduleRef.get(DataPurgeService),
-      completeImportScan,
-      onScannerFinalized,
-      close,
-    };
-  } catch (error) {
-    await close();
-    throw error;
-  }
-}
+type Harness = ImportHarness;
+const openHarness = openImportHarness;
 
 describeLive('SCA and container imports end to end', () => {
   // SARIF import is a Community Edition feature: the
@@ -471,6 +206,19 @@ describeLive('SCA and container imports end to end', () => {
       .sort();
   };
 
+  /** The fixed versions the project's own row of an advisory holds. */
+  const importedFixesOf = async (
+    projectId: string,
+    advisoryId: string,
+    harness: Harness = h,
+  ): Promise<string[]> => {
+    const row = await repo(ImportedAdvisory, harness).findOneBy({
+      projectId,
+      advisoryId,
+    });
+    return (row?.fixes ?? []).map((fix) => fix.fixed).sort();
+  };
+
   /** States by advisory: a resolved package is removed, its detection kept. */
   const statesByAdvisory = (rows: ScaVulnerabilityDetections[]) =>
     Object.fromEntries(
@@ -529,19 +277,35 @@ describeLive('SCA and container imports end to end', () => {
       expect(detection.branch).toBe('main');
     }
 
-    expect(await fixedVersionsOf('CVE-2021-23337')).toEqual(['4.17.21']);
-    expect(await fixedVersionsOf('CVE-2022-24999')).toEqual(
+    // The fixed versions are the project's, the catalogue gets none.
+    expect(await importedFixesOf(projectId, 'CVE-2021-23337')).toEqual([
+      '4.17.21',
+    ]);
+    expect(await importedFixesOf(projectId, 'CVE-2022-24999')).toEqual(
       ['6.10.3', '6.9.7', '6.7.3', '6.5.3', '6.4.1', '6.3.3', '6.2.4'].sort(),
     );
-    expect(await fixedVersionsOf('CVE-2023-28155')).toEqual([]);
+    expect(await importedFixesOf(projectId, 'CVE-2023-28155')).toEqual([]);
+    for (const id of TRIVY_FS_ADVISORIES) {
+      expect(await fixedVersionsOf(id)).toEqual([]);
+    }
 
+    // The catalogue holds an id-only root per advisory; the content is the
+    // project's.
     const advisories = await repo(VulnerabilityOsv).find({
       where: TRIVY_FS_ADVISORIES.map((id) => ({ id })),
     });
     expect(advisories).toHaveLength(5);
     for (const advisory of advisories) {
-      expect(advisory.databaseSpecific?.source).toBe('sarif:trivy');
+      expect(advisory.databaseSpecific).toBeNull();
+      expect(advisory.summary).toBeNull();
     }
+    const imported = await repo(ImportedAdvisory).find({
+      where: { projectId },
+    });
+    expect(imported.map((row) => row.advisoryId).sort()).toEqual(
+      TRIVY_FS_ADVISORIES,
+    );
+    for (const row of imported) expect(row.toolName).toBe('trivy');
 
     // The dashboard's reads.
     const lodash = detections.find(
@@ -802,13 +566,19 @@ describeLive('SCA and container imports end to end', () => {
     expect(completionOf(osvScan)).toEqual(
       expect.objectContaining({ status: 'completed', findingsCount: 3 }),
     );
-    const aliases = await repo(VulnerabilityOsvAlias).find({
-      where: { vulnerability: { id: 'CVE-2022-24713' } },
+    // The aliases are the project's; the catalogue gets none.
+    const row = await repo(ImportedAdvisory).findOneByOrFail({
+      projectId: osvProject,
+      advisoryId: 'CVE-2022-24713',
     });
-    // the id itself is an alias too (a CVE id)
-    expect(aliases.map((a) => a.alias)).toEqual(
+    expect(row.aliases).toEqual(
       expect.arrayContaining(['RUSTSEC-2022-0013', 'GHSA-m5pq-gvj9-9vr8']),
     );
+    expect(
+      await repo(VulnerabilityOsvAlias).count({
+        where: { vulnerability: { id: 'CVE-2022-24713' } },
+      }),
+    ).toBe(0);
     expect(
       (await scaPackages(osvProject)).map((p) => [
         p.packageName,
@@ -843,8 +613,16 @@ describeLive('SCA and container imports end to end', () => {
       await h.cwe.generateReport(bagProject, 'json', true, 'main'),
     );
     expect(cwe.summary.byType.sca).toBe(3);
-    const cwes = cwe.vulnerabilities.flatMap((v) => v.cwe);
-    expect(cwes).toEqual(expect.arrayContaining(['CWE-1321', 'CWE-1333']));
+    // The CWE ids the import declared are the project's own; the shared
+    // catalogue holds none of them.
+    const declared = (
+      await repo(ImportedAdvisory).find({ where: { projectId: bagProject } })
+    ).flatMap((row) => row.cweIds);
+    expect(declared).toEqual(expect.arrayContaining(['CWE-1321', 'CWE-1333']));
+    const roots = await repo(VulnerabilityOsv).find({
+      where: [{ id: 'CVE-2021-44906' }, { id: 'CVE-2021-3807' }],
+    });
+    for (const root of roots) expect(root.databaseSpecific).toBeNull();
   });
 
   it('places the imported SCA findings in A06 and minimal.sarif rule 1 in A03 by its label', async () => {

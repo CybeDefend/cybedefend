@@ -20,6 +20,7 @@ import {
   PASSWORD_CHANGE_USER_LIMIT,
   PASSWORD_CHANGE_WINDOW_SECONDS,
   RESET_EMAIL_LIMIT,
+  RESET_IP_EMAIL_LIMIT,
   RESET_IP_LIMIT,
   RESET_WINDOW_SECONDS,
   SIGNUP_IP_LIMIT,
@@ -145,9 +146,12 @@ describe('LocalAuthRateLimitGuard', () => {
       LOGIN_IP_LIMIT,
       LOGIN_WINDOW_SECONDS,
     ]).toEqual([10, 100, 900]);
-    expect([RESET_EMAIL_LIMIT, RESET_IP_LIMIT, RESET_WINDOW_SECONDS]).toEqual([
-      3, 100, 3600,
-    ]);
+    expect([
+      RESET_IP_EMAIL_LIMIT,
+      RESET_EMAIL_LIMIT,
+      RESET_IP_LIMIT,
+      RESET_WINDOW_SECONDS,
+    ]).toEqual([3, 30, 100, 3600]);
     expect([AUTH_IP_LIMIT, AUTH_IP_WINDOW_SECONDS]).toEqual([10, 900]);
     expect([SIGNUP_IP_LIMIT, SIGNUP_WINDOW_SECONDS]).toEqual([10, 3600]);
     expect([
@@ -257,21 +261,103 @@ describe('LocalAuthRateLimitGuard', () => {
     expect(Object.keys(redis.store)).toEqual(['rl:auth:login:ip:1.2.3.4']);
   });
 
-  it('allows 3 reset requests per e-mail per hour and refuses the 4th', async () => {
+  it('allows 3 reset requests per address and e-mail per hour and refuses the 4th', async () => {
     const redis = makeRedis();
     const guard = makeGuard(redis);
-    let ip = 0;
-    const req = () => ({ ip: `10.0.0.${ip++}`, body: { email: 'A@x.io' } });
+    const req = () => ({ ip: '10.0.0.1', body: { email: 'A@x.io' } });
     await hitN(guard, 'reset', req, 3);
     await expect429(guard, 'reset', req());
     expect(redis.sets[0]).toEqual([
-      `rl:auth:reset:mail:${sha256('a@x.io')}`,
+      `rl:auth:reset:ipmail:${sha256('10.0.0.1\na@x.io')}`,
       0,
       'EX',
       3600,
       'NX',
     ]);
   });
+
+  it('lets the owner of an address ask for a reset after others spent their own budget for it', async () => {
+    const redis = makeRedis();
+    const guard = makeGuard(redis);
+    // Someone who knows the address uses up the strict budget of theirs.
+    await hitN(
+      guard,
+      'reset',
+      () => ({ ip: '203.0.113.9', body: { email: 'owner@x.io' } }),
+      3,
+    );
+    await expect429(guard, 'reset', {
+      ip: '203.0.113.9',
+      body: { email: 'owner@x.io' },
+    });
+    // The owner, from another address, is still served.
+    await hitN(
+      guard,
+      'reset',
+      () => ({ ip: '198.51.100.7', body: { email: 'owner@x.io' } }),
+      1,
+    );
+  });
+
+  it('bounds the reset requests of one e-mail at 30 per hour, from any address', async () => {
+    const redis = makeRedis();
+    const guard = makeGuard(redis);
+    let ip = 0;
+    const req = () => ({ ip: `10.0.1.${ip++}`, body: { email: 'v@x.io' } });
+    await hitN(guard, 'reset', req, 30);
+    await expect429(guard, 'reset', req());
+  });
+
+  it('keeps serving the owner while an attacker keeps asking, from one address and then from five', async () => {
+    const redis = makeRedis();
+    const guard = makeGuard(redis);
+    const ask = async (ip: string) => {
+      const { ctx } = makeCtx('reset', { ip, body: { email: 'owner@x.io' } });
+      return guard.canActivate(ctx).then(
+        () => 'ok',
+        (e: unknown) => (e instanceof HttpException ? e.getStatus() : e),
+      );
+    };
+    // Well past the strict budget of one address.
+    for (let i = 0; i < 20; i++) await ask('203.0.113.9');
+    // Then from five addresses, each well past its own budget.
+    for (let a = 1; a <= 5; a++) {
+      for (let i = 0; i < 20; i++) await ask(`192.0.2.${a}`);
+    }
+    // 6 addresses x 3 admitted requests = 18: under the e-mail's 30.
+    expect(redis.store[`rl:auth:reset:mail:${sha256('owner@x.io')}`]).toBe(18);
+    await expect(ask('198.51.100.7')).resolves.toBe('ok');
+  });
+
+  it('counts a request in a wider bucket only when the stricter ones admit it', async () => {
+    const redis = makeRedis();
+    const guard = makeGuard(redis);
+    const req = () => ({ ip: '203.0.113.9', body: { email: 'z@x.io' } });
+    await hitN(guard, 'reset', req, 3);
+    for (let i = 0; i < 5; i++) await expect429(guard, 'reset', req());
+    expect(
+      redis.store[`rl:auth:reset:ipmail:${sha256('203.0.113.9\nz@x.io')}`],
+    ).toBe(8);
+    expect(redis.store['rl:auth:reset:ip:203.0.113.9']).toBe(3);
+    expect(redis.store[`rl:auth:reset:mail:${sha256('z@x.io')}`]).toBe(3);
+  });
+
+  it.each([
+    ['not an e-mail', 'not-an-email'],
+    ['too long', `${'a'.repeat(250)}@x.io`],
+    ['not a string', 42],
+    ['an e-mail between spaces', ' v@x.io '],
+  ])(
+    'counts only the address for a reset body the route refuses (%s)',
+    async (_label, email) => {
+      const redis = makeRedis();
+      const guard = makeGuard(redis);
+      await guard.canActivate(
+        makeCtx('reset', { ip: '1.2.3.4', body: { email } }).ctx,
+      );
+      expect(Object.keys(redis.store)).toEqual(['rl:auth:reset:ip:1.2.3.4']);
+    },
+  );
 
   it('refuses the 101st reset request from one address', async () => {
     const redis = makeRedis();

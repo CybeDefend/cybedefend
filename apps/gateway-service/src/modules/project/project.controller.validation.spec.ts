@@ -163,6 +163,31 @@ describe('ProjectController DTO validation (integration-light)', () => {
       );
     });
 
+    // Creation and rename share one name rule (project-name.rules.ts).
+    it.each([
+      ['made of spaces only', '   '],
+      ['longer than 255 characters', 'a'.repeat(256)],
+    ])('should return 400 when the name is %s', async (_case, name) => {
+      projectServiceMock.createProject.mockReset();
+      await request(app.getHttpServer())
+        .post(`/team/${uuid()}/project`)
+        .send({ name })
+        .expect(400);
+      expect(projectServiceMock.createProject).not.toHaveBeenCalled();
+    });
+
+    it('should trim the name of a new project', async () => {
+      projectServiceMock.createProject.mockReset();
+      projectServiceMock.createProject.mockResolvedValue({ id: 'p1' });
+      await request(app.getHttpServer())
+        .post(`/team/${uuid()}/project`)
+        .send({ name: '  proj  ' })
+        .expect(201);
+      expect(projectServiceMock.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'proj' }),
+      );
+    });
+
     it('should return 400 when securityContext.environment is invalid', async () => {
       projectServiceMock.createProject.mockReset();
       await request(app.getHttpServer())

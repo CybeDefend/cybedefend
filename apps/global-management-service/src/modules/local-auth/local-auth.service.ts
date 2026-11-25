@@ -14,6 +14,7 @@ import { AccessTokenIssuer } from './access-token.issuer';
 import { LocalCredentialStore } from './local-credential.store';
 import { localAuthRefusal } from './local-auth-refusals';
 import { PasswordHasher } from './password-hasher';
+import { PersonalAccessTokenStore } from './personal-access-token.store';
 import { RefreshTokenStore } from './refresh-token.store';
 import { SigningKeyService } from './signing-key.service';
 
@@ -38,6 +39,7 @@ export class LocalAuthService {
     private readonly tokenIssuer: AccessTokenIssuer,
     private readonly refreshTokens: RefreshTokenStore,
     private readonly logger: Logger,
+    private readonly pats: PersonalAccessTokenStore,
   ) {}
 
   /**
@@ -123,9 +125,10 @@ export class LocalAuthService {
   /**
    * The ChangePassword RPC's core: check the current password and set the new
    * one (LocalCredentialStore.changePassword, CURRENT_PASSWORD_INVALID on a
-   * wrong one), revoke every refresh family of the user, then open a fresh
-   * session for the caller. An access token issued before the change stays
-   * valid until it expires (15 min at most).
+   * wrong one) and, in the same transaction, revoke every refresh family and
+   * every personal access token of the user, then open a fresh session for
+   * the caller. An access token issued before the change stays valid until
+   * it expires (15 min at most).
    */
   async changePassword(
     userId: string,
@@ -138,8 +141,11 @@ export class LocalAuthService {
       currentPassword,
       newPassword,
       now,
+      async (manager) => {
+        await this.refreshTokens.revokeAllOfUser(userId, now, manager);
+        await this.pats.revokeAllOfUser(userId, now, manager);
+      },
     );
-    await this.refreshTokens.revokeAllOfUser(userId, now);
     return this.openSession(userId, now);
   }
 

@@ -248,7 +248,7 @@ describe('ImportResultsDialog', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        `curl -X POST -H "Authorization: Bearer $CYBEDEFEND_TOKEN" -F file=@results.sarif -F type=sast -F branch=main -F format=sarif ${window.location.origin}/api/project/${PROJECT}/scan/import/start`,
+        `curl -X POST -H "Authorization: Bearer $CYBEDEFEND_TOKEN" -F file=@results.sarif --form-string type=sast --form-string branch=main --form-string format=sarif ${window.location.origin}/api/project/${PROJECT}/scan/import/start`,
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/trivy/)).toBeNull();
@@ -256,7 +256,7 @@ describe('ImportResultsDialog', () => {
     expect(screen.getByRole('button', { name: t('components.importResults.hint.copyCurl') })).toBeInTheDocument();
   });
 
-  it('adds --image and -F image= to the commands of a container import', () => {
+  it('adds --image and --form-string image= to the commands of a container import', () => {
     mount('container', 'main');
     fireEvent.change(imageField()!, { target: { value: 'ghcr.io/acme/api:v2' } });
     expect(
@@ -264,7 +264,9 @@ describe('ImportResultsDialog', () => {
         `cybedefend import --project-id ${PROJECT} --type container --branch main --image ghcr.io/acme/api:v2 results.sarif`,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/-F image=ghcr\.io\/acme\/api:v2 -F format=sarif/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/--form-string image=ghcr\.io\/acme\/api:v2 --form-string format=sarif/),
+    ).toBeInTheDocument();
     expect(screen.getByText('trivy image --format sarif -o results.sarif ghcr.io/acme/api:v2')).toBeInTheDocument();
   });
 
@@ -273,9 +275,23 @@ describe('ImportResultsDialog', () => {
     expect(screen.getByText('trivy fs --format sarif -o results.sarif .')).toBeInTheDocument();
   });
 
-  it('quotes a branch the shell would split', () => {
+  // The page hands the id of the project the API answered for: none while it
+  // loads, and the import must not post to a path without it.
+  it.each(['', 'not-a-uuid'])('cannot import while the project id is %j', async (projectId) => {
+    render(
+      <ImportResultsDialog projectId={projectId} defaultType="sast" defaultBranch="main" onClose={vi.fn()} onImported={vi.fn()} />,
+    );
+    pickFile();
+    expect(screen.getByRole('button', { name: t('components.importResults.submit') })).toBeDisabled();
+    submit();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('shows the branch placeholder for a branch a terminal could read differently', () => {
     mount('sast', "it's my branch");
-    expect(screen.getByText(/--branch 'it'\\''s my branch' results\.sarif/)).toBeInTheDocument();
+    expect(screen.getByText(/--branch <branch> results\.sarif/)).toBeInTheDocument();
+    expect(screen.getByText(t('components.importResults.hint.placeholder'))).toBeInTheDocument();
   });
 
   it('cannot be dismissed with Escape or the backdrop while the upload runs', async () => {

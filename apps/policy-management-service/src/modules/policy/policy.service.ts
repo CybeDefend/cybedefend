@@ -8,6 +8,8 @@ import {
   SecurityPolicy,
   PolicyScope,
   PolicyConfig,
+  PolicyRule,
+  RuleType,
 } from '@entities/security-policy.entity';
 import { ParsedPolicyYaml, PolicyYamlService } from './policy-yaml.service';
 import { PolicyValidationService } from './policy-validation.service';
@@ -188,16 +190,23 @@ export class PolicyService implements OnModuleInit {
    * outside 0-10, a negative age...) is refused here rather than stored,
    * because the policy would otherwise report every project as compliant.
    */
-  private parseAndValidate(yamlContent: string): ParsedPolicyYaml {
+  private parseAndValidate(
+    yamlContent: string,
+    stored?: SecurityPolicy,
+  ): ParsedPolicyYaml {
     const parsed = this.yamlService.parseFullYaml(yamlContent);
     const result = this.validationService.validate(
       JSON.stringify(parsed.config),
+      { storedPatterns: stored ? storedGlobPatterns(stored) : undefined },
     );
     if (!result.valid) {
       throw new RpcException({
         code: GrpcStatus.INVALID_ARGUMENT,
         message: `Invalid policy: ${result.errors.join('; ')}`,
       });
+    }
+    for (const warning of result.warnings) {
+      this.logger.warn(`Policy ${stored?.id ?? '(new)'}: ${warning}`);
     }
     return parsed;
   }
@@ -222,8 +231,9 @@ export class PolicyService implements OnModuleInit {
       });
     }
 
-    // Parse and validate YAML content
-    const parsed = this.parseAndValidate(dto.yamlContent);
+    // Parse and validate YAML content. A glob pattern the policy already
+    // holds does not block the update; a new or changed one is checked.
+    const parsed = this.parseAndValidate(dto.yamlContent, policy);
 
     // Validate that projects/teams belong to the organization
     await this.validateTargetOwnership(
@@ -731,4 +741,32 @@ export class PolicyService implements OnModuleInit {
 
     return Array.from(seen.values());
   }
+}
+
+/**
+ * The glob patterns a stored policy holds: its exclusion patterns and the
+ * values of its branch rules, composite rules included.
+ */
+function storedGlobPatterns(policy: SecurityPolicy): Set<string> {
+  const patterns = new Set<string>();
+  const exclusions = [
+    ...(policy.exclusions || []),
+    ...(policy.rules?.exclusions || []),
+  ];
+  for (const exclusion of exclusions) {
+    if (typeof exclusion?.pattern === 'string') patterns.add(exclusion.pattern);
+  }
+  const visit = (rules: PolicyRule[] | undefined): void => {
+    for (const rule of rules || []) {
+      if (String(rule?.type).toLowerCase() === RuleType.BRANCH) {
+        const values = Array.isArray(rule.value) ? rule.value : [rule.value];
+        for (const value of values) {
+          if (typeof value === 'string') patterns.add(value);
+        }
+      }
+      visit(rule?.criteria);
+    }
+  };
+  visit(policy.rules?.rules);
+  return patterns;
 }

@@ -5,12 +5,22 @@ import {
   PRODUCT_LINKS_PORT,
   type ProductLinksPort,
 } from '../../edition/ports/product-links.port';
+import {
+  markdownCode,
+  markdownLinkDestination,
+  markdownParagraph,
+  markdownText,
+  plainTitleText,
+} from './markdown-text';
 
 /**
  * Service for generating issue descriptions that can be reused
  * across GitHub, GitLab, and Jira integrations.
  *
- * The generated descriptions are platform-agnostic Markdown format.
+ * The generated descriptions are platform-agnostic Markdown format. Every
+ * value taken from a finding (name, description, path, package, branch) is
+ * written as text through the helpers of `markdown-text.ts`: the only links
+ * are the ones this service writes.
  */
 @Injectable()
 export class IssueDescriptionService {
@@ -94,7 +104,7 @@ export class IssueDescriptionService {
       const locationPart =
         vuln.startLine > 0 ? ` (Line ${vuln.startLine})` : '';
       lines.push(
-        `- **${vuln.filePath}**${locationPart} - [View in CybeDefend](${vuln.cybedefendUrl})`,
+        `- **${markdownText(vuln.filePath)}**${locationPart} - [View in CybeDefend](${markdownLinkDestination(vuln.cybedefendUrl)})`,
       );
     }
 
@@ -129,12 +139,16 @@ export class IssueDescriptionService {
     const scannerLabel = this.getScannerLabel(vulnerability.scannerType);
 
     if (vulnerability.scannerType === 'sca') {
-      return `${severityEmoji} [${scannerLabel}] ${vulnerability.externalId || vulnerability.name} in ${vulnerability.packageName}@${vulnerability.packageVersion}`;
+      return plainTitleText(
+        `${severityEmoji} [${scannerLabel}] ${vulnerability.externalId || vulnerability.name} in ${vulnerability.packageName}@${vulnerability.packageVersion}`,
+      );
     }
 
     const fileName =
       vulnerability.filePath.split('/').pop() || vulnerability.filePath;
-    return `${severityEmoji} [${scannerLabel}] ${vulnerability.name} in ${fileName}`;
+    return plainTitleText(
+      `${severityEmoji} [${scannerLabel}] ${vulnerability.name} in ${fileName}`,
+    );
   }
 
   private buildVulnerabilityTypeTitle(
@@ -147,7 +161,9 @@ export class IssueDescriptionService {
     const scannerType = vulnerabilities[0]?.scannerType || 'unknown';
     const scannerLabel = this.getScannerLabel(scannerType);
 
-    return `${severityEmoji} [${scannerLabel}] ${vulnerabilityType} (${count} occurrence${count > 1 ? 's' : ''})`;
+    return plainTitleText(
+      `${severityEmoji} [${scannerLabel}] ${vulnerabilityType} (${count} occurrence${count > 1 ? 's' : ''})`,
+    );
   }
 
   private buildFileIssueTitle(
@@ -159,7 +175,9 @@ export class IssueDescriptionService {
     const count = vulnerabilities.length;
     const fileName = filePath.split('/').pop() || filePath;
 
-    return `${severityEmoji} Security Issues in ${fileName} (${count} finding${count > 1 ? 's' : ''})`;
+    return plainTitleText(
+      `${severityEmoji} Security Issues in ${fileName} (${count} finding${count > 1 ? 's' : ''})`,
+    );
   }
 
   // ==================== Private Body Builders ====================
@@ -175,7 +193,7 @@ export class IssueDescriptionService {
 
     // Branch tag
     if (vulnerability.branch) {
-      sections.push(`> 🌿 **Branch**: \`${vulnerability.branch}\``);
+      sections.push(`> 🌿 **Branch**: ${markdownCode(vulnerability.branch)}`);
       sections.push('');
     }
 
@@ -186,7 +204,7 @@ export class IssueDescriptionService {
       `| **Severity** | ${this.formatSeverity(vulnerability.severity)} |`,
     );
     sections.push(
-      `| **Scanner** | ${this.getScannerLabel(vulnerability.scannerType)} |`,
+      `| **Scanner** | ${markdownText(this.getScannerLabel(vulnerability.scannerType))} |`,
     );
 
     if (vulnerability.cvssScore > 0) {
@@ -196,11 +214,13 @@ export class IssueDescriptionService {
     }
 
     if (vulnerability.externalId) {
-      sections.push(`| **ID** | ${vulnerability.externalId} |`);
+      sections.push(`| **ID** | ${markdownText(vulnerability.externalId)} |`);
     }
 
     if (vulnerability.filePath) {
-      sections.push(`| **File** | \`${vulnerability.filePath}\` |`);
+      sections.push(
+        `| **File** | ${markdownCode(vulnerability.filePath, { inTable: true })} |`,
+      );
     }
 
     if (vulnerability.startLine > 0) {
@@ -213,10 +233,12 @@ export class IssueDescriptionService {
 
     if (vulnerability.packageName) {
       sections.push(
-        `| **Package** | ${vulnerability.packageName}@${vulnerability.packageVersion} |`,
+        `| **Package** | ${markdownText(`${vulnerability.packageName}@${vulnerability.packageVersion}`)} |`,
       );
       if (vulnerability.fixedVersion) {
-        sections.push(`| **Fixed Version** | ${vulnerability.fixedVersion} |`);
+        sections.push(
+          `| **Fixed Version** | ${markdownText(vulnerability.fixedVersion)} |`,
+        );
       }
     }
 
@@ -226,12 +248,12 @@ export class IssueDescriptionService {
     if (vulnerability.description) {
       sections.push('### Description');
       sections.push('');
-      sections.push(vulnerability.description);
+      sections.push(markdownParagraph(vulnerability.description));
       sections.push('');
     } else if (vulnerability.shortDescription) {
       sections.push('### Description');
       sections.push('');
-      sections.push(vulnerability.shortDescription);
+      sections.push(markdownParagraph(vulnerability.shortDescription));
       sections.push('');
     }
 
@@ -240,11 +262,13 @@ export class IssueDescriptionService {
       sections.push('### References');
       sections.push('');
       if (vulnerability.cwe.length > 0) {
-        sections.push(`- **CWE**: ${vulnerability.cwe.join(', ')}`);
+        sections.push(
+          `- **CWE**: ${vulnerability.cwe.map(markdownText).join(', ')}`,
+        );
       }
       if (vulnerability.owaspTop10.length > 0) {
         sections.push(
-          `- **OWASP Top 10**: ${vulnerability.owaspTop10.join(', ')}`,
+          `- **OWASP Top 10**: ${vulnerability.owaspTop10.map(markdownText).join(', ')}`,
         );
       }
       sections.push('');
@@ -254,7 +278,7 @@ export class IssueDescriptionService {
     sections.push('### View in CybeDefend');
     sections.push('');
     sections.push(
-      `[📊 View detailed analysis and remediation guidance](${vulnerability.cybedefendUrl})`,
+      `[📊 View detailed analysis and remediation guidance](${markdownLinkDestination(vulnerability.cybedefendUrl)})`,
     );
     sections.push('');
 
@@ -278,14 +302,14 @@ export class IssueDescriptionService {
 
     // Branch tag
     if (first?.branch) {
-      sections.push(`> 🌿 **Branch**: \`${first.branch}\``);
+      sections.push(`> 🌿 **Branch**: ${markdownCode(first.branch)}`);
       sections.push('');
     }
 
     // Summary
     const highestSeverity = this.getHighestSeverity(vulnerabilities);
     sections.push(
-      `**${vulnerabilities.length}** occurrence(s) of **${vulnerabilityType}** detected.`,
+      `**${vulnerabilities.length}** occurrence(s) of **${markdownText(vulnerabilityType)}** detected.`,
     );
     sections.push('');
     sections.push(
@@ -297,7 +321,9 @@ export class IssueDescriptionService {
     if (first?.description || first?.shortDescription) {
       sections.push('### Description');
       sections.push('');
-      sections.push(first.description || first.shortDescription);
+      sections.push(
+        markdownParagraph(first.description || first.shortDescription),
+      );
       sections.push('');
     }
 
@@ -320,17 +346,19 @@ export class IssueDescriptionService {
     for (const [file, vulns] of byFile) {
       if (displayedCount >= maxDisplay) break;
 
-      sections.push(`#### \`${file}\``);
+      sections.push(`#### ${markdownCode(file)}`);
       for (const vuln of vulns) {
         if (displayedCount >= maxDisplay) break;
 
         const severity = this.formatSeverity(vuln.severity);
         if (vuln.startLine > 0) {
           sections.push(
-            `- Line ${vuln.startLine} - ${severity} - [View](${vuln.cybedefendUrl})`,
+            `- Line ${vuln.startLine} - ${severity} - [View](${markdownLinkDestination(vuln.cybedefendUrl)})`,
           );
         } else {
-          sections.push(`- ${severity} - [View](${vuln.cybedefendUrl})`);
+          sections.push(
+            `- ${severity} - [View](${markdownLinkDestination(vuln.cybedefendUrl)})`,
+          );
         }
         displayedCount++;
       }
@@ -349,10 +377,12 @@ export class IssueDescriptionService {
       sections.push('### References');
       sections.push('');
       if (first.cwe.length > 0) {
-        sections.push(`- **CWE**: ${first.cwe.join(', ')}`);
+        sections.push(`- **CWE**: ${first.cwe.map(markdownText).join(', ')}`);
       }
       if (first.owaspTop10.length > 0) {
-        sections.push(`- **OWASP Top 10**: ${first.owaspTop10.join(', ')}`);
+        sections.push(
+          `- **OWASP Top 10**: ${first.owaspTop10.map(markdownText).join(', ')}`,
+        );
       }
       sections.push('');
     }
@@ -377,11 +407,11 @@ export class IssueDescriptionService {
 
     // Branch tag
     if (first?.branch) {
-      sections.push(`> 🌿 **Branch**: \`${first.branch}\``);
+      sections.push(`> 🌿 **Branch**: ${markdownCode(first.branch)}`);
       sections.push('');
     }
 
-    sections.push(`**File**: \`${filePath}\``);
+    sections.push(`**File**: ${markdownCode(filePath)}`);
     sections.push('');
 
     // Summary by severity
@@ -408,17 +438,23 @@ export class IssueDescriptionService {
     );
 
     for (const vuln of sorted.slice(0, 30)) {
-      sections.push(`#### ${vuln.name}`);
+      sections.push(`#### ${markdownText(vuln.name)}`);
       sections.push('');
       if (vuln.startLine > 0) {
         sections.push(`- **Location**: Line ${vuln.startLine}`);
       }
       sections.push(`- **Severity**: ${this.formatSeverity(vuln.severity)}`);
-      sections.push(`- **Scanner**: ${this.getScannerLabel(vuln.scannerType)}`);
+      sections.push(
+        `- **Scanner**: ${markdownText(this.getScannerLabel(vuln.scannerType))}`,
+      );
       if (vuln.shortDescription) {
-        sections.push(`- **Description**: ${vuln.shortDescription}`);
+        sections.push(
+          `- **Description**: ${markdownText(vuln.shortDescription)}`,
+        );
       }
-      sections.push(`- [View in CybeDefend](${vuln.cybedefendUrl})`);
+      sections.push(
+        `- [View in CybeDefend](${markdownLinkDestination(vuln.cybedefendUrl)})`,
+      );
       sections.push('');
     }
 
@@ -453,7 +489,7 @@ export class IssueDescriptionService {
 
   private formatSeverity(severity: string): string {
     const emoji = this.getSeverityEmoji(severity);
-    const text = severity?.toUpperCase() || 'UNKNOWN';
+    const text = markdownText(severity?.toUpperCase() || 'UNKNOWN');
     return `${emoji} ${text}`;
   }
 

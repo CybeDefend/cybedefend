@@ -4,7 +4,11 @@ jest.mock('uuid', () => ({
 }));
 
 import 'reflect-metadata';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScanController } from './scan.controller';
 import { ScanService } from './scan.service';
@@ -43,6 +47,7 @@ describe('ScanController', () => {
             getScan: jest.fn(),
             createScan: jest.fn(),
             processUploadFile: jest.fn(),
+            discardPendingUpload: jest.fn(),
             checkExistingScan: jest.fn(),
             startScan: jest.fn(),
             cancelScan: jest.fn(),
@@ -267,6 +272,111 @@ describe('ScanController', () => {
 
       const sent = (scanService.createScan as jest.Mock).mock.calls[0][0];
       expect(sent).not.toHaveProperty('graphOnly');
+    });
+
+    // The upload is registered before the scan is created: a refused scan
+    // must not leave behind an upload the processor keeps waiting for.
+    describe('refused after the upload is registered', () => {
+      const projectId = '11111111-1111-4111-8111-111111111111';
+      const refusal = Object.assign(new Error('scan refused'), { code: 9 });
+
+      beforeEach(() => {
+        (projectService.getProject as jest.Mock).mockResolvedValue({
+          sastEnabled: true,
+        } as any);
+        (scanService.processUploadFile as jest.Mock).mockResolvedValue({
+          url: 'https://signed-url',
+        } as any);
+        (scanService.createScan as jest.Mock).mockRejectedValue(refusal);
+      });
+
+      it('removes the pending upload and passes the refusal on', async () => {
+        (scanService.discardPendingUpload as jest.Mock).mockResolvedValue({
+          success: true,
+        });
+
+        await expect(
+          controller.startScan(projectId, {} as any, userReq),
+        ).rejects.toBe(refusal);
+
+        const { scanId } = (scanService.processUploadFile as jest.Mock).mock
+          .calls[0][0];
+        expect(scanService.discardPendingUpload).toHaveBeenCalledWith(scanId);
+        expect(
+          (scanService.createScan as jest.Mock).mock.calls[0][0].scanId,
+        ).toBe(scanId);
+      });
+
+      it('passes the refusal on when the pending upload cannot be removed', async () => {
+        (scanService.discardPendingUpload as jest.Mock).mockRejectedValue(
+          new Error('file service unavailable'),
+        );
+
+        await expect(
+          controller.startScan(projectId, {} as any, userReq),
+        ).rejects.toBe(refusal);
+      });
+
+      it('passes the refusal on when removing the pending upload throws at once', async () => {
+        (scanService.discardPendingUpload as jest.Mock).mockImplementation(
+          () => {
+            throw new Error('no client');
+          },
+        );
+
+        await expect(
+          controller.startScan(projectId, {} as any, userReq),
+        ).rejects.toBe(refusal);
+      });
+
+      // Only a refusal says the scan was not stored. On a deadline, an
+      // unavailable service or a cancelled call it may exist: its upload is
+      // left to the upload deadline.
+      it.each([
+        ['a gateway deadline (504)', new HttpException('late', 504)],
+        ['an unavailable service (503)', new HttpException('down', 503)],
+        ['a cancelled call (499)', new HttpException('gone', 499)],
+        ['an internal error (500)', new HttpException('boom', 500)],
+        [
+          'a raw DEADLINE_EXCEEDED',
+          Object.assign(new Error('late'), { code: 4 }),
+        ],
+        ['a raw UNAVAILABLE', Object.assign(new Error('down'), { code: 14 })],
+      ])('keeps the pending upload after %s', async (_label, failure) => {
+        (scanService.createScan as jest.Mock).mockRejectedValue(failure);
+        await expect(
+          controller.startScan(projectId, {} as any, userReq),
+        ).rejects.toBe(failure);
+        expect(scanService.discardPendingUpload).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ['400', 400],
+        ['403', 403],
+        ['404', 404],
+        ['409', 409],
+        ['429', 429],
+      ])(
+        'removes the pending upload after a refusal (%s)',
+        async (_l, code) => {
+          const failure = new HttpException('refused', code);
+          (scanService.createScan as jest.Mock).mockRejectedValue(failure);
+          (scanService.discardPendingUpload as jest.Mock).mockResolvedValue({});
+          await expect(
+            controller.startScan(projectId, {} as any, userReq),
+          ).rejects.toBe(failure);
+          expect(scanService.discardPendingUpload).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('registers no upload when the scan slot check refuses first', async () => {
+        (scanService.checkExistingScan as jest.Mock).mockRejectedValue(refusal);
+
+        await expect(
+          controller.startScan(projectId, {} as any, userReq),
+        ).rejects.toBe(refusal);
+        expect(scanService.processUploadFile).not.toHaveBeenCalled();
+      });
     });
   });
 

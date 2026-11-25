@@ -38,7 +38,7 @@ const occurrence = (id: string, path: string, line: number) => ({
 const codeGroup = {
   ruleId: 'rule-1',
   vulnerability: { id: 'v-1', name: 'SQL Injection', cwe: ['CWE-89'] },
-  occurrences: [occurrence('o-1', 'src/a.ts', 12), occurrence('o-2', 'src/b.ts', 40)],
+  occurrences: [occurrence('00000000-0000-4000-8000-000000000001', 'src/a.ts', 12), occurrence('00000000-0000-4000-8000-000000000002', 'src/b.ts', 40)],
   occurrenceCount: 2,
   severityBreakdown: breakdown,
   highestSeverity: 'CRITICAL',
@@ -54,8 +54,8 @@ const scaGroup = {
   packageName: 'lodash',
   vulnerability: { id: 'sv-1', summary: 'Prototype pollution', cve: 'CVE-2026-0001' },
   occurrences: [
-    { ...occurrence('o-1', 'package.json', 1), fileName: 'package.json', packageVersion: '4.17.20', isTransitive: false },
-    { ...occurrence('o-2', 'web/package.json', 1), fileName: 'package.json', packageVersion: '4.17.19', isTransitive: true },
+    { ...occurrence('00000000-0000-4000-8000-000000000001', 'package.json', 1), fileName: 'package.json', packageVersion: '4.17.20', isTransitive: false },
+    { ...occurrence('00000000-0000-4000-8000-000000000002', 'web/package.json', 1), fileName: 'package.json', packageVersion: '4.17.19', isTransitive: true },
   ],
   occurrenceCount: 2,
   severityBreakdown: breakdown,
@@ -75,8 +75,8 @@ const containerGroup = {
   packageVersion: '3.0.2',
   packageClass: 'os-pkgs',
   occurrences: [
-    { id: 'o-1', vulnerabilityId: 'CVE-2026-1000', currentState: 'to_verify', currentSeverity: 'CRITICAL', currentPriority: 'urgent', fixedVersion: '3.0.3', exploitabilityVerdict: 'proven' },
-    { id: 'o-2', vulnerabilityId: 'CVE-2026-1001', currentState: 'to_verify', currentSeverity: 'HIGH', currentPriority: 'high', fixedVersion: '', exploitabilityVerdict: 'theoretical' },
+    { id: '00000000-0000-4000-8000-000000000001', vulnerabilityId: 'CVE-2026-1000', currentState: 'to_verify', currentSeverity: 'CRITICAL', currentPriority: 'urgent', fixedVersion: '3.0.3', exploitabilityVerdict: 'proven' },
+    { id: '00000000-0000-4000-8000-000000000002', vulnerabilityId: 'CVE-2026-1001', currentState: 'to_verify', currentSeverity: 'HIGH', currentPriority: 'high', fixedVersion: '', exploitabilityVerdict: 'theoretical' },
   ],
   occurrenceCount: 2,
   severityBreakdown: breakdown,
@@ -129,7 +129,7 @@ const GENERATED_BOX = /(^|\s)[^\s]*\b(before|after):/;
 describe.each(TABLES)('%s grouped table: the selected row', (_name, Table, group, groupTitle) => {
   const renderWithOpenIssue = () =>
     render(
-      <MemoryRouter initialEntries={['/appsec/project/p-1/results?issue=o-2']}>
+      <MemoryRouter initialEntries={['/appsec/project/p-1/results?issue=00000000-0000-4000-8000-000000000002']}>
         <Table {...common} groups={[group]} />
       </MemoryRouter>,
     );
