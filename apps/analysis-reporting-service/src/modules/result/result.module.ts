@@ -41,6 +41,7 @@ import { OwaspReportModule } from '../reports/owasp-report/owasp-report.module';
 import { CweReportModule } from '../reports/cwe-report/cwe-report.module';
 import { ReportUploadModule } from '../reports/shared/report-upload.module';
 import { GeneratedReport } from 'src/entities/generated-report.entity';
+import { ImportedAdvisory } from 'src/entities/imported-advisory.entity';
 import { OwaspReport } from 'src/entities/owasp-report.entity';
 import { CweReport } from 'src/entities/cwe-report.entity';
 import { AggregatedReport } from 'src/entities/aggregated-report.entity';
@@ -101,6 +102,9 @@ import { DataPurgeModule } from '../data-purge/data-purge.module';
       VulnerabilityOsvAffected,
       VulnerabilityOsvAffectedRange,
       VulnerabilityOsvAffectedEvent,
+      // The advisory content a project imported: every list and detail of
+      // dependency and container findings reads it next to the catalogue.
+      ImportedAdvisory,
       AutoFixRecord,
       ScaAutoFixRecord,
       OwaspReport,
