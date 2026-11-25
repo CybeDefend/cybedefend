@@ -137,17 +137,32 @@ describeLive('SCA package upsert under concurrency', () => {
       libraries.map((l) => ({ library: l, affected: [] })),
     );
 
+  /** The server session of a runner, as the lock views name it. */
+  const sessionOf = async (
+    runner: ReturnType<DataSource['createQueryRunner']>,
+  ): Promise<number> => {
+    const [{ id }] = await runner.query(
+      currentDialect() === 'mysql'
+        ? 'SELECT PS_CURRENT_THREAD_ID() AS id'
+        : 'SELECT pg_backend_pid() AS id',
+    );
+    return Number(id);
+  };
+
   /**
-   * Resolves once a session waits for a row lock (on MySQL the server's lock
-   * waits: INNODB_TRX may still say RUNNING for a waiting upsert).
+   * Resolves once a session of this test's database waits for the holder
+   * (on MySQL the server's lock waits: INNODB_TRX may still say RUNNING for a
+   * waiting upsert). Only a wait on the holder counts: any other lock wait on
+   * the server would answer before the ingestion locked anything, and the
+   * holder would then take x first, with no cycle to detect.
    */
-  const waitForLockWait = async () => {
+  const waitUntilBlockedBy = async (holderSession: number) => {
     const query =
       currentDialect() === 'mysql'
-        ? 'SELECT COUNT(*) AS n FROM performance_schema.data_lock_waits'
-        : "SELECT COUNT(*) AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'";
+        ? sql`SELECT COUNT(*) AS n FROM performance_schema.data_lock_waits w JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID WHERE l.OBJECT_SCHEMA = DATABASE() AND w.BLOCKING_THREAD_ID = ${holderSession}`
+        : sql`SELECT COUNT(*) AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND ${holderSession}::int = ANY(pg_blocking_pids(pid))`;
     for (let i = 0; i < 200; i += 1) {
-      const [{ n }] = await ds.query(query);
+      const [{ n }] = await ds.query(query.text, query.params);
       if (Number(n) > 0) return;
       await pause(10);
     }
@@ -256,6 +271,7 @@ describeLive('SCA package upsert under concurrency', () => {
     await holder.startTransaction();
     let ingestion: Promise<unknown> | undefined;
     try {
+      const holderSession = await sessionOf(holder);
       for (const n of noise) {
         await exec(
           holder,
@@ -275,7 +291,7 @@ describeLive('SCA package upsert under concurrency', () => {
         library({ name: 'b-pkg', version: '1.0.0', path: ['scan'] }),
         library({ name: 'c-pkg', version: '1.0.0', path: ['scan'] }),
       ]);
-      await waitForLockWait();
+      await waitUntilBlockedBy(holderSession);
       // The holder now waits for x: a cycle. The ingestion's statement is
       // rolled back as a whole (MySQL detects it at once; PostgreSQL when the
       // ingestion's deadlock_timeout, 1 s, expires), then retried once it can
@@ -299,13 +315,12 @@ describeLive('SCA package upsert under concurrency', () => {
     }
     await ingestion;
 
-    expect(
-      logger.warn.mock.calls.some((c) =>
-        String(c[0]).includes(
-          'deadlock on a 3-row package upsert, retrying once',
-        ),
+    // On failure the received list says what happened instead.
+    expect(logger.warn.mock.calls.map((c) => String(c[0]))).toContainEqual(
+      expect.stringContaining(
+        'deadlock on a 3-row package upsert, retrying once',
       ),
-    ).toBe(true);
+    );
     const rows = await packagesOf(projectId);
     expect(rows.map((r) => [r.packageName, r.lastScanId, r.path])).toEqual([
       ['a-pkg', 'scan-deadlock', ['scan']],
