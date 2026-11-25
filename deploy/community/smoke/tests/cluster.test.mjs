@@ -10,12 +10,18 @@ import { createHash } from 'node:crypto';
 import {
   CLUSTER_NAMESPACE,
   CLUSTER_SMOKE_LABEL,
+  ClusterError,
+  NO_SCAN_RUN_COMMIT,
+  SCANNER_MAX_CONCURRENT,
+  buildScannerImages,
   clusterAddresses,
   clusterEnvOverrides,
   enabledLogCount,
   enabledInstanceIds,
+  entrypointProgram,
   expectedFindings,
   fixtureEntries,
+  heldQueueVerdict,
   isDockerDesktop,
   kindVersionOk,
   instanceId,
@@ -32,6 +38,7 @@ import {
   leakedLines,
   missingClusterTools,
   pageListsFinding,
+  programLayerDockerfile,
   projectToggles,
   queueVerdict,
   roleManifest,
@@ -200,6 +207,90 @@ test('queueVerdict: never more than the limit running, and at least one scan see
   const none = queueVerdict([{ a: 'running', b: 'running' }], 2);
   assert.equal(none.ok, false);
   assert.match(none.reason, /queued/);
+});
+
+// The scans of the fixture end in a few seconds, and their archives are
+// released one at a time: left alone, two scans rarely overlap and none ever
+// waits. The runner holds the pods while the scans start, and goes on once
+// this verdict says the queue has formed.
+test('heldQueueVerdict: held once the limit is running and every other scan is queued', () => {
+  assert.deepEqual(heldQueueVerdict({ a: 'running', b: 'running', c: 'queued', d: 'queued', e: 'queued' }, 2), {
+    held: true,
+    running: 2,
+    queued: 3,
+  });
+  // An archive not processed yet: its scan has neither a slot nor a place in the queue.
+  assert.equal(heldQueueVerdict({ a: 'running', b: 'running', c: 'queued', d: 'waiting_for_file' }, 2).held, false);
+  assert.equal(heldQueueVerdict({ a: 'running', b: 'waiting_for_file', c: 'waiting_for_file' }, 2).held, false);
+  // Fewer scans than slots: all of them run, none waits.
+  assert.equal(heldQueueVerdict({ a: 'running' }, 2).held, true);
+});
+
+test('heldQueueVerdict refuses more scans running than the limit, and a scan that ended while no pod could start', () => {
+  const over = heldQueueVerdict({ a: 'running', b: 'running', c: 'running', d: 'queued' }, 2);
+  assert.equal(over.held, false);
+  assert.match(over.reason, /3 scans ran at once, the limit is 2/);
+  const ended = heldQueueVerdict({ a: 'running', b: 'failed', c: 'queued' }, 2);
+  assert.equal(ended.held, false);
+  assert.match(ended.reason, /b is failed/);
+});
+
+test('SCANNER_MAX_CONCURRENT is the limit of an instance that sets none', () => {
+  assert.equal(SCANNER_MAX_CONCURRENT, 2);
+  assert.ok(!('CYBEDEFEND_SCANNER_MAX_CONCURRENT' in clusterEnvOverrides({ tag: '0.0.0-smoke' })), 'the variant leaves the limit unset');
+});
+
+// The failure path's image is built from an older commit of the scanners
+// repository. A short id that the repository does not have used to unpack
+// nothing, and the build then failed on a missing folder.
+test('NO_SCAN_RUN_COMMIT is a full commit id', () => {
+  assert.match(NO_SCAN_RUN_COMMIT, /^[0-9a-f]{40}$/);
+});
+
+test('buildScannerImages refuses a commit the scanners repository does not have, before any build', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'cd-smoke-norepo-'));
+  try {
+    assert.equal(spawnSync('git', ['init', '-q', repo]).status, 0, 'git init');
+    assert.throws(
+      () => buildScannerImages({ repo, tag: '0.0.0-test', adapters: ['gitleaks'], commit: 'a'.repeat(40) }),
+      (err) => err instanceof ClusterError && err.message.includes(`has no commit ${'a'.repeat(40)}`) && /full clone/.test(err.message),
+    );
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// A commit from before the scan mode may ship the runner under another name
+// than the one the pods start: the container would then not start at all
+// (code 60) instead of the runner answering exit 4 (code 84).
+test('entrypointProgram reads the program an image starts from its Dockerfile', () => {
+  const dockerfile = [
+    'FROM golang:1 AS build',
+    'ENTRYPOINT ["/bin/builder"]',
+    'FROM scratch',
+    'COPY --from=build /out/runner /usr/local/bin/runner',
+    '  ENTRYPOINT ["/usr/local/bin/runner","run","gitleaks"]  ',
+    '',
+  ].join('\n');
+  assert.equal(entrypointProgram(dockerfile), '/usr/local/bin/runner');
+});
+
+test('entrypointProgram refuses a Dockerfile without an exec-form ENTRYPOINT, and a program that is not a plain absolute path', () => {
+  assert.throws(() => entrypointProgram('FROM scratch\nCMD ["/bin/x"]\n'), ClusterError);
+  assert.throws(() => entrypointProgram('FROM scratch\nENTRYPOINT /usr/local/bin/runner run\n'), ClusterError);
+  assert.throws(() => entrypointProgram('FROM scratch\nENTRYPOINT ["runner"]\n'), ClusterError);
+  assert.throws(() => entrypointProgram('FROM scratch\nENTRYPOINT ["/usr/local/bin/run ner\\nRUN x"]\n'), ClusterError);
+});
+
+test('programLayerDockerfile puts the program under the name the pods start, on top of the image', () => {
+  assert.equal(
+    programLayerDockerfile('ghcr.io/cybedefend/cybedefend-scanners/gitleaks:0.0.0-noscanrun', '/usr/local/bin/former', '/usr/local/bin/current'),
+    [
+      'FROM ghcr.io/cybedefend/cybedefend-scanners/gitleaks:0.0.0-noscanrun',
+      'COPY --from=ghcr.io/cybedefend/cybedefend-scanners/gitleaks:0.0.0-noscanrun /usr/local/bin/former /usr/local/bin/current',
+      '',
+    ].join('\n'),
+  );
 });
 
 const KC = () =>

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Run } from '../run.mjs';
+import { ClusterRun, Run } from '../run.mjs';
+import { expectedFindings } from '../cluster.mjs';
 
 // The runner builds its Run before Stack.writeEnv() picks the ports, so
 // an API base read in the constructor was "undefined/api" and the first HTTP
@@ -238,4 +239,56 @@ test('every variant restarts the stack before its last checks', async () => {
   const flow = source.slice(source.indexOf('async function runVariant('));
   assert.ok(flow.indexOf('run.restartStack(') > 0, 'runVariant restarts the stack');
   assert.ok(flow.indexOf('run.restartStack(') < flow.indexOf('await run.noRestart()'), 'before the restart count check');
+});
+
+// The cluster variant. The fixture's scans end in a few seconds and their
+// archives are released one at a time, so two scans rarely overlap and none
+// waits: the limit and the queue were then never exercised. The scans start
+// while the node takes no new pod, so the first two keep their slots however
+// short a scan is.
+const KINDS = expectedFindings().map((f) => f.project);
+
+function heldRun(stateOf, { failStart } = {}) {
+  const calls = [];
+  const cluster = { setSchedulable: (on) => calls.push(on ? 'node takes pods' : 'node takes no pod') };
+  const run = new ClusterRun({ publicUrl: 'http://localhost:12345' }, cluster, {});
+  run.startArchiveScan = async (kind) => {
+    calls.push(`start ${kind}`);
+    if (kind === failStart) throw new Error(`${kind}: the archive upload answered HTTP 500`);
+    return { kind, projectId: `project-${kind}`, scanId: kind };
+  };
+  run.scanState = async ({ scanId }) => ({ state: stateOf(scanId) });
+  return { run, calls };
+}
+
+test('ClusterRun.startScansHeld holds the pods before the first scan starts, and lets them go once the queue has formed', async () => {
+  const { run, calls } = heldRun((id) => (KINDS.indexOf(id) < 2 ? 'running' : 'queued'));
+  const samples = [];
+  const scans = await run.startScansHeld(samples);
+  assert.deepEqual(calls, ['node takes no pod', ...KINDS.map((k) => `start ${k}`), 'node takes pods']);
+  assert.deepEqual(
+    scans.map((s) => s.kind),
+    KINDS,
+  );
+  assert.deepEqual(samples, [{ sast: 'running', cicd: 'running', secret: 'queued', iac: 'queued', sca: 'queued' }]);
+});
+
+test('ClusterRun.startScansHeld lets the pods go when a scan cannot start', async () => {
+  const { run, calls } = heldRun(() => 'queued', { failStart: 'secret' });
+  await assert.rejects(async () => run.startScansHeld([]), /HTTP 500/);
+  assert.equal(calls.at(-1), 'node takes pods');
+});
+
+test('ClusterRun.startScansHeld fails, the pods let go, when more scans run than the limit', async () => {
+  const { run, calls } = heldRun((id) => (KINDS.indexOf(id) < 3 ? 'running' : 'queued'));
+  await assert.rejects(async () => run.startScansHeld([]), /3 scans ran at once, the limit is 2/);
+  assert.equal(calls.at(-1), 'node takes pods');
+});
+
+test('the cluster variant starts its scans held, and judges the queue on what it read meanwhile', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../run.mjs', import.meta.url), 'utf8');
+  const flow = source.slice(source.indexOf('  async scans() {'), source.indexOf('  async cleanup() {'));
+  assert.ok(flow.includes('await this.startScansHeld(samples)'), 'scans() starts the scans through startScansHeld');
+  assert.ok(flow.indexOf('await this.startScansHeld(samples)') < flow.indexOf('queueVerdict(samples,'), 'before the queue verdict, on the same samples');
 });

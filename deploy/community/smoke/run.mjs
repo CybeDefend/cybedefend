@@ -49,6 +49,7 @@ import {
   NO_SCAN_RUN_COMMIT,
   NO_SCAN_RUN_TAG,
   SCAN_ADAPTERS,
+  SCANNER_MAX_CONCURRENT,
   buildScannerImages,
   clusterEnvOverrides,
   enabledInstanceIds,
@@ -56,6 +57,7 @@ import {
   expectedFindings,
   fixtureEntries,
   hasImage,
+  heldQueueVerdict,
   instanceId,
   instanceLabelVerdict,
   isDockerDesktop,
@@ -85,6 +87,8 @@ const OPT_IN_VARIANTS = ['cluster'];
 export const JOBS = ['init-secrets', 'postgres-roles', 'storage-init', 'permify-schema'];
 const SUBNETS = { default: '172.30.241.0/24', smtp: '172.30.242.0/24', 'storage-late': '172.30.243.0/24', cluster: '172.30.244.0/24' };
 const CLUSTER_SCAN_TIMEOUT_MS = 15 * 60_000;
+/** For five archives, released one every few seconds, to reach their slot or the queue. */
+const CLUSTER_HOLD_TIMEOUT_MS = 180_000;
 const CLUSTER_CLEANUP_TIMEOUT_MS = 150_000;
 const SCAN_END_SETTLE_MS = 15_000;
 const KUBECONFIG_PATH = join(DEPLOY_DIR, 'cluster', 'kubeconfig');
@@ -933,14 +937,52 @@ export class ClusterRun extends Run {
     return res.body;
   }
 
+  /**
+   * Starts one scan per project while the node takes no new pod. An archive
+   * is released every few seconds and a scan of the fixture ends in less:
+   * left alone, two scans rarely overlap and none waits, so neither the limit
+   * nor the queue is exercised. A pod that cannot start keeps its scan's
+   * slot: the first scans hold the slots and the others must queue, however
+   * short a scan is. Returns the scans once that is read, the node taking
+   * pods again; every reading goes to `samples`.
+   */
+  async startScansHeld(samples) {
+    const scans = [];
+    const waiting = expectedFindings().length - SCANNER_MAX_CONCURRENT;
+    await this.step('the node takes no new pod while the scans start', async () => this.cluster.setSchedulable(false));
+    try {
+      await this.step('each project takes the fixture ZIP through the « Start scan » archive flow', async () => {
+        for (const { project } of expectedFindings()) scans.push(await this.startArchiveScan(project));
+      });
+      await this.step(`${SCANNER_MAX_CONCURRENT} scans hold the slots and the ${waiting} others wait queued`, async () => {
+        const deadline = Date.now() + CLUSTER_HOLD_TIMEOUT_MS;
+        for (;;) {
+          const sample = {};
+          for (const scan of scans) sample[scan.scanId] = (await this.scanState(scan)).state;
+          samples.push(sample);
+          const verdict = heldQueueVerdict(sample, SCANNER_MAX_CONCURRENT);
+          expect(!verdict.reason, verdict.reason);
+          if (verdict.held) return;
+          expect(
+            Date.now() < deadline,
+            `after ${CLUSTER_HOLD_TIMEOUT_MS / 1000} s, ${verdict.running} running and ${verdict.queued} queued of ${scans.length}: ${JSON.stringify(sample)}`,
+          );
+          await sleep(2000);
+        }
+      });
+    } catch (err) {
+      // The run has failed, and with --keep the cluster outlives it: leave a node that takes pods.
+      this.cluster.setSchedulable(true, { check: false });
+      throw err;
+    }
+    await this.step('the node takes pods again', async () => this.cluster.setSchedulable(true));
+    return scans;
+  }
+
   async scans() {
-    let scans;
     await this.step('five projects, one scanner type each', () => this.createProjects());
-    await this.step('each project takes the fixture ZIP through the « Start scan » archive flow', async () => {
-      scans = [];
-      for (const { project } of expectedFindings()) scans.push(await this.startArchiveScan(project));
-    });
     const samples = [];
+    const scans = await this.startScansHeld(samples);
     const left = new Map();
     const final = {};
     await this.step(`every scan completes within ${CLUSTER_SCAN_TIMEOUT_MS / 60_000} min of leaving the queue`, async () => {
@@ -987,8 +1029,8 @@ export class ClusterRun extends Run {
       const verdict = settledDispatchVerdict(Object.fromEntries(ids.map((id) => [name[id], counts[id]])));
       expect(verdict.ok, `scan-end dispatches per scan: ${verdict.wrong.join(', ')} (expected 1 each)`);
     });
-    await this.step('at most 2 scans ran at once, and the others passed through queued', async () => {
-      const verdict = queueVerdict(samples, 2);
+    await this.step(`at most ${SCANNER_MAX_CONCURRENT} scans ran at once, and the others passed through queued`, async () => {
+      const verdict = queueVerdict(samples, SCANNER_MAX_CONCURRENT);
       expect(verdict.ok, verdict.reason);
       console.log(`    · at most ${verdict.maxRunning} running; queued: ${verdict.queued.length} scan(s)`);
     });
@@ -1031,7 +1073,11 @@ export class ClusterRun extends Run {
     });
   }
 
-  /** An image without --scan-run: its runner exits 4 and the scan fails with code 84. */
+  /**
+   * An image without --scan-run, built from the scanners repository as it was
+   * before that mode (its runner under the name the pods start, see
+   * buildScannerImages): the runner exits 4 and the scan fails with code 84.
+   */
   async failurePath() {
     await this.step(`the image ${NO_SCAN_RUN_TAG} (no --scan-run) is in the cluster`, async () => {
       const image = scannerImage('gitleaks', NO_SCAN_RUN_TAG);

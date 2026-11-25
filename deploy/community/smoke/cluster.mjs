@@ -28,10 +28,15 @@ export const KIND_SUBNET = '172.30.250.0/24';
 export const SERVICE_ACCOUNT = 'cybedefend-scanner';
 export const SCAN_ADAPTERS = Object.freeze(['opengrep', 'zizmor', 'gitleaks', 'trivy-config', 'trivy-fs']);
 export const IMAGE_REGISTRY = 'ghcr.io/cybedefend';
+/** How many scans an instance runs at once when CYBEDEFEND_SCANNER_MAX_CONCURRENT is unset, as here. */
+export const SCANNER_MAX_CONCURRENT = 2;
 /** The tag of the failure path's image: built from the runner before --scan-run existed. */
 export const NO_SCAN_RUN_TAG = '0.0.0-noscanrun';
-/** The scanners repository's commit just before the --scan-run mode. */
-export const NO_SCAN_RUN_COMMIT = '83fef6f';
+/**
+ * The scanners repository's commit just before the --scan-run mode, by its
+ * full id: a short one is only unique in the clone it was read from.
+ */
+export const NO_SCAN_RUN_COMMIT = '0f6915ea8ce08766a178f566f210b9f4fae0217b';
 const README_NAMESPACE = 'cybedefend-scans';
 const NAMESPACE_RE = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
 
@@ -203,6 +208,24 @@ export function queueVerdict(samples, max) {
   if (maxRunning > max) return { ok: false, maxRunning, queued: [...queued], reason: `${maxRunning} scans ran at once, the limit is ${max}` };
   if (queued.size === 0) return { ok: false, maxRunning, queued: [], reason: 'no scan was seen queued' };
   return { ok: true, maxRunning, queued: [...queued] };
+}
+
+/**
+ * One snapshot of { scanId: state } read while the node takes no new pod, so
+ * that no scan can end. Held once `max` scans are running and every other one
+ * is queued (all of them running when there are fewer scans than slots). More
+ * than `max` running, or a scan in any other state than waiting for its file,
+ * queued or running, is a failure and carries a `reason`.
+ */
+export function heldQueueVerdict(sample, max) {
+  const states = Object.entries(sample);
+  const running = states.filter(([, s]) => s === 'running').length;
+  const queued = states.filter(([, s]) => s === 'queued').length;
+  if (running > max) return { held: false, running, queued, reason: `${running} scans ran at once, the limit is ${max}` };
+  const ended = states.find(([, s]) => !['waiting_for_file', 'queued', 'running'].includes(s));
+  if (ended) return { held: false, running, queued, reason: `scan ${ended[0]} is ${ended[1]} while no pod can start` };
+  const slots = Math.min(max, states.length);
+  return { held: running === slots && queued === states.length - slots, running, queued };
 }
 
 const KUBECONFIG_SECRET_KEYS = ['token', 'certificate-authority-data', 'client-certificate-data', 'client-key-data', 'password'];
@@ -533,6 +556,16 @@ export class KindCluster {
   }
 
   /**
+   * Whether the nodes take new pods (`kubectl cordon` / `uncordon`). While
+   * they do not, a pod created stays Pending and its scan keeps its slot.
+   * `check: false` never throws: for the way out of a run that has failed.
+   */
+  setSchedulable(schedulable, { check = true } = {}) {
+    const nodes = this.kubectl(['get', 'nodes', '-o', 'jsonpath={.items[*].metadata.name}'], { check }).stdout.split(/\s+/).filter(Boolean);
+    if (nodes.length > 0) this.kubectl([schedulable ? 'uncordon' : 'cordon', ...nodes], { check });
+  }
+
+  /**
    * Every managed pod and Secret left in the namespace. The cluster is fresh,
    * so all of them come from this run: the broad selector also catches one
    * the instance label is missing from.
@@ -572,17 +605,58 @@ export class KindCluster {
 }
 
 /**
+ * The program an image starts: the first word of the last exec-form
+ * ENTRYPOINT of its Dockerfile, a plain absolute path.
+ */
+export function entrypointProgram(dockerfile) {
+  const lines = [...String(dockerfile ?? '').matchAll(/^[ \t]*ENTRYPOINT[ \t]+(\[.*\])[ \t]*$/gm)];
+  let program;
+  try {
+    program = JSON.parse(lines.at(-1)?.[1] ?? 'null')?.[0];
+  } catch {
+    program = undefined;
+  }
+  if (typeof program !== 'string' || !/^\/[A-Za-z0-9._/-]+$/.test(program)) {
+    throw new ClusterError('the Dockerfile has no exec-form ENTRYPOINT that starts a program by its absolute path');
+  }
+  return program;
+}
+
+/** A Dockerfile that adds, on top of `image`, its program `from` under the name `to`. */
+export function programLayerDockerfile(image, from, to) {
+  return `FROM ${image}\nCOPY --from=${image} ${from} ${to}\n`;
+}
+
+/**
+ * Fails when `repo` has no such commit. `git archive` of an unknown commit,
+ * piped to `tar`, unpacks nothing without an error, and the build then fails
+ * on a missing folder.
+ */
+function requireCommit(repo, commit) {
+  const res = spawnSync('git', ['-C', repo, 'cat-file', '-e', `${commit}^{commit}`], { encoding: 'utf8' });
+  if (res.error) throw new ClusterError(`git could not be run: ${res.error.message}`);
+  if (res.status !== 0) {
+    throw new ClusterError(`${repo} has no commit ${commit}: --scanners-repo must be a full clone of the cybedefend-scanners repository`);
+  }
+}
+
+/**
  * Builds the five scanner images from the scanners repository with the
  * Dockerfiles `make images` builds, tagged with the name the pods pull and
  * labelled. `commit` builds from that commit (git archive into a temporary
- * folder) instead of the working tree: the failure path's image.
+ * folder) instead of the working tree: the failure path's image. A commit
+ * that ships the runner under another name than the working tree does gets
+ * it copied to today's name, the one the pods start: the runner of that
+ * commit then answers, where the container would not have started at all.
  */
 export function buildScannerImages({ repo, tag, adapters = SCAN_ADAPTERS, commit }) {
-  let context = resolve(repo);
+  const tree = resolve(repo);
+  let context = tree;
   let scratch;
   if (commit) {
+    requireCommit(tree, commit);
     scratch = mkdtempSync(join(tmpdir(), 'cd-smoke-scanners-'));
-    const tar = spawnSync('sh', ['-c', `git -C "$1" archive --format=tar "$2" | tar -x -C "$3"`, 'sh', context, commit, scratch], { encoding: 'utf8' });
+    const tar = spawnSync('sh', ['-c', `git -C "$1" archive --format=tar "$2" | tar -x -C "$3"`, 'sh', tree, commit, scratch], { encoding: 'utf8' });
     if (tar.status !== 0) throw new ClusterError(`git archive ${commit} failed: ${tar.stderr.trim().slice(-500)}`);
     context = scratch;
   }
@@ -590,7 +664,19 @@ export function buildScannerImages({ repo, tag, adapters = SCAN_ADAPTERS, commit
     const images = [];
     for (const adapter of adapters) {
       const image = scannerImage(adapter, tag);
-      run('docker', ['build', '-f', join(context, 'images', adapter, 'Dockerfile'), '--build-arg', `VERSION=${tag}`, '--label', CLUSTER_SMOKE_LABEL, '-t', image, context]);
+      const dockerfile = join('images', adapter, 'Dockerfile');
+      run('docker', ['build', '-f', join(context, dockerfile), '--build-arg', `VERSION=${tag}`, '--label', CLUSTER_SMOKE_LABEL, '-t', image, context]);
+      if (commit) {
+        const then = entrypointProgram(readFileSync(join(context, dockerfile), 'utf8'));
+        const now = entrypointProgram(readFileSync(join(tree, dockerfile), 'utf8'));
+        if (then !== now) {
+          const built = run('docker', ['image', 'inspect', '-f', '{{.Id}}', image]).stdout.trim();
+          run('docker', ['build', '--label', CLUSTER_SMOKE_LABEL, '-t', image, '-'], { input: programLayerDockerfile(image, then, now) });
+          // The first build lost its tag to the second: remove it where it is
+          // left on its own (refused where the second keeps it as its parent).
+          run('docker', ['image', 'rm', built], { check: false });
+        }
+      }
       images.push(image);
     }
     return images;
