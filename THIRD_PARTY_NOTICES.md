@@ -41,7 +41,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `@aws/lambda-invoke-store` | 0.3.0 | Apache-2.0 | copyright notice that is included in or attached to the work<br>copyright license to reproduce, prepare Derivative Works of,<br>(c) You must retain, in the Source form of any Derivative Works | [T4](#t4) | file-management |
 | `@babel/code-frame` | 7.29.7 | MIT | Copyright (c) 2014-present Sebastian McKenzie and other contributors | [T1](#t1) | dashboard |
 | `@babel/helper-validator-identifier` | 7.29.7 | MIT | Copyright (c) 2014-present Sebastian McKenzie and other contributors | [T1](#t1) | dashboard |
-| `@babel/runtime` | 7.29.14 | MIT | Copyright (c) 2014-present Sebastian McKenzie and other contributors | [T1](#t1) | dashboard |
+| `@babel/runtime` | 7.29.15 | MIT | Copyright (c) 2014-present Sebastian McKenzie and other contributors | [T1](#t1) | dashboard |
 | `@babel/runtime` | 7.29.7 | MIT | Copyright (c) 2014-present Sebastian McKenzie and other contributors | [T1](#t1) | dashboard |
 | `@borewit/text-codec` | 0.2.2 | MIT | Copyright © 2025 Borewit | [T5](#t5) | analysis-reporting, gateway, mcp, security-scanning |
 | `@borewit/text-codec` | 0.2.3 | MIT | Copyright © 2025 Borewit | [T5](#t5) | external-integrations, file-management, global-management, policy-management |
@@ -785,7 +785,7 @@ A package that ships a NOTICE file has it reproduced in section 2.
 | `http-errors` | 2.0.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com<br>Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com | [T5](#t5) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `https-proxy-agent` | 5.0.1 | MIT | (author) Nathan Rajlich |  | analysis-reporting, dashboard, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `https-proxy-agent` | 7.0.6 | MIT | Copyright (c) 2013 Nathan Rajlich &lt;nathan@tootallnate.net&gt; | [T18](#t18) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
-| `i18next` | 25.10.10 | MIT | Copyright (c) 2025 i18next | [T5](#t5) | dashboard |
+| `i18next` | 26.3.4 | MIT | Copyright (c) 2011-present i18next | [T5](#t5) | dashboard |
 | `iconv-lite` | 0.7.3 | MIT | Copyright (c) 2011 Alexander Shtuchkin | [T15](#t15) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `ieee754` | 1.2.1 | BSD-3-Clause | Copyright 2008 Fair Oaks Labs, Inc. | [T58](#t58) | analysis-reporting, external-integrations, file-management, gateway, global-management, mcp, policy-management, security-scanning |
 | `immer` | 11.1.4 | MIT | Copyright (c) 2017 Michel Weststrate | [T1](#t1) | dashboard |
