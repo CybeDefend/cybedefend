@@ -43,6 +43,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SCANNED, openCommand } from './os.mjs';
 import { insideRoot, readNote, realOr, remember, remembered, runGit, sha256, trustedRoot, TreeRefused, within } from './trust.mjs';
 import { writeReport, printPdf, shownUpgrade, fromFilesNote } from './report.mjs';
+import { runUsage, usageLine } from './usage.mjs';
 import { startWatch, updateWatch, readWatch, setTool, setStep, addFeed, setFindings, sayFinding, counterLine, openWatch, pageFile, toolLabel, toolArea, whyNot, replayTimeline, replayWatch, replayFile, replaySource, keepReplay } from './watch.mjs';
 
 export const IMPORT_TYPES = ['sast', 'iac', 'secret', 'cicd', 'sca', 'container'];
@@ -3952,6 +3953,15 @@ async function main(argv) {
       const fresh = probes.filter((p) => !p.stale);
       const staleProbes = probes.length - fresh.length;
       if (staleProbes) say(`  ! ${staleProbes} live request(s) are older than the last change to the code: not shown as current. "/cybedefend live" replays the findings on the code as it is now.`);
+      // What the run cost the coding agent, in tokens, from its harness's own session log; null when no reader knows the harness.
+      let runAt = null;
+      try {
+        runAt = JSON.parse(readFileSync(runFile, 'utf8')).at;
+      } catch {
+        /* no scan of this run on record */
+      }
+      const usage = runUsage({ since: readWatch(out)?.startedAt ?? runAt });
+      if (usage) say(`  tokens: ${usageLine(usage)}`);
       let reportFile = null;
       let pdfFile = null;
       try {
@@ -3961,7 +3971,7 @@ async function main(argv) {
         } catch {
           /* a repository without a commit yet */
         }
-        reportFile = writeReport({ root, out, merged, v, blocks, coverage, secrets: located.places, link, branch, commit, probes: fresh, staleProbes, fromFiles: assessments.fromFiles, mask: (t) => located.values.reduce((x, val) => x.split(val).join('REDACTED'), String(t ?? '')) });
+        reportFile = writeReport({ root, out, merged, v, blocks, coverage, secrets: located.places, link, branch, commit, probes: fresh, staleProbes, fromFiles: assessments.fromFiles, usage, mask: (t) => located.values.reduce((x, val) => x.split(val).join('REDACTED'), String(t ?? '')) });
         say(`  ✓ the audit as one page: ${reportFile}`);
         // The same page as a PDF, when a browser of the machine can print it without a window.
         pdfFile = flags.pdf === false ? null : printPdf(reportFile);
@@ -4058,6 +4068,8 @@ async function main(argv) {
         signin,
         // Verdicts this machine did not write: how many were applied (--accept-verdicts), and which files were left out.
         verdictsFromFiles: assessments.fromFiles.applied || assessments.fromFiles.held.length ? { applied: assessments.fromFiles.applied, notApplied: assessments.fromFiles.held.map((h) => ({ file: h.file, verdicts: h.verdicts })) } : undefined,
+        // The tokens of the run, read from the agent's session log up to this verdict: the report gives them as they are.
+        usage: usage ? { total: usage.total, said: usageLine(usage) } : undefined,
         files: { page: reportFile, pdf: pdfFile ?? undefined, triage: join(out, 'triage.md'), verdict: join(out, 'verdict.json'), sarif: join(out, 'cybedefend-full.sarif') },
         links: { project: link, compliance: `${link}/compliance` },
       };

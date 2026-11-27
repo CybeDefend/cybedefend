@@ -19,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FRAME, PALETTE, fonts } from './look.mjs';
 import { envValue, isWsl } from './os.mjs';
 import { insideRoot } from './trust.mjs';
+import { usageLine } from './usage.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'];
@@ -224,7 +225,7 @@ export function fromFilesNote({ applied = 0, held = [] } = {}) {
   return words.length ? words.join(' ') : null;
 }
 
-export function writeReport({ root, out, merged, v, blocks, coverage, secrets = [], link, branch, commit, probes = [], staleProbes = 0, fromFiles = null, mask = (t) => t, now = new Date() }) {
+export function writeReport({ root, out, merged, v, blocks, coverage, secrets = [], link, branch, commit, probes = [], staleProbes = 0, fromFiles = null, usage = null, mask = (t) => t, now = new Date() }) {
   const repo = basename(root);
   const s = merged.summary;
   const ship = v.verdict === 'SHIP';
@@ -445,7 +446,10 @@ export function writeReport({ root, out, merged, v, blocks, coverage, secrets = 
       '<li>The AI scanner is the coding agent of this session, following CybeDefend&rsquo;s method: it listed the entry points from the code, wrote what the code guarantees, and looked for what breaks it.</li>' +
       '<li>A flaw counts when a test in this repository shows it. What could not be proven is a lead, and cannot block.</li>' +
       (triage?.judged ? '<li>Every finding of the scanners was judged against the code: kept when the code runs where an attacker&rsquo;s input can arrive, set aside with its reason when it cannot be reached.</li>' : '') +
-      `<li>The verdict is the one of the team&rsquo;s policies in the CybeDefend dashboard${link ? `: <a href="${esc(link)}">${esc(link)}</a>` : ''}.</li></ul>`,
+      `<li>The verdict is the one of the team&rsquo;s policies in the CybeDefend dashboard${link ? `: <a href="${esc(link)}">${esc(link)}</a>` : ''}.</li>` +
+      // What the run cost the agent, as its harness logged it: said only when it could be read.
+      (usage ? `<li>What the coding agent spent on this audit: ${esc(usageLine(usage))}</li>` : '') +
+      '</ul>',
   );
 
   const html = `<!doctype html>
