@@ -1,1 +1,12 @@
-{"signedContributors":[]}
+{
+  "signedContributors": [
+    {
+      "name": "flovntp",
+      "id": 1842696,
+      "comment_id": 7217206160,
+      "created_at": "2026-11-27T11:33:13Z",
+      "repoId": 1468954515,
+      "pullRequestNo": 6
+    }
+  ]
+}
