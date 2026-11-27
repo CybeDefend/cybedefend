@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { claudeCode, eachLine, runUsage, shortCount, sumCalls, usageLine } from './usage.mjs';
+import { claudeCode, runUsage, shortCount, sumCalls, usageLine } from './usage.mjs';
+import { eachLine } from './usage-log.mjs';
 
 const ID = '5561bb8e-b9b0-4d40-9e7a-fac486109630';
 const at = (min) => new Date(Date.UTC(2026, 10, 27, 9, min)).toISOString();
